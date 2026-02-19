@@ -1,0 +1,49 @@
+on:
+  workflow_dispatch:
+  push:
+    branches: course
+
+name: Quarto Publish
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      
+      - name: Add typst for ceTZ diagrams
+        uses: typst-community/setup-typst@v4
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          tinytex: true
+          chromium: true
+
+      # - name: Add extension for CeTZ diagram rendering
+      #   run: |
+      #     cd en
+      #     quarto install extension pandoc-ext/diagram --no-prompt
+      #     cd ../fr
+      #     quarto install extension pandoc-ext/diagram --no-prompt
+      #     cd ..
+
+      - name: Render French project
+        uses: quarto-dev/quarto-actions/render@v2
+        with:
+          path: website/fr
+
+      - name: Render English project
+        uses: quarto-dev/quarto-actions/render@v2
+        with:
+          path: website/en
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: website/_site
+          publish_branch: gh-pages
