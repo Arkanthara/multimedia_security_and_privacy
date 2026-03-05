@@ -1,8 +1,8 @@
 on:
+  workflow_dispatch:
   push:
     branches:
       - course
-      - copilot/create-course-website-with-themes
 
 name: Quarto Publish
 
