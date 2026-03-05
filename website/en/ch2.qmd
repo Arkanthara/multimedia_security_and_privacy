@@ -1,0 +1,210 @@
+---
+title: "Chapter 2: Notations and Core Concepts"
+---
+
+## Overview
+
+This chapter introduces the mathematical framework used throughout the course. It covers image representations and quality metrics, the foundations of self-supervised learning for feature extraction, formal notations for watermarking and perceptual hashing, and the basics of signal detection theory.
+
+**Navigation:**
+
+- 📖 [Detailed chapter content (ch2c)](ch2c.qmd)
+- 📝 [Quick review sheet (ch2r)](ch2r.qmd)
+
+---
+
+## Chapter Synthesis {#synthesis}
+
+::: {.callout-note title="Essential Formulas — Chapter 2"}
+
+**Image representation:**
+$$\mathbf{x} \in \mathbb{R}^{H \times W \times C}, \quad x_{h,w,c} \in \{0, \ldots, 255\}$$
+
+**Quality metrics:**
+
+| Metric | Formula |
+|:-------|:--------|
+| MSE | $\text{MSE}(\mathbf{x}, \mathbf{y}) = \frac{1}{HWC}\|\mathbf{x} - \mathbf{y}\|_2^2$ |
+| PSNR | $\text{PSNR} = 10 \log_{10}\!\left(\frac{255^2}{\text{MSE}}\right)$ |
+| Cosine similarity | $\cos(\mathbf{u}, \mathbf{v}) = \frac{\mathbf{u} \cdot \mathbf{v}}{\|\mathbf{u}\|\|\mathbf{v}\|}$ |
+
+**Latent representation (SSL):**
+$$\mathbf{z}_x = f_\phi(\mathbf{x}), \quad \mathbf{z}_x \in \mathbb{R}^d$$
+
+**Watermarking:**
+$$\mathbf{y} = \omega(\mathbf{x}, k, m), \quad \hat{m} = g(\mathbf{v}, k)$$
+
+**Perceptual Hashing:**
+$$\mathbf{b}_x = h(\mathbf{x}, k), \quad \mathbf{b}_x \in \{0,1\}^L$$
+
+**Signal detection (AWGN):**
+$$\mathbf{v} = \mathbf{s} + \mathbf{n}, \quad \mathbf{n} \sim \mathcal{N}(\mathbf{0}, \sigma^2 \mathbf{I})$$
+:::
+
+---
+
+## Part 1 — Image Representations
+
+### Basic Notations
+
+A digital image is represented as a tensor:
+$$\mathbf{x} \in \mathbb{R}^{H \times W \times C}$$
+
+where $H$ is the height in pixels, $W$ the width, and $C$ the number of channels (1 for grayscale, 3 for RGB). Pixel values $x_{h,w,c}$ take integer values in $\{0, \ldots, 255\}$ for 8-bit quantization.
+
+### Image Structure
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Channel 1 (red, front)
+  rect((0.0, 0.0), (4.0, 4.0), fill: red.lighten(80%), stroke: red.darken(10%))
+  content((2.0, 2.0), [Channel $C=1$])
+  content((2.0, 0.5), [$H times W$])
+
+  // Channel 2 (green, offset)
+  rect((0.7, 4.4), (4.7, 8.4), fill: green.lighten(70%), stroke: green.darken(10%))
+  content((2.7, 6.4), [Channel $C=2$])
+
+  // Channel 3 (blue, offset)
+  rect((1.4, 4.8), (5.4, 8.8), fill: blue.lighten(70%), stroke: blue.darken(10%))
+  content((3.4, 6.8), [Channel $C=3$])
+
+  // Dimension annotations
+  line((5.6, 0.0), (5.6, 4.0), mark: (end: ">"), stroke: (paint: luma(30%)))
+  content((6.3, 2.0), [$H$])
+
+  line((0.0, -0.3), (4.0, -0.3), mark: (end: ">"), stroke: (paint: luma(30%)))
+  content((2.0, -0.7), [$W$])
+
+  line((1.4, 9.0), (5.4, 9.0), stroke: (paint: luma(30%), dash: "dashed"))
+  content((6.5, 4.8), [$C$])
+  line((5.4, 4.0), (5.4, 8.8), stroke: (paint: luma(30%), dash: "dashed"))
+})
+```
+
+### Perceptual Quality Metrics
+
+Image reconstruction quality is measured by:
+
+**MSE (Mean Squared Error):**
+$$\text{MSE}(\mathbf{x}, \mathbf{y}) = \frac{1}{HWC} \sum_{h,w,c} (x_{h,w,c} - y_{h,w,c})^2 = \frac{1}{HWC} \|\mathbf{x} - \mathbf{y}\|_2^2$$
+
+**PSNR (Peak Signal-to-Noise Ratio):**
+$$\text{PSNR}(\mathbf{x}, \mathbf{y}) = 10 \log_{10}\!\left(\frac{255^2}{\text{MSE}(\mathbf{x}, \mathbf{y})}\right) \quad [\text{dB}]$$
+
+A PSNR $> 40\,\text{dB}$ is generally considered imperceptible to the human eye.
+
+**Cosine similarity:**
+$$\text{cos}(\mathbf{u}, \mathbf{v}) = \frac{\mathbf{u} \cdot \mathbf{v}}{\|\mathbf{u}\|_2 \|\mathbf{v}\|_2} \in [-1, 1]$$
+
+Used to compare latent representations rather than raw pixels.
+
+---
+
+## Part 2 — Self-Supervised Learning (SSL)
+
+### Latent Representations
+
+A deep encoder $f_\phi : \mathbb{R}^{H \times W \times C} \to \mathbb{R}^d$ extracts a compact representation:
+$$\mathbf{z}_x = f_\phi(\mathbf{x})$$
+
+The dimension $d \ll HWC$ captures the essential semantic features.
+
+### SSL Pipeline
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Input image
+  rect((0.0, 2.5), (1.8, 4.5), fill: luma(85%), stroke: luma(40%))
+  content((0.9, 3.5), [*Image*])
+  content((0.9, 3.0), [$bold(upright(x))$])
+
+  // Arrow to encoder
+  line((1.8, 3.5), (3.2, 3.5), mark: (end: ">"))
+
+  // DNN Encoder
+  rect((3.2, 2.5), (6.0, 4.5), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((4.6, 4.0), [*DNN Encoder*])
+  content((4.6, 3.5), [$f_phi$])
+  content((4.6, 3.0), [(ResNet / ViT)])
+
+  // Arrow to latent
+  line((6.0, 3.5), (7.5, 3.5), mark: (end: ">"))
+
+  // Latent space
+  rect((7.5, 2.5), (10.0, 4.5), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((8.75, 4.0), [*Latent*])
+  content((8.75, 3.5), [*Representation*])
+  content((8.75, 3.0), [$bold(upright(z))_x in bb(R)^d$])
+
+  // Parameters phi
+  content((4.6, 1.8), [Parameters $phi$])
+  line((4.6, 2.0), (4.6, 2.5), mark: (end: ">"), stroke: (paint: blue.darken(20%)))
+})
+```
+
+### Contrastive Learning
+
+**SimCLR** (and variants) learns to make similar the representations of two augmentations of the same image:
+
+$$\mathcal{L}_\text{contrastive} = -\log \frac{\exp(\text{cos}(\mathbf{z}_x, \mathbf{z}_{x^+})/\tau)}{\sum_{j} \exp(\text{cos}(\mathbf{z}_x, \mathbf{z}_j)/\tau)}$$
+
+where $x^+$ is a positive view (augmentation of $x$) and $\tau$ is a temperature parameter.
+
+---
+
+## Part 3 — Watermarking and Perceptual Hashing
+
+### Watermarking Notations
+
+The complete pipeline is formalized as:
+
+$$\mathbf{y} = \omega(\mathbf{x},\, k,\, m), \qquad \hat{m} = g(\mathbf{v},\, k)$$
+
+- $\mathbf{x} \in \mathbb{R}^{H \times W \times C}$: original image
+- $k$: secret key
+- $m \in \{0,1\}^M$: message to embed ($M$ bits)
+- $\mathbf{y}$: watermarked image
+- $\mathbf{v} = \mathcal{A}(\mathbf{y})$: received image after attacks
+- $\hat{m}$: extracted message
+
+### Detection Score (zero-bit)
+
+$$S(\mathbf{v}) = \frac{1}{M} \mathbf{v} \cdot \mathbf{w} = \frac{1}{M} \sum_{i=1}^{M} v_i w_i$$
+
+where $\mathbf{w}$ is the reference vector generated from key $k$.
+
+### Perceptual Hashing Notations
+
+$$\mathbf{b}_x = h(\mathbf{x},\, k), \quad \mathbf{b}_x \in \{0,1\}^L$$
+
+The **Hamming distance** between two fingerprints measures their similarity:
+$$d_H(\mathbf{b}_x, \mathbf{b}_y) = \sum_{i=1}^{L} \mathbf{1}[b_{x,i} \neq b_{y,i}]$$
+
+---
+
+## Part 4 — Signal Detection Theory
+
+### AWGN Model
+
+The simplest channel model is the additive Gaussian channel:
+$$\mathbf{v} = \mathbf{s} + \mathbf{n}, \quad \mathbf{n} \sim \mathcal{N}(\mathbf{0}, \sigma^2 \mathbf{I})$$
+
+### Hypothesis Testing
+
+- $H_0$: $\mathbf{v} \sim \mathcal{N}(\mathbf{0}, \sigma^2 \mathbf{I})$ — no watermark
+- $H_1$: $\mathbf{v} \sim \mathcal{N}(\mathbf{s}, \sigma^2 \mathbf{I})$ — watermark present
+
+### Neyman-Pearson Criterion
+
+The optimal NP test is a log-likelihood ratio threshold:
+$$\Lambda(\mathbf{v}) = \log \frac{p(\mathbf{v} \mid H_1)}{p(\mathbf{v} \mid H_0)} \underset{H_0}{\overset{H_1}{\gtrless}} \eta$$
+
+For the AWGN model, this test reduces to:
+$$\mathbf{v} \cdot \mathbf{s} \underset{H_0}{\overset{H_1}{\gtrless}} \eta'$$
+
+Performance is characterized by the **ROC curve**: $P_D = f(P_{FA})$.

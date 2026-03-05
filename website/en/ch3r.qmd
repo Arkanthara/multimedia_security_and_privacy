@@ -1,0 +1,107 @@
+---
+title: "Synthesis — Chapter 3"
+format:
+  html:
+    toc-depth: 2
+---
+
+::: {.callout-important title="📚 Quick Review Sheet — Chapter 3"}
+This sheet summarizes the essential concepts from Chapter 3: additive embedding model, zero-bit and L-bit hypothesis testing, quality metrics, embedding domains, geometric synchronization, QIM, and watermarking system security.
+
+**Navigation:** [Overview →](ch3.qmd) | [Detailed content →](ch3c.qmd)
+:::
+
+---
+
+## Key Formulas
+
+| Concept | Formula | Description |
+|:--------|:--------|:------------|
+| Additive embedding | $\mathbf{y} = \mathbf{x} + \varepsilon\mathbf{w}$ | Watermarked image |
+| Watermark generation | $\mathbf{w} = \text{Gen}(k)$ | Pseudo-random sequence |
+| Detection score | $S(\mathbf{v}) = \frac{1}{M}\mathbf{v}\cdot\mathbf{w}$ | Test statistic |
+| Distortion | $D_{xy} = \frac{1}{M}\|\mathbf{x}-\mathbf{y}\|^2$ | MSE |
+| PSNR | $\text{PSNR} = 10\log_{10}\!\left(\frac{255^2}{D_{xy}}\right)$ | Quality [dB] |
+| False alarm | $P_{FA} = P(H_1\mid H_0)$ | Type I error |
+| Miss | $P_\text{miss} = P(H_0\mid H_1)$ | Type II error |
+| Power | $P_D = 1 - P_\text{miss}$ | Detection rate |
+| QIM | $y_i = Q_m(x_i)$ | Modulated quantization |
+| DC-QIM | $y_i = Q(x_i + d_i(m,k)) - d_i(m,k)$ | With dithering |
+
+---
+
+## Watermark Types
+
+| Type | Objective | Formulation | Application |
+|:-----|:---------|:-----------|:------------|
+| Zero-bit | Binary detection | $H_0$ vs $H_1$, threshold $\tau$ | Copyright, authentication |
+| L-bit | Message decoding | $\hat{m} = g(\mathbf{v},k)$, $m\in\{0,1\}^L$ | Broadcast monitoring, fingerprinting |
+| Fragile | Integrity | Sensitive to all modifications | Tamper detection |
+| Semi-fragile | Integrity + normal robustness | Resists legitimate processing | Content authentication |
+
+---
+
+## Embedding Domains
+
+| Domain | Robustness | Imperceptibility | Capacity | Example usage |
+|:-------|:---------|:----------------|:---------|:-------------|
+| Pixel | Low | Good | High | Steganography |
+| DCT | Good | Good | Medium | JPEG copyright |
+| DWT | Very good | Very good | Medium | Broadcast monitoring |
+| Deep features | Excellent | Excellent | Variable | Modern systems |
+
+---
+
+## Simplified Pipeline
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // x
+  content((0.0, 3.0), [$bold(upright(x))$])
+  line((0.5, 3.0), (1.5, 3.0), mark: (end: ">"))
+
+  // Embedder
+  rect((1.5, 2.3), (4.0, 3.7), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((2.75, 3.0), [*Embedder*])
+
+  // m and k
+  content((2.75, 4.4), [$m, k$])
+  line((2.75, 4.1), (2.75, 3.7), mark: (end: ">"))
+
+  // y
+  line((4.0, 3.0), (5.5, 3.0), mark: (end: ">"))
+  content((4.75, 3.3), [$bold(upright(y))$])
+
+  // Channel
+  rect((5.5, 2.3), (7.5, 3.7), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((6.5, 3.0), [*Channel* $cal(A)$])
+
+  // v
+  line((7.5, 3.0), (9.0, 3.0), mark: (end: ">"))
+  content((8.25, 3.3), [$bold(upright(v))$])
+
+  // Detector
+  rect((9.0, 2.3), (11.5, 3.7), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((10.25, 3.0), [*Detector*])
+
+  // k right side
+  content((10.25, 4.4), [$k$])
+  line((10.25, 4.1), (10.25, 3.7), mark: (end: ">"))
+
+  // m̂
+  line((11.5, 3.0), (12.2, 3.0), mark: (end: ">"))
+  content((12.5, 3.0), [$hat(m)$])
+})
+```
+
+---
+
+## Key Points
+
+- $\varepsilon^2 = D_{xy}$: embedding strength is the square root of MSE distortion.
+- Score $S(\mathbf{v}) = \frac{1}{M}\mathbf{v}\cdot\mathbf{w}$ converges to $\varepsilon$ under $H_1$ and to $0$ under $H_0$.
+- For PSNR = 40 dB: $\varepsilon = 255 \cdot 10^{-2} \approx 2.5$ gray levels.
+- Robustness grows as $\sqrt{M}$: high-resolution images are intrinsically easier to robustly watermark.
+- Deep methods (HiDDeN, TrustMark, StegaStamp) improve the global trade-off via end-to-end optimization.

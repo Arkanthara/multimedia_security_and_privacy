@@ -1,0 +1,260 @@
+---
+title: "Chapter 4: Privacy-Preserving Methods — Detailed Content"
+---
+
+*Course by S. Voloshynovskiy — University of Geneva*
+
+---
+
+# Part 1: Introduction — Privacy and Biometrics
+
+## Biometrics and Privacy
+
+Biometric authentication systems exploit physical or behavioral characteristics unique to each individual. The most common modalities are:
+
+- **Face:** very widespread, non-intrusive acquisition, but sensitive to lighting, aging, accessories.
+- **Fingerprint:** technologically mature, good accuracy, but can be copied via latent print.
+- **Iris:** highly discriminant (~200 degrees of freedom), stable over time, but delicate acquisition.
+- **Voice:** behavioral biometric, convenient for telephone authentication, but varies with health.
+
+The authentication process takes place in two phases:
+
+1. **Enrollment:** the user provides their biometric sample $\mathbf{x}$, from which a template $\mathbf{b}_x$ is computed and stored in the database.
+2. **Verification:** the user provides a new sample $\mathbf{y}$, and the system decides whether $\mathbf{y}$ comes from the same person as $\mathbf{b}_x$.
+
+**The fundamental problem** is that the biometric template contains sensitive private information, and its compromise is **permanent**: unlike a password, one cannot "revoke" their iris or fingerprint.
+
+## Main Threats
+
+Biometric systems face several specific threats:
+
+- **Identity theft (impersonation):** an adversary presents a forged sample (video deepfake, silicone fingerprint) to be authenticated in place of the victim.
+- **Template theft:** an adversary accesses the database and retrieves stored templates, enabling replay attacks.
+- **Cross-database matching:** if the same raw biometric template is used in multiple databases (bank, hospital, company), simultaneous compromise allows linking identities.
+- **Sensitive attribute inference (soft biometrics):** from a biometric template, an adversary can infer age, gender, ethnicity, health — information protected by GDPR.
+
+---
+
+**Diagram 1: Threats on the biometric database**
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Sensor
+  rect((0.0, 3.0), (2.0, 4.5), fill: luma(85%), stroke: luma(40%))
+  content((1.0, 4.0), [*Sensor*])
+  content((1.0, 3.5), [biometric])
+
+  // Arrow to processing
+  line((2.0, 3.75), (3.5, 3.75), mark: (end: ">"))
+
+  // Feature extraction
+  rect((3.5, 3.0), (6.0, 4.5), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((4.75, 4.0), [*Feature*])
+  content((4.75, 3.5), [*Extraction*])
+
+  // Arrow to database
+  line((6.0, 3.75), (7.5, 3.75), mark: (end: ">"))
+
+  // Database
+  rect((7.5, 2.5), (10.5, 5.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((9.0, 4.25), [*Database*])
+  content((9.0, 3.75), [Templates])
+  content((9.0, 3.25), [$bold(upright(b))_x in {0,1}^L$])
+
+  // Threat: template theft
+  line((9.0, 2.5), (9.0, 1.5), mark: (end: ">"), stroke: (paint: red))
+  rect((7.5, 0.5), (10.5, 1.5), fill: red.lighten(70%), stroke: red.darken(20%))
+  content((9.0, 1.0), [*Theft / Breach*])
+
+  // Threat: cross-database
+  line((10.5, 3.75), (12.0, 3.75), mark: (end: ">"), stroke: (paint: red))
+  rect((12.0, 3.0), (14.0, 4.5), fill: red.lighten(70%), stroke: red.darken(20%))
+  content((13.0, 4.0), [*Cross-DB*])
+  content((13.0, 3.5), [matching])
+})
+```
+
+---
+
+# Part 2: Cryptographic Approach
+
+## One-Way Hashing
+
+Classical cryptographic hashing (SHA-256, MD5) maps any input to a fixed-length digest:
+
+$$\mathbf{b}_x = h(\mathbf{x}) \in \{0,1\}^L$$
+
+**Desirable properties:**
+- **Pre-image resistance:** impossible to find $\mathbf{x}$ from $h(\mathbf{x})$
+- **Collision resistance:** infeasible to find $\mathbf{x} \neq \mathbf{x}'$ with $h(\mathbf{x}) = h(\mathbf{x}')$
+- **Avalanche effect:** small change in $\mathbf{x}$ → completely different $h(\mathbf{x})$
+
+## Why It Fails for Biometrics
+
+The avalanche effect is precisely the problem: biometric measurements of the same person vary between sessions (lighting, pose, sensor). Therefore:
+
+$$h(\mathbf{x}) \neq h(\mathbf{y}) \quad \text{even if} \quad \|\mathbf{x} - \mathbf{y}\|^2 \leq \varepsilon_\text{intra}$$
+
+This makes direct cryptographic hashing **incompatible** with biometric verification.
+
+---
+
+# Part 3: Signal Processing Approach
+
+## Direct Similarity Comparison
+
+The signal processing approach stores the template $\mathbf{x}^{(m)}$ (possibly transformed but invertible) and compares it with the query $\mathbf{y}$ via a score:
+
+$$T\!\left(\mathbf{y}, \mathbf{x}^{(m)}\right) = \frac{1}{N}\mathbf{y}\cdot\mathbf{x}^{(m)}$$
+
+Decision rule (Neyman-Pearson):
+$$T \underset{H_1}{\overset{H_0}{\gtrless}} \tau$$
+
+- $H_0$: same person (intra-class) → $\mathbb{E}[T] = \|\mathbf{x}^{(m)}\|^2/N \approx 1$ (normalized templates)
+- $H_1$: different person (inter-class) → $\mathbb{E}[T] \approx 0$
+
+**Advantage:** robust to intra-class noise.
+
+**Critical weakness:** from multiple sessions $\mathbf{y}_1, \ldots, \mathbf{y}_K$ and access to $T(\cdot, \mathbf{x}^{(m)})$, one can reconstruct $\mathbf{x}^{(m)}$ via gradient ascent.
+
+---
+
+# Part 4: Hybrid Approach — Robust Hashing
+
+## Principle
+
+Robust hashing combines the advantages of the two previous approaches:
+
+$$\mathbf{b}_x = \text{sign}(\mathbf{P}\mathbf{x}), \quad \mathbf{P} \in \{-1,+1\}^{L\times N}, \quad \mathbf{P} = f(k)$$
+
+where $\mathbf{P}$ is a random projection matrix generated from secret key $k$.
+
+**Diagram 2: Three protection approaches compared**
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Column 1: Cryptographic
+  content((1.75, 6.5), [*Cryptographic*])
+  rect((0.5, 5.5), (3.0, 6.3), fill: luma(85%), stroke: luma(40%))
+  content((1.75, 5.9), [$bold(upright(x))$])
+  line((1.75, 5.5), (1.75, 4.7), mark: (end: ">"))
+  rect((0.5, 3.8), (3.0, 4.7), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((1.75, 4.25), [*Hash h(·)*])
+  line((1.75, 3.8), (1.75, 3.0), mark: (end: ">"))
+  rect((0.5, 2.2), (3.0, 3.0), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((1.75, 2.6), [$b_x in {0,1}^L$])
+  content((1.75, 1.2), [✗ noise sensitive])
+
+  // Column 2: Signal processing
+  content((6.5, 6.5), [*Signal Processing*])
+  rect((4.8, 5.5), (8.2, 6.3), fill: luma(85%), stroke: luma(40%))
+  content((6.5, 5.9), [$bold(upright(x)), bold(upright(y))$])
+  line((6.5, 5.5), (6.5, 4.7), mark: (end: ">"))
+  rect((4.8, 3.8), (8.2, 4.7), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((6.5, 4.25), [$T(bold(upright(y)), bold(upright(x))^((m)))$])
+  line((6.5, 3.8), (6.5, 3.0), mark: (end: ">"))
+  rect((4.8, 2.2), (8.2, 3.0), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((6.5, 2.6), [Decision $H_0 / H_1$])
+  content((6.5, 1.2), [✓ robust, ✗ invertible])
+
+  // Column 3: Robust hashing
+  content((11.25, 6.5), [*Robust Hashing*])
+  rect((9.5, 5.5), (13.0, 6.3), fill: luma(85%), stroke: luma(40%))
+  content((11.25, 5.9), [$bold(upright(x))$])
+  line((11.25, 5.5), (11.25, 4.7), mark: (end: ">"))
+  rect((9.5, 3.8), (13.0, 4.7), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((11.25, 4.25), [*Proj. + sign(·)*])
+  line((11.25, 3.8), (11.25, 3.0), mark: (end: ">"))
+  rect((9.5, 2.2), (13.0, 3.0), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((11.25, 2.6), [$b_x in {0,1}^L$, key $k$])
+  content((11.25, 1.2), [✓ robust, ✓ revocable])
+})
+```
+
+## BSC Channel Model
+
+Under $H_0$ (same person, $\mathbf{y} \approx \mathbf{x}$ with intra-class noise):
+
+$$P(\hat{b}_i \neq b_i) = P_b \approx \frac{1}{\pi}\arccos\!\left(\frac{\mathbf{x}\cdot\mathbf{y}}{\|\mathbf{x}\|\|\mathbf{y}\|}\right)$$
+
+For intra-class: $P_b \approx 0.05$–$0.15$.
+For inter-class (different persons): $P_b \approx 0.5$.
+
+The Hamming distance follows:
+$$d_H(\mathbf{b}_x, \mathbf{b}_y) \sim \mathcal{B}(L, P_b)$$
+
+---
+
+# Part 5: Fuzzy Commitment
+
+## Principle
+
+Fuzzy commitment (Juels & Wattenberg, 1999) combines an error-correcting code (ECC) with biometric hashing:
+
+**Enrollment:**
+$$c = \mathbf{b}_x \oplus \text{ECC}(m)$$
+
+Store $c$ (public) and $\text{hash}(m)$ (for verification).
+
+**Verification:**
+$$e' = \mathbf{b}_y \oplus c = \mathbf{b}_y \oplus \mathbf{b}_x \oplus \text{ECC}(m)$$
+
+If $d_H(\mathbf{b}_x, \mathbf{b}_y) \leq t$ (ECC correction capability), decode $m' = \text{ECC}^{-1}(e')$ and verify $\text{hash}(m') = \text{hash}(m)$.
+
+**Diagram 3: Fuzzy commitment scheme**
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Enrollment phase
+  content((3.5, 7.5), [*Enrollment*])
+
+  rect((0.5, 6.0), (2.5, 7.0), fill: luma(85%), stroke: luma(40%))
+  content((1.5, 6.5), [$bold(upright(b))_x$])
+
+  rect((3.5, 6.0), (5.5, 7.0), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((4.5, 6.5), [ECC$(m)$])
+
+  line((2.5, 6.5), (3.5, 6.5), mark: (end: ">"))
+  content((3.0, 6.8), [$oplus$])
+
+  line((5.5, 6.5), (6.5, 6.5), mark: (end: ">"))
+  rect((6.5, 6.0), (8.5, 7.0), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((7.5, 6.5), [$c$ (stored)])
+
+  // Verification phase
+  content((3.5, 4.5), [*Verification*])
+
+  rect((0.5, 3.0), (2.5, 4.0), fill: luma(75%), stroke: luma(40%))
+  content((1.5, 3.5), [$bold(upright(b))_y$])
+
+  line((2.5, 3.5), (3.5, 3.5), mark: (end: ">"))
+  content((3.0, 3.8), [$oplus$])
+
+  rect((3.5, 3.0), (5.5, 4.0), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((4.5, 3.5), [$c$ (retrieved)])
+
+  line((5.5, 3.5), (6.5, 3.5), mark: (end: ">"))
+  rect((6.5, 3.0), (8.5, 4.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((7.5, 3.5), [ECC decode])
+
+  line((8.5, 3.5), (9.5, 3.5), mark: (end: ">"))
+  rect((9.5, 3.0), (11.5, 4.0), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((10.5, 3.5), [Verify $m'$])
+
+  line((10.5, 3.0), (10.5, 2.2), mark: (end: ">"))
+  rect((9.0, 1.3), (12.0, 2.2), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((10.5, 1.75), [$H_0$ or $H_1$])
+})
+```
+
+## Security Properties
+
+- $c$ is stored in public but reveals nothing about $\mathbf{b}_x$ without knowing $m$.
+- Security relies on the difficulty of decoding without the correct biometric query.
+- ECC capacity must satisfy: correction capability $t \geq L \cdot P_b$.

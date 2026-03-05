@@ -1,0 +1,151 @@
+---
+title: "Synthèse — Chapitre 2"
+format:
+  html:
+    toc-depth: 2
+---
+
+::: {.callout-important title="📚 Fiche de révision rapide — Chapitre 2"}
+Cette fiche condense les notions essentielles du Chapitre 2. Elle couvre les représentations d'images, l'apprentissage auto-supervisé, les notations formelles du watermarking et du hachage, et la théorie de la détection.
+
+**Navigation :** [Vue d'ensemble →](ch2.qmd) | [Contenu détaillé →](ch2c.qmd)
+:::
+
+---
+
+## Formules clés
+
+| Concept | Formule | Unités / Remarques |
+|:--------|:--------|:-------------------|
+| Image | $\mathbf{x} \in \mathbb{R}^{H \times W \times C}$ | $x_{h,w,c} \in \{0,\ldots,255\}$ pour 8 bits |
+| MSE | $\frac{1}{N}\|\mathbf{x}-\mathbf{y}\|_2^2$ | $N = HWC$ |
+| PSNR | $10\log_{10}\!\left(\frac{255^2}{\text{MSE}}\right)$ | En dB ; $>40\,\text{dB}$ ≈ imperceptible |
+| Cosinus | $\frac{\mathbf{u}\cdot\mathbf{v}}{\|\mathbf{u}\|\|\mathbf{v}\|}$ | $\in[-1,1]$ |
+| Représentation SSL | $\mathbf{z}_x = f_\phi(\mathbf{x}) \in \mathbb{R}^d$ | $d \ll N$ |
+| DFT | $X_k = \sum_{n=0}^{N-1} x_n e^{-j2\pi kn/N}$ | — |
+| DCT-II | $X_k = \sum_{n=0}^{N-1} x_n \cos\!\left[\frac{\pi(2n+1)k}{2N}\right]$ | Base JPEG : blocs 8×8 |
+| Watermarking | $\mathbf{y} = \omega(\mathbf{x},k,m)$, $\hat{m}=g(\mathbf{v},k)$ | — |
+| Score détection | $S(\mathbf{v}) = \frac{1}{M}\mathbf{v}\cdot\mathbf{w}$ | Statistique de test |
+| Canal AWGN | $\mathbf{v} = \mathbf{s} + \mathbf{n}$, $\mathbf{n}\sim\mathcal{N}(\mathbf{0},\sigma^2\mathbf{I})$ | — |
+| $P_{FA}$ | $Q\!\left(\frac{\eta}{\sigma\|\mathbf{s}\|}\right)$ | Fausse alarme |
+| $P_D$ | $Q\!\left(\frac{\eta-\|\mathbf{s}\|^2}{\sigma\|\mathbf{s}\|}\right)$ | Puissance de détection |
+| Distance de Hamming | $d_H(\mathbf{b}_x,\mathbf{b}_y) = \|\mathbf{b}_x\oplus\mathbf{b}_y\|_1$ | Pour hachage perceptuel |
+
+---
+
+## Partie 1 — Représentations d'images
+
+**Image :** $\mathbf{x} \in \mathbb{R}^{H \times W \times C}$, pixels $\in \{0,\ldots,255\}$ (8 bits)
+
+**Métriques :**
+
+- MSE : erreur quadratique moyenne pixel à pixel
+- PSNR $> 40\,\text{dB}$ : modification imperceptible
+- Cosinus : compare des vecteurs de représentation (pas des pixels)
+
+**Transformées :**
+
+| Transformée | Domaine | Usage principal |
+|:------------|:--------|:----------------|
+| DCT (8×8) | Fréquences | Compression JPEG, watermarking fréquentiel |
+| DFT | Fréquences complexes | Filtrage, analyse spectrale |
+| DWT | Temps-fréquence | Compression multi-résolution, watermarking |
+| PCA | Variance maximale | Réduction de dimension |
+
+---
+
+## Partie 2 — Self-Supervised Learning
+
+**Représentation latente :** $\mathbf{z}_x = f_\phi(\mathbf{x}) \in \mathbb{R}^d$
+
+**Apprentissage contrastif :**
+
+- Ancre $\mathbf{x}$ + Positive $\mathbf{x}^+$ (même image, augmentations différentes) → rapprocher
+- Négatives $\mathbf{x}^-$ (autres images du batch) → éloigner
+- Température $\tau$ contrôle la sélectivité
+
+**Perte NT-Xent :**
+$$\mathcal{L} = -\log \frac{\exp(\text{sim}(\mathbf{z}_x,\mathbf{z}_{x^+})/\tau)}{\sum_j \exp(\text{sim}(\mathbf{z}_x,\mathbf{z}_j)/\tau)}$$
+
+---
+
+## Partie 3 — Watermarking et Hachage
+
+### Watermarking
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // x
+  content((0.0, 3.0), [$bold(upright(x))$])
+  line((0.5, 3.0), (1.5, 3.0), mark: (end: ">"))
+
+  // Embedder
+  rect((1.5, 2.3), (4.0, 3.7), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((2.75, 3.0), [*Embedder* $omega$])
+
+  // m et k
+  content((2.75, 4.4), [$m, k$])
+  line((2.75, 4.1), (2.75, 3.7), mark: (end: ">"))
+
+  // y
+  line((4.0, 3.0), (5.5, 3.0), mark: (end: ">"))
+  content((4.75, 3.3), [$bold(upright(y))$])
+
+  // Canal
+  rect((5.5, 2.3), (7.5, 3.7), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((6.5, 3.0), [*Canal* $cal(A)$])
+
+  // v
+  line((7.5, 3.0), (9.0, 3.0), mark: (end: ">"))
+  content((8.25, 3.3), [$bold(upright(v))$])
+
+  // Extractor
+  rect((9.0, 2.3), (11.5, 3.7), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((10.25, 3.0), [*Extracteur* $g$])
+
+  // k côté droit
+  content((10.25, 4.4), [$k$])
+  line((10.25, 4.1), (10.25, 3.7), mark: (end: ">"))
+
+  // m̂
+  line((11.5, 3.0), (12.2, 3.0), mark: (end: ">"))
+  content((12.5, 3.0), [$hat(m)$])
+})
+```
+
+**Symboles :**
+
+- $\mathbf{x}$ : image originale, $\mathbf{y}$ : image tatouée, $\mathbf{v}$ : image reçue
+- $k$ : clé secrète, $m$ : message, $\hat{m}$ : message extrait
+- $S(\mathbf{v}) = \frac{1}{M}\mathbf{v}\cdot\mathbf{w}$ : score de détection (zero-bit)
+
+### Hachage perceptuel
+
+- $\mathbf{b}_x = h(\mathbf{x}, k) \in \{0,1\}^L$
+- Canal BSC : $P(\hat{b}_i \neq b_i) = P_b$
+- Décision de similarité : $d_H(\mathbf{b}_x, \mathbf{b}_y) \leq \tau_H$
+
+---
+
+## Partie 4 — Détection de signaux
+
+**Test d'hypothèses :**
+
+| Hypothèse | Modèle | Signification |
+|:----------|:-------|:-------------|
+| $H_0$ | $\mathbf{v} \sim \mathcal{N}(\mathbf{0}, \sigma^2\mathbf{I})$ | Pas de watermark |
+| $H_1$ | $\mathbf{v} \sim \mathcal{N}(\mathbf{s}, \sigma^2\mathbf{I})$ | Watermark présent |
+
+**Statistique de test NP :** $T(\mathbf{v}) = \mathbf{v}^\top \mathbf{s} \underset{H_0}{\overset{H_1}{\gtrless}} \eta$
+
+**Erreurs :**
+
+- $P_{FA}$ : fausse alarme (déclarer $H_1$ alors que $H_0$)
+- $P_\text{miss}$ : manquement (déclarer $H_0$ alors que $H_1$)
+- $P_D = 1 - P_\text{miss}$ : puissance de détection
+
+**Courbe ROC :** représente $P_D$ en fonction de $P_{FA}$. AUC = 1 → détecteur parfait ; AUC = 0.5 → aléatoire.
+
+**BSC :** $P(\hat{b}_i \neq b_i) = P_b$. La distance de Hamming suit une loi binomiale $\mathcal{B}(L, P_b)$ sous $H_1$.

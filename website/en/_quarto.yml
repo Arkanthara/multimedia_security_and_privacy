@@ -13,30 +13,51 @@ website:
           - text: "English"
             href: index.html
           - text: "French"
-            href: fr/index.html
+            href: ../fr/index.html
+
   sidebar:
     style: docked
     search: true
-    
     contents:
+      - index.qmd
       - section: "Course"
-        contents: "ch*.qmd"
-      - section: "Exercises"
-        contents: "ex*.qmd"
+        contents:
+          - section: "Chapter 1: Introduction"
+            contents:
+              - section: "Details"
+                contents: ch1c.qmd
+              - ch1.qmd
+              - section: "Synthesis"
+                contents: ch1r.qmd
+          - section: "Chapter 2: Notations & Core Concepts"
+            contents:
+              - section: "Details"
+                contents: ch2c.qmd
+              - ch2.qmd
+              - section: "Synthesis"
+                contents: ch2r.qmd
+          - section: "Chapter 3: Digital Watermarking"
+            contents:
+              - section: "Details"
+                contents: ch3c.qmd
+              - ch3.qmd
+              - section: "Synthesis"
+                contents: ch3r.qmd
+          - section: "Chapter 4: Privacy-Preserving Methods"
+            contents:
+              - section: "Details"
+                contents: ch4c.qmd
+              - ch4.qmd
+              - section: "Synthesis"
+                contents: ch4r.qmd
 
 format:
   html:
     theme:
-      light: flatly
-      dark: darkly
+      light: ../latte.scss
+      dark: ../macchiato.scss
     toc: true
     embed-resources: true
-  # pdf:
-  #   toc: true
-  # docx:
-  #   toc: true
 
-
-
-# filters:
-#   - diagram
+filters:
+  - diagram

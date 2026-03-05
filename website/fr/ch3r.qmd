@@ -1,0 +1,201 @@
+---
+title: "Synthèse — Chapitre 3"
+format:
+  html:
+    toc-depth: 2
+---
+
+::: {.callout-important title="📚 Fiche de révision rapide — Chapitre 3"}
+Cette fiche condense les notions essentielles du Chapitre 3. Elle couvre le modèle d'intégration additif, le test d'hypothèses zero-bit et L-bit, les métriques de qualité, les domaines d'intégration, la synchronisation géométrique, le QIM et la sécurité des systèmes de tatouage.
+
+**Navigation :** [Vue d'ensemble →](ch3.qmd) | [Contenu détaillé →](ch3c.qmd)
+:::
+
+---
+
+## Formules clés
+
+| Concept | Formule | Description |
+|:--------|:--------|:------------|
+| Intégration additive | $\mathbf{y} = \mathbf{x} + \varepsilon\mathbf{w}$ | Image tatouée |
+| Génération watermark | $\mathbf{w} = \text{Gen}(k)$ | Séquence pseudo-aléatoire |
+| Score de détection | $S(\mathbf{v}) = \frac{1}{M}\mathbf{v}\cdot\mathbf{w}$ | Statistique de test |
+| Distorsion | $D_{xy} = \frac{1}{M}\|\mathbf{x}-\mathbf{y}\|^2$ | MSE |
+| PSNR | $\text{PSNR} = 10\log_{10}\!\left(\frac{255^2}{D_{xy}}\right)$ | Qualité [dB] |
+| Fausse alarme | $P_{FA} = P(H_1\mid H_0)$ | Erreur type I |
+| Manquement | $P_\text{miss} = P(H_0\mid H_1)$ | Erreur type II |
+| Puissance | $P_D = 1 - P_\text{miss}$ | Taux de détection |
+| QIM | $y_i = Q_m(x_i)$ | Quantification modulée |
+| DC-QIM | $y_i = Q(x_i + d_i(m,k)) - d_i(m,k)$ | Avec dithering |
+
+---
+
+## Types de tatouage
+
+| Type | Objectif | Formulation | Application |
+|:-----|:---------|:-----------|:------------|
+| Zero-bit | Détection binaire | $H_0$ vs $H_1$, seuil $\tau$ | Copyright, authentification |
+| L-bit | Décodage de message | $\hat{m} = g(\mathbf{v},k)$, $m\in\{0,1\}^L$ | Broadcast monitoring, fingerprinting |
+| Fragile | Intégrité | Sensible à toute modification | Détection de falsification |
+| Semi-fragile | Intégrité + robustesse normale | Résiste aux traitements légaux | Authentification de contenu |
+
+---
+
+## Domaines d'intégration
+
+| Domaine | Robustesse | Imperceptibilité | Capacité | Exemple d'usage |
+|:--------|:---------|:----------------|:---------|:----------------|
+| Pixel | Faible | Bonne | Haute | Stéganographie |
+| DCT | Bonne | Bonne | Moyenne | Copyright JPEG |
+| DWT | Très bonne | Très bonne | Moyenne | Broadcast monitoring |
+| Deep features | Excellente | Excellente | Variable | Systèmes modernes |
+
+---
+
+## Pipeline simplifié
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // x
+  content((0.0, 3.0), [$bold(upright(x))$])
+  line((0.5, 3.0), (1.5, 3.0), mark: (end: ">"))
+
+  // Embedder
+  rect((1.5, 2.3), (4.0, 3.7), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((2.75, 3.0), [*Embedder*])
+
+  // m et k
+  content((2.75, 4.4), [$m, k$])
+  line((2.75, 4.1), (2.75, 3.7), mark: (end: ">"))
+
+  // y
+  line((4.0, 3.0), (5.5, 3.0), mark: (end: ">"))
+  content((4.75, 3.3), [$bold(upright(y))$])
+
+  // Canal
+  rect((5.5, 2.3), (7.5, 3.7), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((6.5, 3.0), [*Canal* $cal(A)$])
+
+  // v
+  line((7.5, 3.0), (9.0, 3.0), mark: (end: ">"))
+  content((8.25, 3.3), [$bold(upright(v))$])
+
+  // Détecteur
+  rect((9.0, 2.3), (11.5, 3.7), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((10.25, 3.0), [*Détecteur*])
+
+  // k côté droit
+  content((10.25, 4.4), [$k$])
+  line((10.25, 4.1), (10.25, 3.7), mark: (end: ">"))
+
+  // m̂
+  line((11.5, 3.0), (12.2, 3.0), mark: (end: ">"))
+  content((12.5, 3.0), [$hat(m)$])
+})
+```
+
+---
+
+## Compromis fondamentaux
+
+Tout système de tatouage est contraint par le **quadrilemme** : robustesse, imperceptibilité, capacité et sécurité ne peuvent pas toutes être maximisées simultanément.
+
+- **Robustesse ↑ ↔ Imperceptibilité ↓** : une force $\varepsilon$ plus élevée rend le tatouage plus robuste mais plus visible. Le masquage perceptuel (Watson, DWT) atténue ce compromis en concentrant l'énergie là où l'œil est moins sensible.
+- **Robustesse ↑ ↔ Capacité ↓** : répandre un tatouage sur $M$ pixels augmente la robustesse mais réduit le débit utile (bits/pixel). Le QIM améliore ce compromis en exploitant la structure du signal hôte.
+- **Capacité ↑ ↔ Imperceptibilité ↓** : plus de bits nécessitent plus d'énergie ou plus de coefficients modifiés.
+- **Sécurité** : ajouter une clé $k$ inconnue de l'adversaire renforce la sécurité sans coût en robustesse ou qualité, mais impose une gestion rigoureuse des clés.
+
+Les méthodes **deep** (HiDDeN, TrustMark, StegaStamp…) améliorent le compromis global grâce à l'optimisation end-to-end, mais introduisent des vulnérabilités adversariales spécifiques.
+
+---
+
+## Applications
+
+| Application | Type | Domaine privilégié | Exemples système |
+|:-----------|:-----|:------------------|:----------------|
+| Protection du droit d'auteur | Zero-bit / L-bit | DCT / DWT | Digimarc, Civolution |
+| Broadcast monitoring | L-bit | Deep features | ACE, VideoMark |
+| Stéganographie | L-bit | Pixel / Deep | StegaStamp, HiDDeN |
+| Authentification / Tamper detection | Fragile | Pixel / DCT | EZW fragile |
+| Fingerprinting | L-bit | DWT / Deep | Forensic watermarking |
+| Traçabilité NFT | L-bit | Deep features | TrustMark |
+
+---
+
+## Attaques : résumé
+
+| Attaque | Type | Domaine le plus robuste |
+|:--------|:-----|:-----------------------|
+| Compression JPEG | Aveugle | DCT / DWT / Deep |
+| Bruit additif AWGN | Aveugle | Spread-spectrum |
+| Recadrage | Aveugle (géom.) | Synchronisation par FMT |
+| Rotation / Echelle | Aveugle (géom.) | Invariants de Fourier-Mellin |
+| Attaque statistique | Informée | DC-QIM (dithering) |
+| Attaque oracle | Informée | Limiter les requêtes |
+| Collusion | Multi-images | Codes anti-collusion (Tardos) |
+
+---
+
+## Masquage perceptuel — récapitulatif
+
+Le masquage perceptuel adapte la force d'intégration $\varepsilon$ à la sensibilité locale du HVS :
+
+| Technique | Principe | Avantage |
+|:---------|:---------|:---------|
+| Watson (DCT) | JND par coefficient DCT | Compatible JPEG |
+| DWT adaptatif | Force selon sous-bande et activité | Multi-résolution |
+| SSIM-guided | Minimise la dégradation SSIM | Haute qualité |
+| Deep perceptual | Perte VGG/LPIPS | Naturalisme visuel |
+
+La force d'intégration adaptative générale est :
+$$\varepsilon_i = \varepsilon_0 \cdot f_\text{JND}(\mathbf{x}, i)$$
+
+où $f_\text{JND}$ est grande dans les zones texturées et faible dans les zones uniformes et lumineuses.
+
+---
+
+## QIM — résumé
+
+| Méthode | Formule | Robustesse | Sécurité |
+|:--------|:--------|:---------|:---------|
+| QIM basique | $y_i = Q_m(x_i)$ | Bonne (AWGN) | Faible (statistique) |
+| DC-QIM | $y_i = Q(x_i + d_i) - d_i$ | Bonne | Forte (clé $k$) |
+
+**Capacité QIM :** pour un canal AWGN de variance $\sigma_n^2$ et un pas $\Delta$ :
+$$C_\text{QIM} \approx \frac{1}{2}\log_2\!\left(1 + \frac{\Delta^2/4}{\sigma_n^2}\right) \text{ bits/coefficient}$$
+
+---
+
+## Synchronisation géométrique — récapitulatif
+
+| Méthode | Principe | Robustesse |
+|:--------|:---------|:---------|
+| Fourier-Mellin | Spectre log-polaire invariant | Rotation + échelle |
+| Signal pilote | Grille de sinusoïdes | Translation + rotation |
+| Foundation features | Invariance apprise | Transformations complexes |
+
+La synchronisation est la principale limitation des systèmes de tatouage dans les applications réelles : une attaque géométrique même modérée peut réduire $P_D$ à zéro sans synchronisation préalable.
+
+---
+
+## Systèmes de référence
+
+| Système | Type | Domaine | Publication |
+|:--------|:-----|:--------|:-----------|
+| Cox et al. (1997) | Spread-spectrum | DCT | IEEE Trans. |
+| Barni et al. (1998) | Additif | DWT | IEEE Trans. |
+| HiDDeN (2018) | Deep end-to-end | Feature | ECCV |
+| RivaGAN (2019) | GAN-based | Deep | ICCV |
+| TrustMark (2023) | Foundation model | Deep | CVPR |
+| StegaStamp (2020) | Hyperlink steg. | Deep | CVPR |
+
+---
+
+## Points clés à retenir
+
+- $\varepsilon^2 = D_{xy}$ : la force d'intégration est la racine carrée de la distorsion MSE.
+- Le score $S(\mathbf{v}) = \frac{1}{M}\mathbf{v}\cdot\mathbf{w}$ converge vers $\varepsilon$ sous $H_1$ et vers $0$ sous $H_0$.
+- Pour un PSNR de 40 dB : $\varepsilon = 255 \cdot 10^{-2} \approx 2.5$ niveaux de gris.
+- La robustesse croît en $\sqrt{M}$ : les images haute résolution sont intrinsèquement plus faciles à tatouer robustement.

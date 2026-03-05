@@ -1,0 +1,74 @@
+---
+title: "Chapitre 3 : Digital Watermarking"
+---
+
+## Vue d'ensemble
+
+Le tatouage numérique (*digital watermarking*) consiste à intégrer une information invisible — un message ou une signature — directement dans un contenu multimédia (image, vidéo, audio) de façon à ce qu'elle persiste malgré des modifications. Les applications vont de la protection du droit d'auteur à la surveillance des diffusions, en passant par la communication secrète (stéganographie) et la détection de falsifications. Le pipeline fondamental repose sur un trio : un **incorporateur** (embedder), un canal potentiellement hostile, et un **décodeur** qui récupère le message ou vérifie la présence du tatouage à partir de la clé secrète.
+
+**Navigation :**
+
+- 📖 [Contenu détaillé du chapitre (ch3c)](ch3c.qmd)
+- 📝 [Fiche de révision rapide (ch3r)](ch3r.qmd)
+
+---
+
+## Synthèse du chapitre {#synthese}
+
+::: {.callout-note title="Trade-offs fondamentaux"}
+Tout système de tatouage numérique doit jongler entre quatre propriétés antagonistes :
+
+- **Robustesse** : le tatouage survit aux compressions, recadrages, attaques géométriques.
+- **Imperceptibilité** : la qualité visuelle de l'image tatouée reste élevée (PSNR $> 40$ dB).
+- **Capacité** : nombre de bits $L$ pouvant être incorporés.
+- **Sécurité** : résistance à un adversaire connaissant l'algorithme mais pas la clé.
+
+**Modèle d'intégration additif (zero-bit) :**
+$$\mathbf{y} = \mathbf{x} + \varepsilon\mathbf{w}, \quad \mathbf{w} = \text{Gen}(k), \quad \|\mathbf{w}\| = 1$$
+
+**Score de détection :**
+$$S(\mathbf{v}) = \frac{1}{M}\mathbf{v}\cdot\mathbf{w}$$
+
+**Test d'hypothèses :**
+
+- $H_0$ : $\mathbf{v} = \mathbf{x}$ (pas de tatouage) → $\mathbb{E}[S] = 0$
+- $H_1$ : $\mathbf{v} = \mathbf{x} + \varepsilon\mathbf{w}$ (tatouage présent) → $\mathbb{E}[S] = \varepsilon$
+
+**Tatouage L-bit :** $\hat{m} = g(\mathbf{v}, k)$, $m \in \{0,1\}^L$
+:::
+
+::: {.callout-note title="Applications principales"}
+| Application | Type | Principe |
+|:-----------|:-----|:---------|
+| Protection du droit d'auteur | Zero-bit / L-bit | Identifier l'œuvre ou son propriétaire |
+| Surveillance des diffusions | L-bit | Tracer la distribution du contenu |
+| Stéganographie | L-bit | Canal de communication secret dans l'image |
+| Détection de falsification | Fragile | Watermark fragile localisé par région |
+| Fingerprinting | L-bit | Identifier l'acquéreur (traçabilité) |
+:::
+
+::: {.callout-note title="Domaines d'intégration"}
+| Domaine | Transformée | Robustesse | Notes |
+|:--------|:-----------|:---------|:------|
+| Pixel | Aucune | Faible | Simple, sensible aux attaques géométriques |
+| DCT | Discrète en cosinus | Bonne | Compatible JPEG, coefficients moyennes fréquences |
+| DWT | Ondelettes discrètes | Très bonne | Multi-résolution, masquage perceptuel |
+| Deep features | CNN/ViT | Excellente | Optimisation end-to-end, très robuste |
+:::
+
+---
+
+## Introduction au tatouage numérique
+
+Le tatouage numérique vise à rendre un contenu **auto-authentifiable** en y dissimulant une information qui accompagnera l'œuvre tout au long de sa vie numérique. Contrairement à la signature électronique, le tatouage est lié au signal lui-même et non à ses métadonnées.
+
+Pipeline général :
+$$\mathbf{y} = \omega(\mathbf{x}, k, m), \qquad \hat{m} = g(\mathbf{v}, k)$$
+
+où $\mathbf{v} = \mathcal{A}(\mathbf{y})$ désigne l'image reçue après le canal / les attaques $\mathcal{A}$.
+
+La force d'intégration $\varepsilon$ contrôle directement le compromis robustesse–imperceptibilité :
+
+$$D_{xy} = \frac{1}{M}\|\mathbf{x}-\mathbf{y}\|^2 = \frac{\varepsilon^2}{M}\|\mathbf{w}\|^2 = \varepsilon^2 \quad (\text{si } \|\mathbf{w}\|^2 = M)$$
+
+$$\text{PSNR} = 10\log_{10}\!\left(\frac{255^2}{\varepsilon^2}\right) \text{ [dB]}$$

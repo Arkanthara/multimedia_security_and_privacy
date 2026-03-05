@@ -1,0 +1,495 @@
+---
+title: "Chapitre 4 : Méthodes de Protection de la Vie Privée — Contenu détaillé"
+---
+
+*Cours de S. Voloshynovskiy — Université de Genève*
+
+---
+
+# Partie 1 : Introduction — Vie privée et biométrie
+
+## Biométrie et vie privée
+
+Les systèmes d'authentification biométrique exploitent des caractéristiques physiques ou comportementales uniques à chaque individu. Les modalités les plus courantes sont :
+
+- **Visage :** très répandu, acquisition non-intrusive, mais sensible aux changements d'éclairage, d'âge, d'accessoires.
+- **Empreinte digitale :** mature technologiquement, bonne précision, mais peut être copiée par latent print.
+- **Iris :** très discriminant ($\sim 200$ degrés de liberté), stable dans le temps, mais acquisition délicate.
+- **Voix :** biométrie comportementale, pratique pour l'authentification téléphonique, mais variable selon l'état de santé.
+
+Le processus d'authentification se déroule en deux phases :
+
+1. **Enrôlement :** l'utilisateur fournit son échantillon biométrique $\mathbf{x}$, dont un template $\mathbf{b}_x$ est calculé et stocké dans la base de données.
+2. **Vérification :** l'utilisateur fournit un nouvel échantillon $\mathbf{y}$, et le système décide si $\mathbf{y}$ provient de la même personne que $\mathbf{b}_x$.
+
+**Le problème fondamental** est que le template biométrique contient des informations privées sensibles, et sa compromission est **définitive** : contrairement à un mot de passe, on ne peut pas « révoquer » son iris ou son empreinte.
+
+## Menaces principales
+
+Les systèmes biométriques font face à plusieurs menaces spécifiques :
+
+- **Usurpation d'identité (impersonation) :** un adversaire présente un échantillon forgé (deepfake vidéo, empreinte en silicone) pour se faire authentifier à la place de la victime.
+- **Vol de template :** un adversaire accède à la base de données et récupère les templates stockés, pouvant les rejouer lors d'une attaque.
+- **Correspondance inter-bases (cross-database matching) :** si le même template biométrique brut est utilisé dans plusieurs bases de données (banque, hôpital, entreprise), leur compromission simultanée permet de relier les identités.
+- **Inférence d'attributs sensibles (soft biometrics) :** à partir d'un template biométrique, un adversaire peut inférer l'âge, le genre, l'origine ethnique, l'état de santé — informations protégées par le RGPD.
+
+---
+
+**Diagramme 1 : Menaces sur la base de données biométrique**
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Capteur
+  rect((0.0, 3.0), (2.0, 4.5), fill: luma(85%), stroke: luma(40%))
+  content((1.0, 4.0), [*Capteur*])
+  content((1.0, 3.5), [biométrique])
+
+  line((2.0, 3.75), (3.0, 3.75), mark: (end: ">"))
+
+  // Template
+  rect((3.0, 3.0), (5.0, 4.5), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((4.0, 4.0), [*Template*])
+  content((4.0, 3.5), [$b_x$])
+
+  line((5.0, 3.75), (6.0, 3.75), mark: (end: ">"))
+
+  // Base de données
+  rect((6.0, 2.8), (8.5, 4.7), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((7.25, 4.1), [*Base de*])
+  content((7.25, 3.6), [*données*])
+  content((7.25, 3.1), [biométrique])
+
+  // Flèches de menaces
+  line((8.5, 4.4), (10.0, 5.5), mark: (end: ">"), stroke: (paint: red))
+  content((11.0, 5.7), text(fill: red)[Usurpation])
+
+  line((8.5, 4.0), (10.0, 4.2), mark: (end: ">"), stroke: (paint: red))
+  content((11.2, 4.2), text(fill: red)[Correspondance])
+  content((11.2, 3.8), text(fill: red)[inter-bases])
+
+  line((8.5, 3.5), (10.0, 3.0), mark: (end: ">"), stroke: (paint: red))
+  content((11.2, 2.9), text(fill: red)[Inférence])
+  content((11.2, 2.5), text(fill: red)[d'attributs])
+
+  line((8.5, 3.1), (10.0, 1.8), mark: (end: ">"), stroke: (paint: red))
+  content((11.0, 1.7), text(fill: red)[Vol de template])
+})
+```
+
+---
+
+# Partie 2 : Approche cryptographique
+
+## Principe du hachage cryptographique
+
+L'approche cryptographique consiste à ne jamais stocker le template biométrique $\mathbf{x}$ directement, mais son empreinte cryptographique :
+
+$$\mathbf{b}_x = h(\mathbf{x}) \in \{0,1\}^L$$
+
+Les fonctions de hachage standard (SHA-256, SHA-3, BLAKE3) satisfont les propriétés :
+
+1. **Résistance à la préimage :** connaissant $\mathbf{b}_x$, il est computationnellement infaisable de retrouver $\mathbf{x}$.
+2. **Résistance à la seconde préimage :** connaissant $\mathbf{x}$, il est infaisable de trouver $\mathbf{x}' \neq \mathbf{x}$ avec $h(\mathbf{x}') = h(\mathbf{x})$.
+3. **Résistance aux collisions :** il est infaisable de trouver $(\mathbf{x}, \mathbf{x}')$ avec $h(\mathbf{x}) = h(\mathbf{x}')$.
+4. **Effet avalanche :** un seul bit modifié dans $\mathbf{x}$ change en moyenne 50% des bits de $h(\mathbf{x})$.
+
+## Problème fondamental : sensibilité au bruit biométrique
+
+La propriété d'avalanche, qui est une force cryptographique, devient un **défaut rédhibitoire** en biométrie. Deux acquisitions du même individu dans des conditions légèrement différentes produisent des vecteurs $\mathbf{x}$ et $\mathbf{y}$ avec :
+
+$$\|\mathbf{y} - \mathbf{x}\|^2 \leq \varepsilon_\text{intra} \quad \text{(variabilité intra-classe)}$$
+
+mais $h(\mathbf{x}) \neq h(\mathbf{y})$ avec très haute probabilité.
+
+Cela signifie que lors d'une tentative de vérification, le hash de l'échantillon présenté ne correspondra jamais au hash stocké, rendant le système inutilisable.
+
+## Propriétés requises pour la biométrie
+
+Un hachage adapté aux données biométriques doit satisfaire des propriétés parfois contradictoires avec les propriétés cryptographiques :
+
+| Propriété | Hachage crypto | Biométrie |
+|:---------|:--------------|:---------|
+| Effet avalanche | ✓ voulu | ✗ catastrophique |
+| Résistance préimage | ✓ | ✓ |
+| Déterminisme exact | ✓ | ✗ besoin de tolérance |
+| Revocabilité | ✓ (changer le sel) | ✓ (changer la clé) |
+
+---
+
+# Partie 3 : Approche par traitement du signal
+
+## Authentification par test de similarité
+
+L'approche par traitement du signal contourne le problème de la sensibilité au bruit en travaillant directement avec les templates bruts et en formulant l'authentification comme un **test d'hypothèses** :
+
+- **$H_0$** : $\mathbf{y} = \mathbf{x}^{(m)}$ à bruit près (même personne, classe $m$)
+- **$H_1$** : $\mathbf{y} \neq \mathbf{x}^{(m)}$ (personne différente)
+
+La statistique de test est le **score de similarité** (produit scalaire normalisé) :
+
+$$T\!\left(\mathbf{y}, \mathbf{x}^{(m)}\right) = \frac{1}{N}\,\mathbf{y}\cdot\mathbf{x}^{(m)}$$
+
+La règle de décision est :
+$$T\!\left(\mathbf{y}, \mathbf{x}^{(m)}\right) \underset{H_1}{\overset{H_0}{\gtrless}} \tau$$
+
+## Région de décision sphérique
+
+Géométriquement, l'authentification accepte $\mathbf{y}$ si et seulement si $\mathbf{y}$ se trouve dans une **sphère** de rayon $\tau$ centrée sur le template enregistré $\mathbf{x}^{(m)}$ :
+
+$$d\!\left(\mathbf{y}, \mathbf{x}^{(m)}\right) = \left\|\mathbf{y} - \mathbf{x}^{(m)}\right\|^2 \leq \tau^2$$
+
+---
+
+**Diagramme 2 : Région de décision sphérique**
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Axes de coordonnées
+  line((2.0, 3.5), (11.0, 3.5), mark: (end: ">"))
+  line((5.0, 0.5), (5.0, 6.5), mark: (end: ">"))
+  content((11.3, 3.5), [$x_1$])
+  content((5.0, 6.8), [$x_2$])
+
+  // Région de décision (cercle)
+  circle((6.5, 4.0), radius: 2.0, stroke: (paint: blue.darken(20%), dash: "dashed"))
+
+  // Template de référence x(m) au centre
+  circle((6.5, 4.0), radius: 0.12, fill: blue.darken(20%))
+  content((6.5, 3.6), [$bold(upright(x))^((m))$])
+
+  // Rayon
+  line((6.5, 4.0), (8.5, 4.0), stroke: (paint: blue.darken(20%)))
+  content((7.5, 4.3), [$tau$])
+
+  // Point y accepté
+  circle((7.2, 5.0), radius: 0.12, fill: green.darken(20%))
+  content((7.6, 5.2), text(fill: green.darken(20%))[y (auth.)])
+
+  // Point z rejeté
+  circle((9.5, 5.5), radius: 0.12, fill: red)
+  content((10.0, 5.7), text(fill: red)[z (rejeté)])
+
+  // Étiquettes des régions
+  content((3.5, 2.0), [Région $H_1$])
+  content((7.5, 2.0), [Région $H_0$])
+})
+```
+
+## Problèmes de sécurité de l'approche signal
+
+Bien que robuste au bruit biométrique, l'approche par traitement du signal présente des failles sécuritaires importantes :
+
+1. **Inversibilité :** le template $\mathbf{x}^{(m)}$ est stocké en clair. Son vol compromet directement la biométrie de l'individu.
+2. **Attaques statistiques :** un adversaire observant plusieurs scores $T(\mathbf{y}_j, \mathbf{x}^{(m)})$ pour différentes requêtes $\mathbf{y}_j$ peut reconstruire $\mathbf{x}^{(m)}$ par inversion du système linéaire.
+3. **Pas de revocabilité :** si la base est compromise, on ne peut pas émettre un nouveau template dérivé du même $\mathbf{x}^{(m)}$ sans modifier la biométrie elle-même.
+4. **Correspondance inter-bases :** le même $\mathbf{x}^{(m)}$ stocké dans deux bases différentes permet de lier les identités.
+
+---
+
+# Partie 4 : Vers le hachage robuste
+
+## Définition et propriétés
+
+Le **hachage robuste** (ou *robust hash*, *perceptual hash*) est conçu pour satisfaire simultanément :
+
+1. **Robustesse au bruit :** si $\|\mathbf{y} - \mathbf{x}\|^2 \leq \varepsilon$, alors $d_H(\mathbf{b}_y, \mathbf{b}_x) \leq \delta_H$ (faible distance de Hamming).
+2. **Irréversibilité :** connaissant $\mathbf{b}_x$, il est infaisable de reconstruire $\mathbf{x}$.
+3. **Revocabilité :** en changeant la clé $k$, on obtient un nouveau hash $\mathbf{b}'_x$ statistiquement indépendant de $\mathbf{b}_x$.
+
+L'empreinte binaire s'écrit :
+$$\mathbf{b}_x \in \{0,1\}^L, \quad \mathbf{b}_y \approx \mathbf{b}_x \text{ si } \|\mathbf{y}-\mathbf{x}\|^2 \leq \varepsilon$$
+
+## Modèle de canal BSC
+
+Le canal entre $\mathbf{b}_x$ (hash à l'enrôlement) et $\mathbf{b}_y$ (hash à la vérification) peut être modélisé comme un **Canal Binaire Symétrique (BSC)** :
+
+$$P(\hat{b}_i \neq b_i) = P_b$$
+
+où $P_b$ est la probabilité d'erreur par bit, liée à la variabilité intra-classe de la biométrie. La distance de Hamming entre les deux hashes suit une loi binomiale :
+
+$$d_H(\mathbf{b}_x, \mathbf{b}_y) = \sum_{i=1}^L b_{x,i} \oplus b_{y,i} \sim \mathcal{B}(L, P_b) \quad (\text{sous } H_0)$$
+
+La règle de décision est :
+$$d_H(\mathbf{b}_x, \mathbf{b}_y) \underset{H_1}{\overset{H_0}{\lessgtr}} \tau_H$$
+
+Pour des identités différentes (inter-classe), $P_b \approx 0.5$ → $d_H \approx L/2$ (bits aléatoires).
+
+## Construction par projection aléatoire et signe
+
+La construction la plus simple et la plus analysée utilise une **projection aléatoire** suivi d'un seuillage :
+
+$$\mathbf{b}_x = \text{sign}(\mathbf{P}\mathbf{x}), \quad \mathbf{P} \in \{-1,+1\}^{L\times N}$$
+
+où chaque ligne de $\mathbf{P}$ est un vecteur aléatoire pseudo-aléatoire généré par la clé $k$ :
+
+$$P_{ij} = \text{PRNG}(k, i, j) \in \{-1, +1\}$$
+
+**Lien avec le hachage de localité sensitive (LSH) :** cette construction est exactement un LSH pour la distance angulaire/cosinus. Pour des vecteurs $\mathbf{x}$ et $\mathbf{y}$ proches (angle faible), les projections sont également proches → même signe avec haute probabilité.
+
+## Irréversibilité
+
+Connaissant $\mathbf{b}_x = \text{sign}(\mathbf{P}\mathbf{x})$ :
+
+- **Sans clé $k$ :** $\mathbf{P}$ est inconnu → résoudre $\text{sign}(\mathbf{P}\mathbf{x}) = \mathbf{b}_x$ est un problème combinatoire NP-difficile (avec $L < N$, système sous-déterminé).
+- **Avec clé $k$ connue :** $\mathbf{P}$ est connu → inverser $\text{sign}(\mathbf{P}\mathbf{x}) = \mathbf{b}_x$ revient à trouver $\mathbf{x}$ dans un polytope de $\mathbb{R}^N$ à $L$ contraintes de signe. Pour $L \ll N$, le problème est très sous-déterminé → infinité de solutions.
+
+## Comparaison des propriétés
+
+| Propriété | Cryptographique | Signal | Hachage robuste |
+|:---------|:---------------|:-------|:----------------|
+| Robustesse au bruit | ✗ | ✓ | ✓ |
+| Irréversibilité | ✓ | ✗ | ✓ |
+| Revocabilité | ✓ (nouveau hash) | ✗ | ✓ (nouvelle clé) |
+| Compacité | ✓ | ✗ ($N$ flottants) | ✓ ($L$ bits) |
+| Anti-corrélation inter-clés | ✓ | — | ✓ |
+
+---
+
+# Partie 5 : Approche hybride
+
+## Fuzzy Commitment Scheme
+
+Le **fuzzy commitment** (Juels & Wattenberg 1999) est un schéma cryptographique qui combine un code correcteur d'erreurs avec un engagement (*commitment*) cryptographique pour réaliser l'authentification biométrique privée.
+
+**Enrôlement :**
+
+1. Calculer le hash robuste $\mathbf{b}_x \in \{0,1\}^L$.
+2. Choisir un message secret $m$ (par exemple, une clé de session).
+3. Encoder : $e(m) = \text{ECC\_Encode}(m) \in \{0,1\}^L$ (code BCH ou Reed-Solomon).
+4. Calculer l'engagement : $c = \mathbf{b}_x \oplus e(m)$.
+5. Stocker $c$ (l'engagement) et $\text{hash}(m)$ pour vérification.
+
+**Authentification :**
+
+1. Calculer le hash robuste de la requête : $\mathbf{b}_y$.
+2. Calculer $e'(m) = \mathbf{b}_y \oplus c = \mathbf{b}_y \oplus \mathbf{b}_x \oplus e(m)$.
+3. Décoder : $m' = \text{ECC\_Decode}(e'(m))$.
+4. Si $\mathbf{b}_y \approx \mathbf{b}_x$ (même personne), alors $e'(m) \approx e(m)$, et le décodage ECC corrige les erreurs → $m' = m$.
+5. Vérifier : $\text{hash}(m') \stackrel{?}{=} \text{hash}(m)$.
+
+La formulation algébrique est :
+$$c = \mathbf{b}_x \oplus e(m)$$
+
+---
+
+**Diagramme 3 : Schéma fuzzy commitment — Enrôlement et authentification**
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // === ENRÔLEMENT (partie supérieure) ===
+  content((0.5, 6.5), [*Enrôlement*])
+
+  // Capteur
+  rect((0.0, 5.5), (1.8, 6.3), fill: luma(85%), stroke: luma(40%))
+  content((0.9, 5.9), [$bold(upright(x))$])
+
+  line((1.8, 5.9), (2.8, 5.9), mark: (end: ">"))
+
+  // Hachage robuste
+  rect((2.8, 5.5), (4.6, 6.3), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((3.7, 5.9), [*Hachage*])
+
+  line((4.6, 5.9), (5.6, 5.9), mark: (end: ">"))
+  content((5.1, 6.2), [$b_x$])
+
+  // XOR
+  rect((5.6, 5.5), (7.0, 6.3), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((6.3, 5.9), [*XOR*])
+
+  // Message m et ECC encoder
+  content((8.5, 6.8), [$m$])
+  line((8.5, 6.6), (8.5, 6.3), mark: (end: ">"))
+  rect((7.5, 5.5), (9.5, 6.3), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((8.5, 5.9), [*ECC Enc*])
+  line((7.5, 5.9), (7.0, 5.9), mark: (end: ">"))
+
+  // Engagement c stocké
+  line((7.0, 5.9), (10.5, 5.9), mark: (end: ">"))
+  rect((10.5, 5.5), (12.5, 6.3), fill: yellow.lighten(40%), stroke: orange.darken(20%))
+  content((11.5, 5.9), [*c stocké*])
+
+  // === AUTHENTIFICATION (partie inférieure) ===
+  content((0.5, 3.5), [*Authentification*])
+
+  // Capteur
+  rect((0.0, 2.5), (1.8, 3.3), fill: luma(85%), stroke: luma(40%))
+  content((0.9, 2.9), [$bold(upright(y))$])
+
+  line((1.8, 2.9), (2.8, 2.9), mark: (end: ">"))
+
+  // Hachage robuste
+  rect((2.8, 2.5), (4.6, 3.3), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((3.7, 2.9), [*Hachage*])
+
+  line((4.6, 2.9), (5.6, 2.9), mark: (end: ">"))
+  content((5.1, 3.2), [$b_y$])
+
+  // XOR
+  rect((5.6, 2.5), (7.0, 3.3), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((6.3, 2.9), [*XOR*])
+
+  // c depuis le stockage
+  line((11.5, 5.5), (11.5, 3.8), (6.3, 3.8), (6.3, 3.3), mark: (end: ">"))
+
+  // Décodeur ECC
+  line((7.0, 2.9), (8.0, 2.9), mark: (end: ">"))
+  rect((8.0, 2.5), (10.0, 3.3), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((9.0, 2.9), [*ECC Dec*])
+
+  // Décision
+  line((10.0, 2.9), (11.0, 2.9), mark: (end: ">"))
+  content((12.0, 2.9), [$m' =^? m$])
+})
+```
+
+## Helper Data Methods
+
+Les méthodes par **données auxiliaires** (*helper data*) sont une généralisation du fuzzy commitment. L'idée centrale est de stocker des informations de correction sans révéler de secret biométrique :
+
+$$W = \mathbf{b}_x \oplus r$$
+
+où $r$ est une valeur aléatoire secrète (graine cryptographique). Les données auxiliaires $W$ sont publiques ; $r$ est gardé secret.
+
+**Enrôlement :** calculer $W = \mathbf{b}_x \oplus r$, stocker $W$ (public) et $\text{hash}(r)$ (vérification).
+
+**Vérification :** à partir de $\mathbf{b}_y$ et $W$, calculer $r' = \mathbf{b}_y \oplus W = \mathbf{b}_y \oplus \mathbf{b}_x \oplus r$. Si $\mathbf{b}_y \approx \mathbf{b}_x$, alors $r' \approx r$.
+
+**Revocabilité :** en changeant $r$, on génère de nouvelles données auxiliaires $W' = \mathbf{b}_x \oplus r'$ sans ré-enrôler la biométrie.
+
+### Secure Sketch
+
+Un *secure sketch* est un mécanisme plus général : étant donné une entrée bruyante $\mathbf{b}_y$, les données auxiliaires publiques $\text{SS}(\mathbf{b}_x)$ permettent de corriger les erreurs et de retrouver exactement $\mathbf{b}_x$ — à condition que les deux vecteurs soient suffisamment proches. La sécurité est garantie par le fait que $\text{SS}(\mathbf{b}_x)$ ne révèle que $\log_2|\mathcal{B}(L, t)|$ bits sur $\mathbf{b}_x$ (entropie min résiduelle), où $\mathcal{B}(L,t)$ est une boule de Hamming de rayon $t$.
+
+## Group Testing pour la vie privée
+
+Le **group testing** appliqué à la biométrie permet de tester si un ensemble de personnes contient un individu recherché sans révéler qui fait partie de l'ensemble. Cette approche est pertinente pour :
+
+- **Surveillance non-intrusive :** détecter la présence d'une personne dans une foule sans créer de profil individuel.
+- **Screening médical :** tester si un groupe contient des individus porteurs d'une caractéristique sans révéler lesquels.
+- **Mise en liste noire privée :** vérifier si un template est dans une liste noire sans révéler la liste.
+
+La formalisation est : $T_S(\mathbf{b}) = \bigoplus_{j \in S} \mathbf{b}_j$ (XOR de groupe). Un adversaire connaissant le test de groupe ne peut pas identifier les membres individuels si $|S|$ est suffisamment grand et que les templates sont indépendants.
+
+---
+
+# Partie 6 : Analyse de sécurité formelle
+
+## Sécurité information-théorique du hachage robuste
+
+La sécurité information-théorique du hachage robuste repose sur le concept d'**entropie min** (*min-entropy*). L'entropie min de $\mathbf{x}$ conditionnellement à $\mathbf{b}_x$ quantifie combien d'information sur $\mathbf{x}$ est révélée par son hash :
+
+$$H_\infty(\mathbf{x} \mid \mathbf{b}_x) = -\log_2 \max_{\mathbf{x}} P(\mathbf{x} \mid \mathbf{b}_x)$$
+
+Pour la construction par projection et signe, avec $L < N$ :
+
+- Si $\mathbf{P}$ est inconnu (adversaire sans clé) : $H_\infty(\mathbf{x} \mid \mathbf{b}_x) \geq N - L$ bits — l'adversaire apprend au plus $L$ bits sur $\mathbf{x}$.
+- Si $\mathbf{P}$ est connu (adversaire avec clé) : $H_\infty(\mathbf{x} \mid \mathbf{b}_x, \mathbf{P}) = N - L$ bits — sécurité résiduelle liée à l'ambiguïté du polytope.
+
+## Distinguishability et indistinguishability
+
+Un système de protection biométrique satisfait la propriété d'**indistinguishability** si un adversaire ne peut pas distinguer deux templates protégés issus de la même biométrie de deux templates issus de biométries différentes. Formellement :
+
+$$|\Pr[\text{Adv} \text{ gagne} | \mathbf{b}_{x_1}, \mathbf{b}_{x_2}] - \frac{1}{2}| \leq \epsilon_{\text{neg}}$$
+
+pour toute biométrie $(x_1, x_2)$ et tout adversaire polynomial. Cette propriété est vérifiée par le hachage robuste avec clé sous des hypothèses standard sur le PRNG.
+
+## Linkability (liaison entre templates)
+
+La **linkability** mesure la capacité d'un adversaire à relier deux templates protégés de la même personne provenant de bases de données différentes. Un bon système doit être **non-lié** (*non-linkable*) : pour une même biométrie $\mathbf{x}$ et deux clés différentes $k_1 \neq k_2$ :
+
+$$d_H\!\left(\mathbf{b}_{x,k_1}, \mathbf{b}_{x,k_2}\right) \approx \frac{L}{2}$$
+
+c'est-à-dire que les deux templates protégés sont statistiquement indiscernables d'une paire de templates aléatoires non corrélés. Le hachage robuste par projection aléatoire avec clés indépendantes satisfait cette propriété par construction.
+
+## Attaque par dictionnaire sur le hachage robuste
+
+Une **attaque par dictionnaire** consiste à précalculer $\mathbf{b}_{x'}$ pour un grand ensemble de candidats $\mathbf{x}'$ et à chercher une correspondance avec le template stocké $\mathbf{b}_x$. Les contre-mesures sont :
+
+1. **Sel (*salt*) :** incorporer une valeur aléatoire unique par utilisateur dans la clé $k$ rend les tables précalculées inutilisables.
+2. **Allongement de la clé (*key stretching*) :** utiliser une KDF lente (Argon2, bcrypt) pour augmenter le coût de chaque évaluation.
+3. **Dimensionnalité élevée :** avec $N$ grand et $L < N$, le nombre de candidats à tester est exponentiel en $N - L$.
+
+---
+
+# Partie 7 : Implémentations et systèmes existants
+
+## BioHashing
+
+Le **BioHashing** (Jin et al., 2004) est une des premières implémentations concrètes du hachage robuste pour la biométrie. Le pipeline est :
+
+1. Extraire le vecteur de feature biométrique $\mathbf{x} \in \mathbb{R}^N$ (IrisCode, eigenface, minuties…).
+2. Générer une matrice de projection pseudo-aléatoire $\mathbf{P} \in \mathbb{R}^{L \times N}$ via un token personnel (clé $k$).
+3. Projeter : $\mathbf{z} = \mathbf{P}\mathbf{x} \in \mathbb{R}^L$.
+4. Binariser : $b_i = \mathbf{1}[z_i \geq 0]$.
+
+Le résultat est un code binaire de longueur $L$ qui dépend à la fois de la biométrie et du token. Sans le token, le code est inutilisable. Avec le token, la distance de Hamming entre deux codes de la même personne est faible, et entre deux personnes différentes proche de $L/2$.
+
+## IrisCodes (Daugman)
+
+L'IrisCode de Daugman (1993) est historiquement un des premiers hachages robustes pour la biométrie. À partir d'une image d'iris :
+
+1. Normaliser l'image de l'iris vers une représentation rectangulaire (transformation de Daugman).
+2. Appliquer des filtres de Gabor 2D orientés à différentes fréquences.
+3. Quantifier la phase de chaque réponse complexe sur 2 bits.
+4. Concaténer pour former un code de 2048 bits.
+
+La distance de Hamming entre deux IrisCodes de la même personne est typiquement $P_b \approx 0.08$, alors qu'elle est $\approx 0.46$ pour deux personnes différentes — une séparation remarquable.
+
+## Systèmes commerciaux et normes
+
+| Système | Modalité | Approche | Notes |
+|:--------|:--------|:---------|:------|
+| IrisCodes (Daugman) | Iris | Hachage robuste (Gabor) | Standard ISO 19794-6 |
+| BioHashing | Visage / empreinte | Projection + signe | Nécessite token |
+| ISO/IEC 24745 | Multi-modal | Norme de protection | Définit irreversibility + unlinkability |
+| NIST SP 800-76 | Empreinte | Norme extracteur | Format minutiae |
+
+## Défis des systèmes déployés
+
+- **Vieillissement biométrique :** les features évoluent avec l'âge → la distance intra-classe augmente progressivement → risque de faux rejet croissant.
+- **Dégradation des capteurs :** des capteurs différents introduisent des biais systématiques qui doivent être compensés par normalisation avant hachage.
+- **Attaques par transfert (presentation attacks) :** impressions 3D, masques en silicone, lunettes à texture d'iris. La **détection d'attaque de présentation** (PAD) est un domaine de recherche actif.
+- **Équité algorithmique :** les performances (FAR, FRR) varient selon l'origine ethnique, le genre, l'âge — une exigence de non-discrimination est imposée par le règlement européen sur l'IA (EU AI Act, 2024).
+
+---
+
+# Partie 8 : Cadre réglementaire et éthique
+
+## RGPD et données biométriques
+
+Le Règlement Général sur la Protection des Données (RGPD, 2018) classe les données biométriques dans la **catégorie spéciale** (Article 9), dont le traitement est par défaut interdit sauf :
+
+- Consentement explicite de la personne concernée.
+- Nécessité pour l'exécution d'un contrat.
+- Intérêt vital ou mission d'intérêt public.
+
+Les principes applicables aux systèmes biométriques :
+
+- **Minimisation des données :** ne stocker que le strict nécessaire (→ hachage robuste plutôt que template brut).
+- **Privacy by design :** la protection doit être intégrée dès la conception du système.
+- **Droit à l'effacement :** pouvoir supprimer le profil biométrique d'une personne (→ revocabilité).
+
+## Règlement européen sur l'IA (EU AI Act)
+
+L'EU AI Act (2024) classe les systèmes d'identification biométrique à distance en **risque élevé** (Annexe III). Les obligations incluent :
+
+- Évaluation de conformité avant déploiement.
+- Documentation de la précision par groupe démographique.
+- Supervision humaine obligatoire pour les décisions à fort impact.
+- Interdiction de la reconnaissance faciale en temps réel dans les espaces publics (sauf dérogations).
+
+## Analyse de risque
+
+| Risque | Probabilité | Impact | Mesure de mitigation |
+|:-------|:-----------|:-------|:-------------------|
+| Vol de base biométrique | Moyen | Très élevé | Hachage robuste + chiffrement |
+| Deepfake / Présentation attack | Élevé | Élevé | PAD (Presentation Attack Detection) |
+| Correspondance inter-bases | Faible (sans mitigation) | Élevé | Clés différentes par base |
+| Biais algorithmique | Élevé | Moyen | Audit d'équité régulier |
+| Vieillissement biométrique | Certain (long terme) | Moyen | Re-enrôlement périodique |

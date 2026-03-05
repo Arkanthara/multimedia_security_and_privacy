@@ -1,0 +1,403 @@
+---
+title: "Chapitre 2 : Notations et Concepts Fondamentaux — Contenu détaillé"
+---
+
+*Cours de S. Voloshynovskiy — Université de Genève*
+
+---
+
+# Partie 1 : Représentations d'images
+
+## Notations de base
+
+### Représentation tensorielle
+
+Une image numérique est modélisée comme un tenseur à trois dimensions :
+$$\mathbf{x} \in \mathbb{R}^{H \times W \times C}$$
+
+- $H$ : nombre de lignes (hauteur en pixels)
+- $W$ : nombre de colonnes (largeur en pixels)
+- $C$ : nombre de canaux spectraux
+
+Pour une image **RGB** en 8 bits : $C = 3$, $x_{h,w,c} \in \{0, 1, \ldots, 255\}$.
+
+Pour simplifier les calculs, on vectorise souvent l'image :
+$$\mathbf{x} \in \mathbb{R}^N, \quad N = H \times W \times C$$
+
+---
+
+## Métriques de qualité
+
+### MSE (Mean Squared Error)
+
+$$\text{MSE}(\mathbf{x}, \mathbf{y}) = \frac{1}{HWC} \sum_{h=1}^{H} \sum_{w=1}^{W} \sum_{c=1}^{C} (x_{h,w,c} - y_{h,w,c})^2 = \frac{1}{N} \|\mathbf{x} - \mathbf{y}\|_2^2$$
+
+### PSNR (Peak Signal-to-Noise Ratio)
+
+$$\text{PSNR}(\mathbf{x}, \mathbf{y}) = 10 \log_{10}\!\left(\frac{P_\text{max}^2}{\text{MSE}(\mathbf{x}, \mathbf{y})}\right) \quad [\text{dB}]$$
+
+avec $P_\text{max} = 255$ pour des images 8 bits. Un PSNR $> 40\,\text{dB}$ est imperceptible.
+
+### Similarité cosinus
+
+$$\text{cos}(\mathbf{u}, \mathbf{v}) = \frac{\mathbf{u} \cdot \mathbf{v}}{\|\mathbf{u}\|_2 \|\mathbf{v}\|_2} = \frac{\sum_i u_i v_i}{\sqrt{\sum_i u_i^2} \cdot \sqrt{\sum_i v_i^2}} \in [-1, 1]$$
+
+**Cas particulier :** pour des vecteurs normalisés $\|\mathbf{u}\| = \|\mathbf{v}\| = 1$, la similarité cosinus est égale au produit scalaire.
+
+---
+
+## Transformées fréquentielles
+
+### DCT (Discrete Cosine Transform)
+
+Pour un signal 1D de longueur $N$, la DCT-II est définie par :
+$$X_k = \sum_{n=0}^{N-1} x_n \cos\!\left[\frac{\pi}{N}\left(n + \frac{1}{2}\right)k\right], \quad k = 0, \ldots, N-1$$
+
+**Trois approches pour les images :**
+
+1. **Full-frame DCT** : appliquée à l'image entière $H \times W$
+2. **Block-wise DCT (8×8)** : standard JPEG — image découpée en blocs $8 \times 8$ pixels
+3. **Tensor DCT** : appliquée séparément sur chaque dimension du tenseur
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Image originale
+  rect((0.0, 3.0), (2.5, 5.5), fill: luma(85%), stroke: luma(40%))
+  content((1.25, 4.25), [*Image*])
+  content((1.25, 3.7), [$H times W$])
+
+  // Flèche vers DCT full-frame
+  line((2.5, 5.0), (4.0, 5.0), mark: (end: ">"))
+  content((3.25, 5.3), [full])
+  rect((4.0, 4.5), (6.5, 5.5), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((5.25, 5.0), [*DCT*])
+
+  // Flèche vers DCT 8x8
+  line((2.5, 4.25), (4.0, 4.25), mark: (end: ">"))
+  content((3.25, 4.55), [8×8])
+  rect((4.0, 3.75), (6.5, 4.75), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((5.25, 4.25), [*DCT blocs*])
+
+  // Flèche vers DCT tensor
+  line((2.5, 3.5), (4.0, 3.5), mark: (end: ">"))
+  content((3.25, 3.8), [tensor])
+  rect((4.0, 3.0), (6.5, 4.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((5.25, 3.5), [*DCT tensor*])
+
+  // Coefficients communs
+  rect((7.0, 3.0), (10.0, 5.5), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((8.5, 4.5), [*Coefficients*])
+  content((8.5, 4.0), [*fréquentiels*])
+  content((8.5, 3.5), [$bold(upright(X)) in bb(R)^(H times W)$])
+
+  line((6.5, 5.0), (7.0, 4.5), mark: (end: ">"))
+  line((6.5, 4.25), (7.0, 4.25), mark: (end: ">"))
+  line((6.5, 3.5), (7.0, 4.0), mark: (end: ">"))
+})
+```
+
+### DFT (Discrete Fourier Transform)
+
+$$X_k = \sum_{n=0}^{N-1} x_n \, e^{-j2\pi kn/N}, \quad k = 0, \ldots, N-1$$
+
+**Propriétés importantes :**
+
+- **Linéarité :** $\mathcal{F}\{ax + by\} = a\mathcal{F}\{x\} + b\mathcal{F}\{y\}$
+- **Théorème de Parseval :** $\sum_n |x_n|^2 = \frac{1}{N}\sum_k |X_k|^2$
+- **Convolution :** convolution spatiale ↔ multiplication fréquentielle
+
+### DWT (Discrete Wavelet Transform)
+
+La DWT décompose un signal en sous-bandes à différentes résolutions :
+$$x = \sum_k \langle x, \psi_{j,k} \rangle \psi_{j,k} + \sum_k \langle x, \phi_{J,k} \rangle \phi_{J,k}$$
+
+où $\psi_{j,k}$ sont les ondelettes mères et $\phi_{J,k}$ les fonctions d'échelle.
+
+**Structure multi-résolution** (pour une image 2D) :
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Niveau original
+  rect((0.0, 0.0), (8.0, 8.0), fill: luma(90%), stroke: luma(40%))
+  content((4.0, 7.5), [Image originale $N times N$])
+
+  // Niveau 1 : 4 sous-bandes
+  rect((0.0, 4.0), (4.0, 8.0), fill: green.lighten(70%), stroke: green.darken(20%))
+  content((2.0, 6.0), [*LL₁*])
+  content((2.0, 5.5), [Approx.])
+
+  rect((4.0, 4.0), (8.0, 8.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((6.0, 6.0), [*LH₁*])
+  content((6.0, 5.5), [Horiz.])
+
+  rect((0.0, 0.0), (4.0, 4.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((2.0, 2.0), [*HL₁*])
+  content((2.0, 1.5), [Vertical])
+
+  rect((4.0, 0.0), (8.0, 4.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((6.0, 2.0), [*HH₁*])
+  content((6.0, 1.5), [Diag.])
+
+  // Niveau 2 dans LL1
+  rect((0.0, 6.0), (2.0, 8.0), fill: green.lighten(40%), stroke: green.darken(30%))
+  content((1.0, 7.0), [*LL₂*])
+  rect((2.0, 6.0), (4.0, 8.0), fill: blue.lighten(50%), stroke: blue.darken(30%))
+  content((3.0, 7.0), [*LH₂*])
+  rect((0.0, 4.0), (2.0, 6.0), fill: blue.lighten(50%), stroke: blue.darken(30%))
+  content((1.0, 5.0), [*HL₂*])
+  rect((2.0, 4.0), (4.0, 6.0), fill: blue.lighten(50%), stroke: blue.darken(30%))
+  content((3.0, 5.0), [*HH₂*])
+})
+```
+
+### ACP / PCA
+
+L'**Analyse en Composantes Principales** projette les données sur les directions de variance maximale.
+
+**Étapes :**
+
+1. Calculer la matrice de covariance : $\mathbf{C} = \frac{1}{n}\sum_{i=1}^n (\mathbf{x}_i - \bar{\mathbf{x}})(\mathbf{x}_i - \bar{\mathbf{x}})^\top$
+2. Décomposition spectrale : $\mathbf{C} = \mathbf{V} \mathbf{\Lambda} \mathbf{V}^\top$
+3. Projection : $\mathbf{z} = \mathbf{V}_d^\top (\mathbf{x} - \bar{\mathbf{x}}) \in \mathbb{R}^d$
+
+---
+
+# Partie 2 : Self-Supervised Learning pour l'extraction de représentations
+
+## Concept des modèles de fondation
+
+Un **modèle de fondation** est un grand modèle pré-entraîné sur des données non étiquetées à très grande échelle, puis adapté à diverses tâches en aval.
+
+**Exemples :** CLIP, DINO, ResNet pré-entraîné par SimCLR, BERT, GPT.
+
+La représentation latente :
+$$\mathbf{z}_x = f_\phi(\mathbf{x}), \quad \mathbf{z}_x \in \mathbb{R}^d$$
+
+encode des caractéristiques sémantiques sans supervision explicite.
+
+---
+
+## Apprentissage contrastif — SimCLR
+
+### Pipeline
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Image ancre x
+  rect((0.0, 5.5), (1.8, 7.0), fill: luma(80%), stroke: luma(40%))
+  content((0.9, 6.25), [$bold(upright(x))$])
+  content((0.9, 5.8), [Ancre])
+
+  // Augmentation positive x+
+  rect((0.0, 3.5), (1.8, 5.0), fill: green.lighten(70%), stroke: green.darken(20%))
+  content((0.9, 4.25), [$bold(upright(x))^+$])
+  content((0.9, 3.8), [Positive])
+
+  // Augmentation negative x-
+  rect((0.0, 1.5), (1.8, 3.0), fill: red.lighten(70%), stroke: red.darken(20%))
+  content((0.9, 2.25), [$bold(upright(x))^-$])
+  content((0.9, 1.8), [Négative])
+
+  // Encodeur f_phi (ancre)
+  rect((3.0, 5.5), (5.5, 7.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((4.25, 6.35), [*Encodeur*])
+  content((4.25, 5.9), [$f_phi$])
+
+  // Encodeur partagé (positive)
+  rect((3.0, 3.5), (5.5, 5.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((4.25, 4.35), [*Encodeur*])
+  content((4.25, 3.9), [$f_phi$ (partagé)])
+
+  // Encodeur partagé (negative)
+  rect((3.0, 1.5), (5.5, 3.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((4.25, 2.35), [*Encodeur*])
+  content((4.25, 1.9), [$f_phi$ (partagé)])
+
+  // Représentations latentes
+  rect((7.0, 5.5), (9.5, 7.0), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((8.25, 6.35), [$bold(upright(z))_x$])
+  content((8.25, 5.9), [Ancre])
+
+  rect((7.0, 3.5), (9.5, 5.0), fill: green.lighten(70%), stroke: green.darken(20%))
+  content((8.25, 4.35), [$bold(upright(z))_(x^+)$])
+  content((8.25, 3.9), [Positive])
+
+  rect((7.0, 1.5), (9.5, 3.0), fill: red.lighten(70%), stroke: red.darken(20%))
+  content((8.25, 2.35), [$bold(upright(z))_(x^-)$])
+  content((8.25, 1.9), [Négative])
+
+  // Flèches
+  line((1.8, 6.25), (3.0, 6.25), mark: (end: ">"))
+  line((1.8, 4.25), (3.0, 4.25), mark: (end: ">"))
+  line((1.8, 2.25), (3.0, 2.25), mark: (end: ">"))
+  line((5.5, 6.25), (7.0, 6.25), mark: (end: ">"))
+  line((5.5, 4.25), (7.0, 4.25), mark: (end: ">"))
+  line((5.5, 2.25), (7.0, 2.25), mark: (end: ">"))
+
+  // Perte contrastive
+  rect((7.0, 0.0), (9.5, 1.2), fill: yellow.lighten(70%), stroke: yellow.darken(20%))
+  content((8.25, 0.6), [*Perte*])
+  line((8.25, 1.5), (8.25, 1.2), mark: (end: ">"))
+
+  // Flèche d'optimisation
+  line((8.25, 0.0), (4.25, 0.0), stroke: (paint: blue.darken(20%), dash: "dashed"))
+  line((4.25, 0.0), (4.25, 1.5), mark: (end: ">"), stroke: (paint: blue.darken(20%), dash: "dashed"))
+  content((6.0, -0.3), [Rétropropagation])
+})
+```
+
+### Fonction de perte NT-Xent
+
+$$\mathcal{L}_\text{NT-Xent} = -\log \frac{\exp\!\left(\text{sim}(\mathbf{z}_x, \mathbf{z}_{x^+})/\tau\right)}{\sum_{j=1}^{2N} \mathbf{1}_{[j \neq x]} \exp\!\left(\text{sim}(\mathbf{z}_x, \mathbf{z}_j)/\tau\right)}$$
+
+où $\text{sim}(\mathbf{u}, \mathbf{v}) = \mathbf{u}^\top \mathbf{v} / (\|\mathbf{u}\| \|\mathbf{v}\|)$ et $\tau > 0$ est la température.
+
+**Intuition :**
+
+- **Maximiser** la similarité entre vues d'une même image (ancre et positive)
+- **Minimiser** la similarité avec toutes les autres images du batch (négatives)
+
+---
+
+# Partie 3 : Notations pour le watermarking et le hachage perceptuel
+
+## Watermarking numérique
+
+### Formalisation
+
+Le système de watermarking est défini par :
+
+$$\mathbf{y} = \omega(\mathbf{x},\, k,\, m), \qquad \hat{m} = g(\mathbf{v},\, k)$$
+
+| Symbole | Type | Description |
+|:--------|:-----|:------------|
+| $\mathbf{x}$ | $\mathbb{R}^N$ | Image originale (vecteur) |
+| $k$ | — | Clé secrète symétrique |
+| $m$ | $\{0,1\}^M$ | Message à dissimuler ($M$ bits) |
+| $\mathbf{y}$ | $\mathbb{R}^N$ | Image tatouée |
+| $\mathbf{v} = \mathcal{A}(\mathbf{y})$ | $\mathbb{R}^N$ | Image reçue après attaque $\mathcal{A}$ |
+| $\hat{m}$ | $\{0,1\}^M$ | Message extrait |
+
+### Contrainte de distorsion
+
+L'embedding doit être imperceptible :
+$$D(\mathbf{x}, \mathbf{y}) \leq \varepsilon$$
+
+avec $D$ une métrique de distorsion (MSE, SSIM, etc.).
+
+### Score de détection
+
+Pour le watermarking **zero-bit** :
+$$S(\mathbf{v}) = \frac{1}{M} \mathbf{v} \cdot \mathbf{w}, \qquad \text{décision :} \quad S(\mathbf{v}) \underset{H_0}{\overset{H_1}{\gtrless}} \tau$$
+
+---
+
+## Hachage perceptuel
+
+### Formalisation
+
+$$\mathbf{b}_x = h(\mathbf{x},\, k), \quad \mathbf{b}_x \in \{0,1\}^L$$
+
+### Distance de Hamming
+
+$$d_H(\mathbf{b}_x, \mathbf{b}_y) = \sum_{i=1}^{L} \mathbf{1}[b_{x,i} \neq b_{y,i}] = \|\mathbf{b}_x \oplus \mathbf{b}_y\|_1$$
+
+### Modèle de canal BSC
+
+Les empreintes de deux versions de la même image sont liées par :
+$$P(\hat{b}_i \neq b_i) = P_b \quad \Longleftrightarrow \quad \mathbf{b}_y = \mathbf{b}_x \oplus \mathbf{e}$$
+
+où $\mathbf{e} \in \{0,1\}^L$ est un vecteur d'erreur dont chaque bit est indépendant avec probabilité $P_b$.
+
+---
+
+# Partie 4 : Fondements de la détection de signaux
+
+## Modèle de canal AWGN
+
+Le modèle de canal gaussien additif (AWGN) s'écrit :
+$$\mathbf{v} = \mathbf{s} + \mathbf{n}, \quad \mathbf{n} \sim \mathcal{N}(\mathbf{0}, \sigma^2 \mathbf{I}_N)$$
+
+où $\mathbf{s}$ est le signal transmis, $\sigma^2$ est la variance du bruit, et $\mathbf{I}_N$ est la matrice identité de taille $N = H \times W \times C$.
+
+Le rapport signal-sur-bruit (SNR) est :
+$$\text{SNR} = \frac{\mathbb{E}[\|\mathbf{s}\|^2]}{N\sigma^2}$$
+
+---
+
+## Test d'hypothèses
+
+### Formulation
+
+- $H_0$ : pas de watermark — $\mathbf{v} \sim p_0(\mathbf{v}) = \mathcal{N}(\mathbf{0}, \sigma^2\mathbf{I})$
+- $H_1$ : watermark présent — $\mathbf{v} \sim p_1(\mathbf{v}) = \mathcal{N}(\mathbf{s}, \sigma^2\mathbf{I})$
+
+### Détecteur de Neyman-Pearson
+
+Le rapport de vraisemblance est :
+$$\Lambda(\mathbf{v}) = \frac{p_1(\mathbf{v})}{p_0(\mathbf{v})} = \exp\!\left(\frac{\mathbf{v}^\top \mathbf{s}}{\sigma^2} - \frac{\|\mathbf{s}\|^2}{2\sigma^2}\right)$$
+
+La règle de décision se réduit à :
+$$T(\mathbf{v}) = \mathbf{v}^\top \mathbf{s} \underset{H_0}{\overset{H_1}{\gtrless}} \eta$$
+
+### Performances
+
+Sous $H_0$ : $T(\mathbf{v}) \sim \mathcal{N}(0, \sigma^2 \|\mathbf{s}\|^2)$
+
+Sous $H_1$ : $T(\mathbf{v}) \sim \mathcal{N}(\|\mathbf{s}\|^2, \sigma^2 \|\mathbf{s}\|^2)$
+
+Probabilité de fausse alarme :
+$$P_{FA} = P(T > \eta \mid H_0) = Q\!\left(\frac{\eta}{\sigma\|\mathbf{s}\|}\right)$$
+
+Probabilité de détection :
+$$P_D = P(T > \eta \mid H_1) = Q\!\left(\frac{\eta - \|\mathbf{s}\|^2}{\sigma\|\mathbf{s}\|}\right)$$
+
+où $Q(x) = \frac{1}{\sqrt{2\pi}}\int_x^\infty e^{-t^2/2}\,dt$ est la fonction Q de Gauss.
+
+---
+
+## Courbe ROC
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Axes
+  line((0.5, 0.5), (8.5, 0.5), mark: (end: ">"))
+  line((0.5, 0.5), (0.5, 7.0), mark: (end: ">"))
+  content((4.5, 0.0), [$P_(F A)$])
+  content((0.0, 3.75), [$P_D$])
+
+  // Diagonale aléatoire
+  line((0.5, 0.5), (8.0, 6.5), stroke: (paint: luma(60%), dash: "dashed"))
+  content((7.5, 5.5), [aléatoire])
+
+  // Courbe ROC idéale (coin supérieur gauche)
+  line((0.5, 0.5), (0.5, 6.5), stroke: (paint: green.darken(20%)))
+  line((0.5, 6.5), (8.0, 6.5), stroke: (paint: green.darken(20%)))
+  content((3.0, 7.0), [idéal])
+
+  // Courbe ROC réaliste (arc)
+  line((0.5, 0.5), (1.5, 3.5), stroke: (paint: blue.darken(20%)))
+  line((1.5, 3.5), (3.0, 5.0), stroke: (paint: blue.darken(20%)))
+  line((3.0, 5.0), (5.0, 6.0), stroke: (paint: blue.darken(20%)))
+  line((5.0, 6.0), (8.0, 6.5), stroke: (paint: blue.darken(20%)))
+  content((5.5, 5.2), [*ROC réelle*])
+
+  // Annotations axes
+  content((8.5, 0.2), [$1.0$])
+  content((0.2, 6.7), [$1.0$])
+  content((0.5, 0.2), [$0$])
+
+  // AUC label
+  content((2.5, 2.0), [*AUC*])
+})
+```
+
+L'**aire sous la courbe ROC (AUC)** quantifie les performances globales du détecteur : AUC = 1 correspond à un détecteur parfait, AUC = 0.5 à un détecteur aléatoire.

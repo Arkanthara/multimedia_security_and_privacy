@@ -1,0 +1,51 @@
+---
+title: "Chapter 4: Privacy-Preserving Methods"
+---
+
+## Overview
+
+Privacy protection in biometrics aims to allow person authentication without storing raw biometric templates — data which, once stolen, cannot be revoked like a password. Three main families of approaches exist: **cryptographic** methods (one-way hash $h(\mathbf{x})$, irreversible but sensitive to biometric noise), **signal processing** methods (direct similarity score comparison $T(\mathbf{y}, \mathbf{x}^{(m)})$, robust but invertible), and **hybrid** methods such as fuzzy commitment and robust hashing, which combine irreversibility and noise robustness. Revocability — the ability to issue new identifiers if a database is compromised — is a key property that only hybrid methods with key $k$ can fully guarantee.
+
+**Navigation:**
+
+- 📖 [Detailed chapter content (ch4c)](ch4c.qmd)
+- 📝 [Quick review sheet (ch4r)](ch4r.qmd)
+
+---
+
+## Chapter Synthesis {#synthesis}
+
+::: {.callout-note title="Three Protection Approaches"}
+**Cryptographic approach:**
+$$\mathbf{b}_x = h(\mathbf{x}) \in \{0,1\}^L$$
+One-way, non-invertible, but $h(\mathbf{x}) \neq h(\mathbf{y})$ even if $\|\mathbf{x}-\mathbf{y}\|^2 \leq \varepsilon$ → unsuitable for noisy biometrics.
+
+**Signal processing approach:**
+$$T\!\left(\mathbf{y}, \mathbf{x}^{(m)}\right) = \frac{1}{N}\mathbf{y}\cdot\mathbf{x}^{(m)}, \quad \text{decision}: T \underset{H_1}{\overset{H_0}{\gtrless}} \tau$$
+Robust to biometric noise, but template $\mathbf{x}^{(m)}$ can be reconstructed from multiple sessions.
+
+**Hybrid approach — robust hashing:**
+$$\mathbf{b}_x = \text{sign}(\mathbf{P}\mathbf{x}), \quad \mathbf{P} \in \{-1,+1\}^{L\times N}, \quad \mathbf{P} = f(k)$$
+Robust + irreversible + revocable (changing $k$ generates a new $\mathbf{b}_x$).
+:::
+
+::: {.callout-note title="Fundamental Problem: Irreversibility vs. Robustness"}
+- **Biometrics = permanence:** face, fingerprint, iris do not change.
+- **Major threat:** if a biometric database is compromised, victims cannot "change" their biometrics.
+- **Contradictory dual requirement:** robustness to intra-class noise (same person, different conditions) AND irreversibility (impossible to reconstruct the template from the stored hash).
+- **Solution:** key $k$ per database → different keys → different hashes → no cross-database matching.
+:::
+
+::: {.callout-note title="Robust Hashing Security"}
+**Blind attack:** without $k$, an adversary observing $\mathbf{b}_x \in \{0,1\}^L$ cannot recover $\mathbf{x}$ (information-theoretic irreversibility if $L \ll N$).
+
+**Informed attack:** with $k$, matrix $\mathbf{P}$ is known, but inverting $\text{sign}(\mathbf{P}\mathbf{x})$ remains NP-hard (for $L < N$).
+
+**Revocability:** new key $k' \neq k$ → new projection $\mathbf{P}' \neq \mathbf{P}$ → new hash $\mathbf{b}'_x \neq \mathbf{b}_x$, and the two hashes are statistically independent.
+:::
+
+---
+
+## Introduction
+
+Biometric authentication compares a presented sample at enrollment to a stored template. If this template is exposed, the consequences are far more serious than a password leak: the individual cannot change their face or fingerprints. **Robust hashing** is the fundamental building block that transforms a biometric template into a compact, irreversible, and revocable identifier. Conceptually, it is analogous to a cryptographic hash (like SHA-256) enriched with noise tolerance — a property that classical cryptographic hashes deliberately lack (the avalanche effect precisely guarantees that a small input modification completely changes the output).

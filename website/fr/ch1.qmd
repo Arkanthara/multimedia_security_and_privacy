@@ -1,0 +1,127 @@
+---
+title: "Chapitre 1 : Introduction à la Sécurité Multimédia"
+---
+
+## Vue d'ensemble
+
+Ce premier chapitre pose les bases conceptuelles du cours. Il présente les quatre grands domaines de la sécurité multimédia — le tatouage numérique, le hachage perceptuel, la sécurité des modèles de fondation et la préservation de la vie privée — en définissant les problèmes, les modèles mathématiques et les compromis fondamentaux propres à chacun.
+
+**Navigation :**
+
+- 📖 [Contenu détaillé du chapitre (ch1c)](ch1c.qmd)
+- 📝 [Fiche de révision rapide (ch1r)](ch1r.qmd)
+
+---
+
+## Synthèse du chapitre {#synthese}
+
+::: {.callout-note title="Block 1 — Digital Watermarking"}
+**Problème :** Intégrer un message $m$ imperceptiblement dans une image $\mathbf{x}$ à l'aide d'une clé $k$.
+
+**Pipeline :**
+$$\mathbf{y} = \omega(\mathbf{x},\, k,\, m), \qquad \hat{m} = g(\mathbf{v},\, k)$$
+
+**Compromis clés :**
+
+- Robustesse ↔ Imperceptibilité ↔ Capacité
+- Zero-bit (détection $H_0$/$H_1$) vs M-bit (décodage)
+
+**Applications :** droits d'auteur, marquage de contenu IA génératif, stéganographie, détection de falsification.
+:::
+
+::: {.callout-note title="Block 2 — Perceptual Hashing"}
+**Problème :** Calculer une empreinte binaire compacte et robuste d'une image.
+
+**Modèle :**
+$$\mathbf{b}_x = h(\mathbf{x},\, k), \quad \mathbf{b}_x \in \{0,1\}^L$$
+
+Le canal entre empreintes est modélisé comme un **Binary Symmetric Channel (BSC)** avec probabilité d'erreur $P_b$ :
+$$P(\hat{b}_i \neq b_i) = P_b$$
+
+**Propriété d'irréversibilité :** il est impossible de reconstruire $\mathbf{x}$ à partir de $\mathbf{b}_x$.
+:::
+
+::: {.callout-note title="Block 3 — Foundation Models Security"}
+**Contexte :** Les grands modèles pré-entraînés (LLM, VLM, modèles de diffusion) introduisent de nouvelles surfaces d'attaque.
+
+**Menaces principales :**
+
+- *Hallucination* et désinformation
+- *Model inversion* et extraction de données d'entraînement
+- *Prompt injection* et backdoors
+- *Deepfakes* et contenu synthétique malveillant
+
+**Défenses :** watermarking du contenu généré, détection de contenu synthétique, alignement et RLHF.
+:::
+
+::: {.callout-note title="Block 4 — Privacy Preservation"}
+**Contexte :** La vie privée des individus peut être compromise via les métadonnées, les gradients ou l'inférence à partir d'un modèle.
+
+**Techniques clés :**
+
+- *Differential Privacy (DP)* : ajout de bruit calibré pour garantir $(\varepsilon, \delta)$-DP
+- *Federated Learning* : entraînement sans centralisation des données
+- *Anonymisation multimédia* : floutage de visages, suppression d'attributs sensibles
+- *Privacy-Preserving Retrieval* : recherche par hachage perceptuel sécurisé
+:::
+
+---
+
+## Introduction {#introduction}
+
+### Qu'est-ce que la sécurité multimédia ?
+
+La **sécurité multimédia** regroupe l'ensemble des techniques permettant de protéger, d'authentifier et de contrôler des contenus numériques (images, vidéos, sons). À la différence de la cryptographie classique qui chiffre des données binaires brutes, la sécurité multimédia exploite les propriétés perceptuelles et statistiques des signaux pour atteindre ses objectifs tout en préservant leur utilité.
+
+Un contenu multimédia $\mathbf{x}$ est une donnée à haute dimension :
+$$\mathbf{x} \in \mathbb{R}^{H \times W \times C}$$
+
+où $H$ est la hauteur, $W$ la largeur et $C$ le nombre de canaux (ex. $C=3$ pour une image RGB). La richesse de cette représentation permet d'y dissimuler de l'information ou d'en extraire des empreintes robustes.
+
+### Le problème général
+
+On cherche à résoudre des problèmes de la forme :
+
+$$\text{Encoder} : (\mathbf{x}, k, m) \longrightarrow \mathbf{y} \approx \mathbf{x}$$
+$$\text{Decoder} : (\mathbf{v}, k) \longrightarrow \hat{m}$$
+
+où $\mathbf{y}$ est le contenu protégé, $\mathbf{v}$ est la version reçue après passage par un canal bruité, $k$ est une clé secrète et $m$ est le message à transmettre ou à vérifier. La contrainte fondamentale est que $\mathbf{y}$ doit rester **perceptuellement indiscernable** de $\mathbf{x}$.
+
+### Modèle de canal
+
+Le canal multimédia peut modéliser de nombreuses perturbations :
+
+$$\mathbf{v} = \mathcal{A}(\mathbf{y})$$
+
+où $\mathcal{A}$ représente des attaques comme la compression JPEG, le redimensionnement, le recadrage, l'ajout de bruit ou des transformations adversariales.
+
+### Les quatre piliers
+
+| Pilier | Objectif | Modèle clé |
+|:-------|:---------|:-----------|
+| Watermarking | Intégrer $m$ dans $\mathbf{x}$ | $\mathbf{y} = \omega(\mathbf{x}, k, m)$ |
+| Perceptual Hashing | Empreinte robuste | $\mathbf{b}_x = h(\mathbf{x}, k)$ |
+| Foundation Models | Sécuriser les LLM/VLM | Détection de contenu synthétique |
+| Privacy | Protéger les individus | $(\varepsilon, \delta)$-DP, FL |
+
+---
+
+## Théorie de la détection de signaux
+
+### Hypothèses $H_0$ et $H_1$
+
+Le **watermarking zero-bit** (détection) se formule comme un test d'hypothèses :
+
+- $H_0$ : l'image ne contient **pas** de watermark
+- $H_1$ : l'image contient **un** watermark
+
+La statistique de test est typiquement une **fonction de score** :
+$$S(\mathbf{v}) = \frac{1}{M} \sum_{i=1}^{M} v_i \cdot w_i = \frac{1}{M} \mathbf{v} \cdot \mathbf{w}$$
+
+où $\mathbf{w}$ est le vecteur de référence (dérivé de la clé $k$) et $\mathbf{v}$ est le signal reçu.
+
+### Critère de Neyman-Pearson
+
+Le détecteur optimal minimise la probabilité de manquement $P_\text{miss} = P(\text{décision } H_0 \mid H_1)$ sous contrainte d'une probabilité de fausse alarme $P_{FA} = P(\text{décision } H_1 \mid H_0) \leq \alpha$.
+
+La **courbe ROC** représente le compromis entre $P_D = 1 - P_\text{miss}$ et $P_{FA}$.

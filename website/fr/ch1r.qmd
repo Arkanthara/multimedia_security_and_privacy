@@ -1,0 +1,172 @@
+---
+title: "Synthèse — Chapitre 1"
+format:
+  html:
+    toc-depth: 2
+---
+
+::: {.callout-important title="📚 Fiche de révision rapide — Chapitre 1"}
+Cette fiche condense les notions essentielles du Chapitre 1. Utilisez-la pour une révision rapide avant l'examen.
+
+**Navigation :** [Vue d'ensemble →](ch1.qmd) | [Contenu détaillé →](ch1c.qmd)
+:::
+
+---
+
+## Formules clés
+
+| Concept | Formule | Description |
+|:--------|:--------|:------------|
+| Watermarking — embedding | $\mathbf{y} = \omega(\mathbf{x}, k, m)$ | Image tatouée |
+| Watermarking — decoding | $\hat{m} = g(\mathbf{v}, k)$ | Message décodé |
+| Perceptual hashing | $\mathbf{b}_x = h(\mathbf{x}, k)$ | Empreinte binaire |
+| Canal BSC | $P(\hat{b}_i \neq b_i) = P_b$ | Probabilité d'erreur de bit |
+| Score de détection | $S(\mathbf{v}) = \frac{1}{M} \mathbf{v} \cdot \mathbf{w}$ | Statistique de test |
+| Fausse alarme | $P_{FA} = P(H_1 \mid H_0)$ | Décision incorrecte |
+| Puissance de détection | $P_D = 1 - P_\text{miss}$ | Détection correcte |
+
+---
+
+## Block 1 — Digital Watermarking
+
+**Définition :** Intégration imperceptible d'un message dans un contenu multimédia.
+
+**Objectifs :**
+
+- Protection des droits d'auteur
+- Authentification de contenu
+- Marquage de contenu IA génératif
+
+**Compromis fondamentaux :**
+
+- **Robustesse** : résistance aux distorsions (JPEG, rotation, bruit, attaques adversariales)
+- **Imperceptibilité** : le watermark doit rester invisible
+- **Capacité** : nombre de bits encodés (typiquement 64–128 bits)
+- **Sécurité** : résistance aux attaques ciblées sur la clé $k$
+
+**Types :**
+
+- *Zero-bit* : détection uniquement ($H_0$ vs $H_1$)
+- *M-bit* : décodage d'un message binaire
+
+**Domaines d'application :** spatial, DCT, DWT, espace latent (deep watermarking)
+
+---
+
+## Pipeline de watermarking
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Message
+  content((2.0, 7.0), [Message $m$])
+  line((2.0, 6.8), (2.0, 6.2), mark: (end: ">"))
+
+  // Encoder
+  rect((0.5, 5.2), (3.5, 6.2), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((2.0, 5.7), [*Encodeur*])
+
+  // Image x → Embedder
+  content((-0.8, 3.7), [$bold(upright(x))$])
+  line((-0.3, 3.7), (0.5, 3.7), mark: (end: ">"))
+
+  // s : Encoder → Embedder
+  line((2.0, 5.2), (2.0, 4.2), mark: (end: ">"))
+  content((2.4, 4.7), [$bold(upright(s))$])
+
+  // Clé k
+  content((2.0, 1.5), [Clé $k$])
+  line((2.0, 1.8), (2.0, 2.8), mark: (end: ">"))
+
+  // Embedder
+  rect((0.5, 2.8), (3.5, 4.2), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((2.0, 3.5), [*Embedder*])
+
+  // y : Embedder → Canal
+  line((3.5, 3.5), (5.5, 3.5), mark: (end: ">"))
+  content((4.5, 3.8), [$bold(upright(y))$])
+
+  // Canal
+  rect((5.5, 2.5), (8.0, 4.5), fill: blue.lighten(70%), stroke: blue.darken(15%))
+  content((6.75, 3.8), [*Canal*])
+  content((6.75, 3.2), [*Multimédia*])
+
+  // v : Canal → Extractor
+  line((8.0, 3.5), (9.5, 3.5), mark: (end: ">"))
+  content((8.75, 3.8), [$bold(upright(v))$])
+
+  // Extractor
+  rect((9.5, 2.8), (12.0, 4.2), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((10.75, 3.5), [*Extracteur*])
+
+  // Clé k (côté droit)
+  content((10.75, 1.5), [Clé $k$])
+  line((10.75, 1.8), (10.75, 2.8), mark: (end: ">"))
+
+  // ŝ : Extractor → Decoder
+  line((10.75, 4.2), (10.75, 5.2), mark: (end: ">"))
+  content((11.15, 4.7), [$hat(bold(upright(s)))$])
+
+  // Decoder
+  rect((9.5, 5.2), (12.0, 6.2), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((10.75, 5.7), [*Décodeur*])
+
+  // m̂ : Decoder → sortie
+  content((10.75, 7.0), [Message $hat(m)$])
+  line((10.75, 6.2), (10.75, 6.8), mark: (end: ">"))
+})
+```
+
+---
+
+## Block 2 — Perceptual Hashing
+
+**Définition :** Empreinte binaire robuste d'un contenu multimédia.
+
+**Propriétés :**
+
+- **Robustesse** : $h(\mathcal{A}(\mathbf{x}), k) \approx h(\mathbf{x}, k)$ pour des distorsions légères $\mathcal{A}$
+- **Irréversibilité** : impossible de reconstruire $\mathbf{x}$ à partir de $\mathbf{b}_x$
+- **Sensibilité** : deux contenus différents ont des empreintes très différentes
+- **Compacité** : $L \ll H \times W \times C$
+
+**Canal BSC :** les deux empreintes sont liées par un canal binaire symétrique de paramètre $P_b$.
+
+**Applications :** recherche de contenu multimédia similaire, bases de données vectorielles, détection de contenu illicite.
+
+---
+
+## Block 3 — Foundation Models Security
+
+**Menaces :**
+
+- Hallucination et désinformation
+- Model inversion (extraction de données d'entraînement)
+- Prompt injection et backdoors
+- Deepfakes et médias synthétiques
+
+**Défenses :**
+
+- Watermarking du contenu généré (LLM et diffusion)
+- Détection de contenu synthétique par empreinte perceptuelle
+- Alignement par RLHF, garde-fous
+
+---
+
+## Block 4 — Privacy Preservation
+
+**Définition formelle — $(\varepsilon, \delta)$-Differential Privacy :**
+
+$$P[\mathcal{M}(D) \in S] \leq e^\varepsilon \cdot P[\mathcal{M}(D') \in S] + \delta$$
+
+pour tout ensemble $S$ et toute paire de datasets adjacents $D, D'$.
+
+**Techniques :**
+
+| Technique | Principe | Compromis |
+|:----------|:---------|:----------|
+| Differential Privacy | Bruit calibré | Utilité ↔ confidentialité |
+| Federated Learning | Gradients locaux | Communication ↔ précision |
+| Anonymisation | Floutage, suppression | Réversibilité ↔ utilité |
+| PPML | Chiffrement homomorphe, MPC | Coût calcul élevé |

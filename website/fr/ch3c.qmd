@@ -1,0 +1,524 @@
+---
+title: "Chapitre 3 : Digital Watermarking — Contenu détaillé"
+---
+
+*Cours de S. Voloshynovskiy — Université de Genève*
+
+---
+
+# Partie 1 : Applications principales
+
+## 1. Robust Watermarking
+
+Le tatouage robuste vise à incorporer une information persistante qui survit aux traitements courants (compression JPEG, recadrage, filtrage, changements de contraste). Les deux usages majeurs sont :
+
+- **Protection du droit d'auteur :** on intègre dans l'œuvre l'identité du propriétaire ou un identifiant unique. Lors d'un litige, l'extracteur — qui nécessite la clé secrète $k$ — peut démontrer l'appartenance de l'œuvre même après de nombreuses transformations.
+- **Surveillance des diffusions (broadcast monitoring) :** un tatouage de type L-bit code l'identifiant du diffuseur ou de l'acquéreur. Des systèmes automatisés scrutent les flux télévisés ou les plateformes en ligne pour détecter des diffusions non autorisées.
+
+Dans les deux cas, la robustesse est prioritaire : un tatouage qui ne survit pas à la compression JPEG est pratiquement inutile.
+
+## 2. Stéganographie
+
+La stéganographie est l'art de **cacher l'existence même de la communication** en dissimulant un message secret dans un contenu anodin (image, vidéo, fichier audio). Elle se distingue du tatouage à plusieurs égards :
+
+| Critère | Watermarking | Stéganographie |
+|:--------|:------------|:---------------|
+| Objectif | Prouver la propriété / l'origine | Canal de communication secret |
+| Priorité | Robustesse aux attaques | Imperceptibilité maximale |
+| Adversaire | Atteint l'œuvre (qualité) | Détecte la communication |
+| Capacité | Quelques bits à quelques kbits | Aussi grand que possible |
+
+Du point de vue de la théorie de l'information, la stéganographie cherche à rendre indiscernables les distributions de l'image couverte $\mathbf{x}$ et de l'image tatouée $\mathbf{y}$ : $p(\mathbf{y}) \approx p(\mathbf{x})$.
+
+## 3. Tamper Detection (Détection de falsification)
+
+Les **tatouages fragiles** ont le comportement inverse des tatouages robustes : ils sont conçus pour être détruits ou perturbés par toute modification du contenu. On les utilise pour :
+
+- **Vérifier l'intégrité** d'un document légal, médical ou judiciaire.
+- **Localiser les régions falsifiées** : un tatouage fragile par blocs (ex. 8×8 pixels) indique précisément quelles zones ont été modifiées.
+- **Authentifier le contenu** sans recourir à des métadonnées externes.
+
+La clé de conception est que le tatouage fragile doit résister à la lecture (transport réseau, conversion de format sans perte) mais se détruire face à toute manipulation significative du signal.
+
+---
+
+**Diagramme 1 : Pipeline général du tatouage numérique**
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Image x à gauche
+  rect((0.0, 2.8), (1.5, 4.2), fill: luma(85%), stroke: luma(40%))
+  content((0.75, 3.5), [$bold(upright(x))$])
+
+  // Flèche vers Embedder
+  line((1.5, 3.5), (2.5, 3.5), mark: (end: ">"))
+
+  // Embedder
+  rect((2.5, 2.8), (5.0, 4.2), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((3.75, 3.5), [*Embedder*])
+
+  // Message m depuis le haut
+  content((3.75, 5.5), [$m$])
+  line((3.75, 5.2), (3.75, 4.2), mark: (end: ">"))
+
+  // Clé k depuis le bas vers l'embedder
+  content((3.75, 1.5), [$k$])
+  line((3.75, 1.8), (3.75, 2.8), mark: (end: ">"))
+
+  // Flèche vers canal
+  line((5.0, 3.5), (5.5, 3.5), mark: (end: ">"))
+  content((5.25, 3.8), [$bold(upright(y))$])
+
+  // Canal
+  rect((5.5, 2.5), (7.5, 4.5), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((6.5, 3.7), [*Canal*])
+  content((6.5, 3.2), [*/ Attaque*])
+  content((6.5, 2.8), [$cal(A)$])
+
+  // Flèche vers décodeur
+  line((7.5, 3.5), (8.5, 3.5), mark: (end: ">"))
+  content((8.0, 3.8), [$bold(upright(v))$])
+
+  // Décodeur
+  rect((8.5, 2.8), (11.0, 4.2), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((9.75, 3.5), [*Décodeur*])
+
+  // Clé k vers décodeur
+  content((9.75, 1.5), [$k$])
+  line((9.75, 1.8), (9.75, 2.8), mark: (end: ">"))
+
+  // Sortie m-hat
+  line((11.0, 3.5), (12.0, 3.5), mark: (end: ">"))
+  content((12.5, 3.5), [$hat(m)$])
+})
+```
+
+---
+
+# Partie 2 : Fondements du tatouage robuste
+
+## Modèle d'intégration additif
+
+Le modèle le plus simple — et le plus analysé théoriquement — est l'intégration additive dans le domaine spatial ou fréquentiel :
+
+$$\mathbf{y} = \mathbf{x} + \varepsilon\mathbf{w}, \quad \mathbf{w} = \text{Gen}(k)$$
+
+- $\mathbf{x} \in \mathbb{R}^M$ : image originale vectorisée ($M$ pixels ou coefficients)
+- $\mathbf{w} \in \mathbb{R}^M$ : séquence de référence pseudo-aléatoire générée par la clé $k$, typiquement $w_i \sim \mathcal{N}(0,1)$ i.i.d., normalisée : $\|\mathbf{w}\| = \sqrt{M}$
+- $\varepsilon > 0$ : force d'intégration (contrôle le compromis robustesse/qualité)
+
+La distorsion introduite est :
+$$D_{xy} = \frac{1}{M}\|\mathbf{y} - \mathbf{x}\|^2 = \frac{\varepsilon^2}{M}\|\mathbf{w}\|^2 = \varepsilon^2$$
+
+## Tatouage zero-bit (détection)
+
+Pour le tatouage zero-bit, on cherche à répondre à la question binaire : **le tatouage est-il présent ?** On formule cela comme un test d'hypothèses :
+
+- **$H_0$** : $\mathbf{v} = \mathbf{x}$ (pas de tatouage, image originale)
+- **$H_1$** : $\mathbf{v} = \mathbf{x} + \varepsilon\mathbf{w}$ (tatouage présent)
+
+La **statistique de test** (produit scalaire normalisé) est :
+
+$$S(\mathbf{v}) = \frac{1}{M}\sum_{i=1}^M v_i w_i = \frac{1}{M}\mathbf{v}\cdot\mathbf{w}$$
+
+Sous $H_0$ : $\mathbb{E}[S] = 0$, $\text{Var}[S] = \sigma_x^2/M$ (bruit de l'image).
+
+Sous $H_1$ : $\mathbb{E}[S] = \varepsilon$, $\text{Var}[S] = \sigma_x^2/M$.
+
+La règle de décision est :
+$$S(\mathbf{v}) \underset{H_0}{\overset{H_1}{\gtrless}} \tau$$
+
+## Tatouage L-bit (décodage)
+
+Pour les L-bit watermarks, on cherche à extraire un message entier $m \in \{0,1\}^L$ :
+
+$$\hat{m} = g(\mathbf{v}, k)$$
+
+Une approche classique utilise $L$ séquences de référence $\mathbf{w}_1, \ldots, \mathbf{w}_L$, une par bit, et décide chaque bit indépendamment :
+
+$$\hat{m}_\ell = \text{sign}\!\left(\frac{1}{M}\mathbf{v}\cdot\mathbf{w}_\ell\right), \quad \ell = 1, \ldots, L$$
+
+Le taux d'erreur par bit (BER) dépend du rapport signal/bruit $\varepsilon^2 M / \sigma_x^2$.
+
+## Métriques de distorsion
+
+La qualité perceptuelle de l'image tatouée est évaluée par deux métriques :
+
+$$D_{xy} = \frac{1}{M}\|\mathbf{x}-\mathbf{y}\|^2 \quad \text{(MSE)}$$
+
+$$\text{PSNR} = 10\log_{10}\!\left(\frac{255^2}{D_{xy}}\right) \text{ [dB]}$$
+
+Un PSNR $\geq 40$ dB garantit généralement une imperceptibilité pour l'œil humain. Le SSIM (*Structural Similarity Index*) est une métrique complémentaire qui tient compte de la structure locale, du contraste et de la luminance.
+
+---
+
+**Diagramme 2 : Triangle des compromis fondamentaux**
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Arêtes du triangle
+  line((6,6.5),(2,2), stroke: (paint: blue.darken(20%), thickness: 1.5pt))
+  line((6,6.5),(10,2), stroke: (paint: blue.darken(20%), thickness: 1.5pt))
+  line((2,2),(10,2), stroke: (paint: blue.darken(20%), thickness: 1.5pt))
+
+  // Étiquettes des sommets
+  content((6, 6.9), [*Robustesse*])
+  content((1.0, 1.6), [*Imperceptibilité*])
+  content((11.0, 1.6), [*Capacité*])
+
+  // Concept central
+  rect((4.5, 3.8), (7.5, 4.8), fill: yellow.lighten(40%), stroke: orange.darken(20%))
+  content((6, 4.3), [*Sécurité*])
+
+  // Labels sur les arêtes
+  content((3.5, 4.7), text(size: 8pt)[↑ robuste\n↓ invisible])
+  content((8.5, 4.7), text(size: 8pt)[↑ robuste\n↓ capacité])
+  content((6, 1.4), text(size: 8pt)[↑ capacité ↔ ↓ invisible])
+})
+```
+
+---
+
+**Diagramme 3 : Distributions des scores sous H₀ et H₁**
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Axes
+  line((0.5, 2.0), (13.0, 2.0), mark: (end: ">"))
+  line((0.5, 1.5), (0.5, 6.5), mark: (end: ">"))
+
+  content((13.2, 2.0), [$S(bold(upright(v)))$])
+  content((0.5, 6.8), [$p$])
+
+  // Distribution H0 (centrée en ~3)
+  line((1.0, 2.0), (1.5, 2.2), (2.0, 2.8), (2.5, 3.8), (3.0, 5.0), (3.5, 3.8), (4.0, 2.8), (4.5, 2.2), (5.0, 2.0))
+
+  // Distribution H1 (centrée en ~9)
+  line((6.5, 2.0), (7.0, 2.2), (7.5, 2.8), (8.0, 3.8), (8.5, 5.0), (9.0, 3.8), (9.5, 2.8), (10.0, 2.2), (10.5, 2.0))
+
+  // Seuil
+  line((7.0, 1.5), (7.0, 5.8), stroke: (paint: red, dash: "dashed"))
+  content((7.0, 6.1), [$tau$])
+
+  // Étiquettes
+  content((3.0, 5.5), [*H₀*])
+  content((8.5, 5.5), [*H₁*])
+  content((3.0, 1.5), [$mu_0 = 0$])
+  content((8.5, 1.5), [$mu_1 = epsilon$])
+
+  // Régions d'erreur
+  content((9.5, 3.0), text(fill: red)[$P_"FA"$])
+  content((6.0, 2.5), text(fill: blue)[$P_"miss"$])
+})
+```
+
+## Test d'hypothèses — Critère de Neyman-Pearson
+
+Le critère de Neyman-Pearson consiste à **maximiser la puissance de détection** $P_D = P(\text{décision } H_1 \mid H_1)$ tout en contraignant le **taux de fausse alarme** $P_{FA} = P(\text{décision } H_1 \mid H_0) \leq \alpha$.
+
+Pour le modèle additif gaussien ($\mathbf{x} \sim \mathcal{N}(\mathbf{0}, \sigma_x^2\mathbf{I})$) :
+
+$$P_{FA} = Q\!\left(\frac{\tau\sqrt{M}}{\sigma_x}\right), \quad P_D = Q\!\left(\frac{(\tau - \varepsilon)\sqrt{M}}{\sigma_x}\right)$$
+
+où $Q(t) = \frac{1}{\sqrt{2\pi}}\int_t^\infty e^{-u^2/2}\,du$ est la fonction Q gaussienne.
+
+Le **rapport signal sur bruit** (SNR) du détecteur est :
+$$\text{SNR} = \frac{\varepsilon^2 M}{\sigma_x^2}$$
+
+Plus $M$ est grand (images haute résolution), meilleure est la détection pour une même force $\varepsilon$.
+
+La **courbe ROC** représente $P_D$ en fonction de $P_{FA}$ quand $\tau$ varie. L'aire sous la courbe AUC = 1 correspond au détecteur parfait.
+
+---
+
+# Partie 3 : Masquage perceptuel
+
+## Watson Masking (masquage de Watson)
+
+Le Système Visuel Humain (HVS) est inégalement sensible aux modifications selon :
+
+1. **La luminance :** les régions très sombres ou très claires tolèrent davantage de perturbations.
+2. **La fréquence spatiale :** l'œil est moins sensible aux très hautes fréquences.
+3. **Le contraste local :** une région texturée masque mieux une perturbation qu'une région uniforme.
+
+Le **modèle de Watson** (1993) fournit un seuil de juste perceptibilité (JND, *Just Noticeable Difference*) pour chaque coefficient DCT $(k, l)$ en tenant compte de ces trois facteurs :
+
+$$\varepsilon(k, l) = t_q(k, l) \cdot a\!\left(\frac{L_{bg}}{L_0}\right)^b \cdot \left(1 + \left(\frac{c(k, l)}{C_{thr}(k,l)}\right)^s\right)^{1/s}$$
+
+où $t_q(k,l)$ est le seuil de base, $L_{bg}$ la luminance de fond, et $c(k,l)$ le contraste local.
+
+En pratique, le masquage de Watson est simplifié : la force d'intégration est proportionnelle à la valeur absolue du coefficient DCT hôte, ce qui garantit que les régions texturées reçoivent un tatouage plus fort (et donc plus robuste) sans être perceptiblement altérées.
+
+## Masquage basé sur la DWT
+
+La Transformée en Ondelettes Discrète (DWT) décompose l'image en sous-bandes orientées et à différentes résolutions :
+
+- **Sous-bande LL (approximation) :** basses fréquences, très perceptible → faible force $\varepsilon$.
+- **Sous-bandes LH, HL (détails horizontaux/verticaux) :** fréquences moyennes → force modérée.
+- **Sous-bande HH (détails diagonaux) :** hautes fréquences → forte force $\varepsilon$ tolérée.
+
+Le tatouage adaptatif en ondelettes ajuste la force coefficient par coefficient :
+
+$$\varepsilon_i(\mathbf{x}) = \varepsilon_0 \cdot f_\text{mask}(\mathbf{x}, i)$$
+
+où $f_\text{mask}$ est une fonction de masquage dépendant du contexte local (activité texturale, luminance, orientation).
+
+---
+
+# Partie 4 : Domaines d'intégration
+
+---
+
+**Diagramme 4 : Comparaison des domaines d'intégration**
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Image d'entrée (gauche)
+  rect((0.0, 2.5), (1.5, 5.5), fill: luma(85%), stroke: luma(40%))
+  content((0.75, 4.3), [*Image*])
+  content((0.75, 3.7), [$bold(upright(x))$])
+
+  // Ligne 1 : Pixel
+  line((1.5, 5.2), (3.0, 6.0), mark: (end: ">"))
+  rect((3.0, 5.6), (5.0, 6.4), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((4.0, 6.0), [Pixel])
+  line((5.0, 6.0), (6.0, 6.0), mark: (end: ">"))
+  rect((6.0, 5.6), (8.5, 6.4), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((7.25, 6.0), [*Embedder*])
+  line((8.5, 6.0), (9.5, 5.5), mark: (end: ">"))
+
+  // Ligne 2 : DCT
+  line((1.5, 4.5), (3.0, 4.7), mark: (end: ">"))
+  rect((3.0, 4.3), (5.0, 5.1), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((4.0, 4.7), [DCT])
+  line((5.0, 4.7), (6.0, 4.7), mark: (end: ">"))
+  rect((6.0, 4.3), (8.5, 5.1), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((7.25, 4.7), [*Embedder*])
+  line((8.5, 4.7), (9.5, 4.7), mark: (end: ">"))
+  rect((9.5, 4.3), (11.5, 5.1), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((10.5, 4.7), [iDCT])
+  line((11.5, 4.7), (12.5, 5.0), mark: (end: ">"))
+
+  // Ligne 3 : DWT
+  line((1.5, 3.5), (3.0, 3.3), mark: (end: ">"))
+  rect((3.0, 2.9), (5.0, 3.7), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((4.0, 3.3), [DWT])
+  line((5.0, 3.3), (6.0, 3.3), mark: (end: ">"))
+  rect((6.0, 2.9), (8.5, 3.7), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((7.25, 3.3), [*Embedder*])
+  line((8.5, 3.3), (9.5, 3.3), mark: (end: ">"))
+  rect((9.5, 2.9), (11.5, 3.7), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((10.5, 3.3), [iDWT])
+  line((11.5, 3.3), (12.5, 3.5), mark: (end: ">"))
+
+  // Ligne 4 : Deep
+  line((1.5, 2.8), (3.0, 2.0), mark: (end: ">"))
+  rect((3.0, 1.6), (5.0, 2.4), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((4.0, 2.0), [CNN Enc])
+  line((5.0, 2.0), (6.0, 2.0), mark: (end: ">"))
+  rect((6.0, 1.6), (8.5, 2.4), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((7.25, 2.0), [*Embedder*])
+  line((8.5, 2.0), (9.5, 2.0), mark: (end: ">"))
+  rect((9.5, 1.6), (11.5, 2.4), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((10.5, 2.0), [CNN Dec])
+  line((11.5, 2.0), (12.5, 2.5), mark: (end: ">"))
+
+  // Image de sortie y (droite)
+  rect((12.5, 2.5), (13.0, 5.5), fill: luma(85%), stroke: luma(40%))
+  content((12.75, 4.0), [$bold(upright(y))$])
+})
+```
+
+## Domaine pixel
+
+L'intégration en domaine pixel est la méthode la plus simple : on ajoute directement la séquence $\varepsilon\mathbf{w}$ aux valeurs de pixels. Avantages : simplicité, pas de transformée, facile à implémenter. Inconvénients majeurs :
+
+- **Sensibilité aux attaques géométriques :** un simple recadrage ou une rotation brise la synchronisation entre $\mathbf{v}$ et $\mathbf{w}$.
+- **Visibilité potentielle :** les perturbations dans les zones uniformes de l'image sont facilement visibles.
+- **Fragile à la compression :** la compression JPEG modifie les coefficients haute-fréquence, ce qui dégrade le tatouage.
+
+## Domaine DCT
+
+Le domaine DCT (base du standard JPEG) offre un meilleur compromis robustesse/imperceptibilité. Le pipeline est :
+
+1. Découpage de l'image en blocs $8 \times 8$.
+2. DCT de chaque bloc.
+3. Modification des coefficients AC de **moyenne fréquence** (ni les coefficients DC, ni les très hautes fréquences).
+4. DCT inverse pour reconstruire l'image tatouée.
+
+La **sélection des coefficients cibles** est guidée par le masquage perceptuel : on modifie davantage les coefficients des zones texturées. La robustesse à JPEG est naturelle puisque JPEG opère aussi dans le domaine DCT — les coefficients mid-frequency survivent à la quantification JPEG modérée.
+
+## Domaine DWT
+
+La DWT décompose l'image en une hiérarchie de sous-bandes à plusieurs niveaux. Avantages :
+
+- **Analyse multi-résolution :** robustesse à la fois aux attaques locales (recadrage) et globales (compression).
+- **Masquage perceptuel naturel :** les sous-bandes HH aux niveaux fins peuvent absorber une forte perturbation sans artefact visible.
+- **Alignement avec JPEG2000 :** robustesse naturelle face à ce standard de compression.
+
+L'intégration en DWT est généralement : $Y_{k}^{\text{DWT}} = X_{k}^{\text{DWT}} + \varepsilon_k w_k$ dans les sous-bandes sélectionnées, puis DWT inverse.
+
+## Domaine deep feature (caractéristiques profondes)
+
+Les méthodes récentes entraînent un encodeur $E_\phi$ et un décodeur $D_\psi$ de façon **end-to-end** via un réseau adversarial ou de diffusion :
+
+$$\mathbf{y} = D_\psi(E_\phi(\mathbf{x}, m)), \quad \hat{m} = g_\theta(\mathcal{A}(\mathbf{y}))$$
+
+La perte d'entraînement combine :
+$$\mathcal{L} = \mathcal{L}_\text{perceptuelle}(\mathbf{x}, \mathbf{y}) + \lambda \cdot \mathcal{L}_\text{message}(m, \hat{m}) + \mu \cdot \mathcal{L}_\text{robustesse}$$
+
+Ces systèmes (HiDDeN, RivaGAN, TrustMark…) atteignent des performances de robustesse bien supérieures aux approches classiques, au prix d'un entraînement coûteux.
+
+---
+
+# Partie 5 : Synchronisation géométrique
+
+## Le problème de la désynchronisation
+
+Les attaques géométriques — rotation, mise à l'échelle, recadrage, transformations projectives — perturbent la **synchronisation spatiale** entre l'image reçue $\mathbf{v}$ et la séquence de référence $\mathbf{w}$. Même un léger recadrage (1–2 pixels) peut faire chuter le score de détection à zéro.
+
+## Auto-synchronisation par invariants
+
+La **transformée de Fourier-Mellin** (FMT) fournit une représentation invariante aux rotations et aux mises à l'échelle. Le pipeline de synchronisation :
+
+1. Calculer le module du spectre de Fourier $|F(\mathbf{v})|$.
+2. Convertir en coordonnées log-polaires.
+3. Corréler avec la représentation log-polaire de l'image de référence pour estimer la rotation $\theta$ et l'échelle $s$.
+4. Compenser géométriquement avant la détection.
+
+Cette approche est robuste mais sensible au recadrage (qui tronque le spectre de Fourier).
+
+## Synchronisation par template (signal pilote)
+
+Une approche alternative consiste à intégrer un **signal pilote** dans une sous-bande spécifique (souvent la sous-bande LL de la DWT). Ce signal pilote est conçu pour :
+
+- Être détectable même après des transformations géométriques modérées.
+- Permettre d'estimer les paramètres de la transformation (déplacement, rotation, échelle).
+- Guider la re-synchronisation avant l'extraction du tatouage principal.
+
+Le signal pilote est généralement une grille de pics dans le domaine de Fourier (sinusoïdes à orientations multiples).
+
+## Features de modèles de fondation
+
+Les modèles de fondation (DINO, CLIP, SAM…) produisent des représentations invariantes aux transformations géométriques courantes. Une stratégie récente consiste à :
+
+1. Extraire les features $\mathbf{z}_x = f(\mathbf{x})$ du modèle de fondation.
+2. Tatouer dans l'espace des features : $\mathbf{z}_y = \mathbf{z}_x + \varepsilon\mathbf{w}$.
+3. Optimiser le décodeur pour reconstruire $\mathbf{y}$ tel que $f(\mathbf{y}) \approx \mathbf{z}_y$.
+
+La robustesse géométrique est héritée des propriétés d'invariance du modèle de fondation pré-entraîné.
+
+---
+
+# Partie 6 : Fonctions de modulation — QIM
+
+## Quantization Index Modulation (QIM) additif
+
+Le QIM (*Quantization Index Modulation*, Chen & Wornell 2001) est une méthode d'intégration basée sur la quantification différentielle :
+
+$$y_i = Q_m(x_i) = \left\lfloor\frac{x_i}{\Delta} + \frac{m}{2}\right\rfloor\Delta - m\cdot\frac{\Delta}{2}, \quad m \in \{0,1\}$$
+
+Le coefficient $x_i$ est quantifié vers la grille de quantification associée au bit $m$ (grille paire si $m=0$, grille impaire si $m=1$). Le pas de quantification $\Delta$ contrôle le compromis distorsion/robustesse.
+
+Pour le décodage, on identifie la grille la plus proche :
+$$\hat{m} = \arg\min_{m \in \{0,1\}} |v_i - Q_m(v_i)|$$
+
+**Robustesse au bruit additif :** le QIM est optimal au sens de la capacité pour le canal AWGN dans le régime haute résolution (Costa 1983).
+
+**Distorsion :** $D_{xy} = \Delta^2 / 4$ (indépendant de $\mathbf{x}$, ce qui est un avantage).
+
+## QIM avec dithering (DC-QIM)
+
+Le QIM basique est vulnérable aux attaques statistiques car l'adversaire peut estimer $\Delta$ en observant la distribution des coefficients. Le **DC-QIM** (Dither Coded QIM) ajoute un signal de dithering pseudo-aléatoire dépendant de la clé :
+
+$$y_i = Q\bigl(x_i + d_i(m, k)\bigr) - d_i(m, k)$$
+
+où $d_i(m, k)$ est un dither pseudo-aléatoire généré par la clé $k$ et le bit $m$.
+
+- Le dithering rend les grilles de quantification aléatoires, résistant aux attaques statistiques.
+- La connaissance de $k$ est nécessaire pour le décodage : Kerckhoffs est respecté.
+- Les performances en robustesse sont maintenues.
+
+---
+
+# Partie 7 : Gestion des clés
+
+## Hiérarchie des clés
+
+Un système de tatouage robuste doit protéger la clé secrète $k$ avec soin :
+
+- **Clé maître :** clé racine à très haute entropie, stockée offline dans un coffre-fort sécurisé.
+- **Clés de session :** dérivées de la clé maître via une KDF (*Key Derivation Function*) pour chaque œuvre ou chaque acquéreur.
+- **Clés de vérification :** peuvent être rendues publiques pour permettre à des tiers de vérifier le tatouage sans pouvoir le reproduire (watermarking asymétrique).
+
+## Génération de la séquence de référence
+
+La séquence de tatouage $\mathbf{w}$ est générée par un PRNG (*Pseudo-Random Number Generator*) cryptographiquement sûr :
+
+$$\mathbf{w} = \text{Gen}(k) = \text{PRNG}(k, M)$$
+
+Le PRNG doit satisfaire :
+- **Imperceptibilité statistique :** $\mathbf{w}$ doit paraître indiscernable d'un bruit gaussien.
+- **Sécurité :** sans $k$, retrouver $\mathbf{w}$ est computationnellement infaisable.
+
+## Principe de Kerckhoffs
+
+Conformément au principe de Kerckhoffs, la **sécurité repose uniquement sur la clé $k$**, pas sur la confidentialité de l'algorithme. L'algorithme de tatouage est supposé public ; seule la clé est secrète. Cela implique :
+
+- Utilisation de générateurs pseudo-aléatoires standardisés (AES-CTR, ChaCha20).
+- Indépendance entre la clé et le contenu tatoué.
+
+## Attaques par canal auxiliaire
+
+Les attaques par canal auxiliaire (*side-channel attacks*) exploitent des informations physiques lors du calcul du tatouage (temps d'exécution, consommation électrique, rayonnement électromagnétique) pour déduire la clé. Les contre-mesures incluent l'implémentation en temps constant et le masquage des opérations sensibles.
+
+---
+
+# Partie 8 : Robustesse adversariale et sécurité
+
+## Classification des attaques
+
+On distingue deux catégories principales :
+
+| Catégorie | Connaissance de l'adversaire | Exemples |
+|:---------|:---------------------------|:---------|
+| Attaques aveugles | Pas de connaissance de $k$ ni de $\mathbf{w}$ | Compression JPEG, flou, bruit, recadrage |
+| Attaques informées | Connaît l'algorithme, cherche $k$ | Attaques statistiques, oracle |
+
+## Attaques aveugles
+
+Les attaques aveugles agissent sur le signal sans connaissance du tatouage :
+
+- **Compression JPEG / JPEG2000 :** élimine les hautes fréquences. La robustesse dépend du domaine d'intégration.
+- **Filtrage :** filtre passe-bas (flou gaussien), rehaussement de netteté, débruitage.
+- **Bruit additif :** AWGN, bruit de Poisson (speckle).
+- **Attaques géométriques :** rotation, mise à l'échelle, recadrage, transformation affine.
+- **Attaques de collusion :** plusieurs copies tatouées différemment sont moyennées pour effacer le tatouage commun.
+
+## Attaques informées
+
+Avec une connaissance partielle du système :
+
+- **Estimation de $\mathbf{w}$ :** si plusieurs images tatouées avec la même clé sont disponibles, des méthodes statistiques peuvent estimer $\mathbf{w}$.
+- **Attaques par oracle :** l'adversaire interroge un détecteur qui répond oui/non et converge vers une image non détectée.
+- **Copier-coller :** copier le tatouage d'une image valide sur un contenu non autorisé (attaque de transfert de tatouage).
+
+## Exemples adversariaux et suppression de tatouage
+
+Les perturbations adversariales ($\ell^\infty$-imperceptibles) peuvent supprimer un tatouage appris (*adversarial watermark removal*). Inversement, elles peuvent aussi forcer la détection d'un tatouage absent (*false positive adversarial attack*). Ces vulnérabilités motivent des approches d'entraînement adversarial des embedeurs/décodeurs.
+
+## Benchmarks de référence
+
+- **StirMark :** banc de test standard pour la robustesse (200+ transformations), publié par Petitcolas en 1998.
+- **Checkmark :** benchmark spécifique aux attaques géométriques complexes.
+- **BOWS-2 :** compétition internationale de robustesse du tatouage (2007).
+
+Ces benchmarks évaluent le taux de réussite de l'extraction ($P_D$) et le taux de fausse alarme ($P_{FA}$) sur un large corpus d'images après application de toutes les attaques du benchmark.
