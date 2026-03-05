@@ -1,0 +1,151 @@
+---
+title: "Synthesis — Chapter 2"
+format:
+  html:
+    toc-depth: 2
+---
+
+::: {.callout-important title="📚 Quick Review Sheet — Chapter 2"}
+This sheet summarizes the essential concepts from Chapter 2. It covers image representations, self-supervised learning, formal notations for watermarking and hashing, and detection theory.
+
+**Navigation:** [Overview →](ch2.qmd) | [Detailed content →](ch2c.qmd)
+:::
+
+---
+
+## Key Formulas
+
+| Concept | Formula | Units / Notes |
+|:--------|:--------|:-------------|
+| Image | $\mathbf{x} \in \mathbb{R}^{H \times W \times C}$ | $x_{h,w,c} \in \{0,\ldots,255\}$ for 8 bits |
+| MSE | $\frac{1}{N}\|\mathbf{x}-\mathbf{y}\|_2^2$ | $N = HWC$ |
+| PSNR | $10\log_{10}\!\left(\frac{255^2}{\text{MSE}}\right)$ | In dB; $>40\,\text{dB}$ ≈ imperceptible |
+| Cosine | $\frac{\mathbf{u}\cdot\mathbf{v}}{\|\mathbf{u}\|\|\mathbf{v}\|}$ | $\in[-1,1]$ |
+| SSL representation | $\mathbf{z}_x = f_\phi(\mathbf{x}) \in \mathbb{R}^d$ | $d \ll N$ |
+| DFT | $X_k = \sum_{n=0}^{N-1} x_n e^{-j2\pi kn/N}$ | — |
+| DCT-II | $X_k = \sum_{n=0}^{N-1} x_n \cos\!\left[\frac{\pi(2n+1)k}{2N}\right]$ | JPEG base: 8×8 blocks |
+| Watermarking | $\mathbf{y} = \omega(\mathbf{x},k,m)$, $\hat{m}=g(\mathbf{v},k)$ | — |
+| Detection score | $S(\mathbf{v}) = \frac{1}{M}\mathbf{v}\cdot\mathbf{w}$ | Test statistic |
+| AWGN channel | $\mathbf{v} = \mathbf{s} + \mathbf{n}$, $\mathbf{n}\sim\mathcal{N}(\mathbf{0},\sigma^2\mathbf{I})$ | — |
+| $P_{FA}$ | $Q\!\left(\frac{\eta}{\sigma\|\mathbf{s}\|}\right)$ | False alarm |
+| $P_D$ | $Q\!\left(\frac{\eta-\|\mathbf{s}\|^2}{\sigma\|\mathbf{s}\|}\right)$ | Detection power |
+| Hamming distance | $d_H(\mathbf{b}_x,\mathbf{b}_y) = \|\mathbf{b}_x\oplus\mathbf{b}_y\|_1$ | For perceptual hashing |
+
+---
+
+## Part 1 — Image Representations
+
+**Image:** $\mathbf{x} \in \mathbb{R}^{H \times W \times C}$, pixels $\in \{0,\ldots,255\}$ (8 bits)
+
+**Metrics:**
+
+- MSE: mean squared pixel-wise error
+- PSNR $> 40\,\text{dB}$: imperceptible modification
+- Cosine: compares representation vectors (not raw pixels)
+
+**Transforms:**
+
+| Transform | Domain | Main usage |
+|:----------|:-------|:----------|
+| DCT (8×8) | Frequencies | JPEG compression, frequency watermarking |
+| DFT | Complex frequencies | Filtering, spectral analysis |
+| DWT | Time-frequency | Multi-resolution compression, watermarking |
+| PCA | Maximum variance | Dimensionality reduction |
+
+---
+
+## Part 2 — Self-Supervised Learning
+
+**Latent representation:** $\mathbf{z}_x = f_\phi(\mathbf{x}) \in \mathbb{R}^d$
+
+**Contrastive learning:**
+
+- Anchor $\mathbf{x}$ + Positive $\mathbf{x}^+$ (same image, different augmentations) → bring closer
+- Negatives $\mathbf{x}^-$ (other images in batch) → push apart
+- Temperature $\tau$ controls selectivity
+
+**NT-Xent loss:**
+$$\mathcal{L} = -\log \frac{\exp(\text{sim}(\mathbf{z}_x,\mathbf{z}_{x^+})/\tau)}{\sum_j \exp(\text{sim}(\mathbf{z}_x,\mathbf{z}_j)/\tau)}$$
+
+---
+
+## Part 3 — Watermarking and Hashing
+
+### Watermarking
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // x
+  content((0.0, 3.0), [$bold(upright(x))$])
+  line((0.5, 3.0), (1.5, 3.0), mark: (end: ">"))
+
+  // Embedder
+  rect((1.5, 2.3), (4.0, 3.7), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((2.75, 3.0), [*Embedder* $omega$])
+
+  // m and k
+  content((2.75, 4.4), [$m, k$])
+  line((2.75, 4.1), (2.75, 3.7), mark: (end: ">"))
+
+  // y
+  line((4.0, 3.0), (5.5, 3.0), mark: (end: ">"))
+  content((4.75, 3.3), [$bold(upright(y))$])
+
+  // Channel
+  rect((5.5, 2.3), (7.5, 3.7), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((6.5, 3.0), [*Channel* $cal(A)$])
+
+  // v
+  line((7.5, 3.0), (9.0, 3.0), mark: (end: ">"))
+  content((8.25, 3.3), [$bold(upright(v))$])
+
+  // Extractor
+  rect((9.0, 2.3), (11.5, 3.7), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((10.25, 3.0), [*Extractor* $g$])
+
+  // k right side
+  content((10.25, 4.4), [$k$])
+  line((10.25, 4.1), (10.25, 3.7), mark: (end: ">"))
+
+  // m̂
+  line((11.5, 3.0), (12.2, 3.0), mark: (end: ">"))
+  content((12.5, 3.0), [$hat(m)$])
+})
+```
+
+**Symbols:**
+
+- $\mathbf{x}$: original image, $\mathbf{y}$: watermarked image, $\mathbf{v}$: received image
+- $k$: secret key, $m$: message, $\hat{m}$: extracted message
+- $S(\mathbf{v}) = \frac{1}{M}\mathbf{v}\cdot\mathbf{w}$: detection score (zero-bit)
+
+### Perceptual Hashing
+
+- $\mathbf{b}_x = h(\mathbf{x}, k) \in \{0,1\}^L$
+- BSC channel: $P(\hat{b}_i \neq b_i) = P_b$
+- Similarity decision: $d_H(\mathbf{b}_x, \mathbf{b}_y) \leq \tau_H$
+
+---
+
+## Part 4 — Signal Detection
+
+**Hypothesis test:**
+
+| Hypothesis | Model | Meaning |
+|:----------|:------|:--------|
+| $H_0$ | $\mathbf{v} \sim \mathcal{N}(\mathbf{0}, \sigma^2\mathbf{I})$ | No watermark |
+| $H_1$ | $\mathbf{v} \sim \mathcal{N}(\mathbf{s}, \sigma^2\mathbf{I})$ | Watermark present |
+
+**NP test statistic:** $T(\mathbf{v}) = \mathbf{v}^\top \mathbf{s} \underset{H_0}{\overset{H_1}{\gtrless}} \eta$
+
+**Errors:**
+
+- $P_{FA}$: false alarm (declare $H_1$ when $H_0$)
+- $P_\text{miss}$: miss (declare $H_0$ when $H_1$)
+- $P_D = 1 - P_\text{miss}$: detection power
+
+**ROC curve:** represents $P_D$ as a function of $P_{FA}$. AUC = 1 → perfect detector; AUC = 0.5 → random.
+
+**BSC:** $P(\hat{b}_i \neq b_i) = P_b$. Hamming distance follows $\mathcal{B}(L, P_b)$ distribution under $H_1$.

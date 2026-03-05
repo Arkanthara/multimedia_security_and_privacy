@@ -1,0 +1,139 @@
+---
+title: "Synthesis — Chapter 4"
+format:
+  html:
+    toc-depth: 2
+---
+
+::: {.callout-important title="📚 Quick Review Sheet — Chapter 4"}
+This sheet summarizes the essential concepts from Chapter 4: three biometric template protection approaches (cryptographic, signal processing, hybrid), associated threats, key formulas for robust hashing, and fuzzy commitment.
+
+**Navigation:** [Overview →](ch4.qmd) | [Detailed content →](ch4c.qmd)
+:::
+
+---
+
+## Comparison of Three Approaches
+
+| Approach | Principle | Advantage | Disadvantage |
+|:---------|:---------|:---------|:-------------|
+| Cryptographic | $\mathbf{b}_x = h(\mathbf{x})$ | Irreversible, standard | Sensitive to biometric noise |
+| Signal processing | $T(\mathbf{y},\mathbf{x}^{(m)}) = \frac{1}{N}\mathbf{y}\cdot\mathbf{x}^{(m)}$ | Robust to noise | Invertible, template exposed |
+| Hybrid (robust hashing) | $\mathbf{b}_x = \text{sign}(\mathbf{P}\mathbf{x})$ | Robust + irreversible + revocable | More complex design |
+
+---
+
+## Key Formulas
+
+| Concept | Formula | Description |
+|:--------|:--------|:------------|
+| Biometric hash | $\mathbf{b}_x = h(\mathbf{x}, k)$ | Compact robust fingerprint |
+| Robust hashing | $\mathbf{b}_x = \text{sign}(\mathbf{P}\mathbf{x})$, $\mathbf{P} = f(k)$ | Random projection + sign |
+| BSC channel | $P(\hat{b}_i \neq b_i) = P_b$ | Per-bit error (intra-class) |
+| Authentication score | $T(\mathbf{y},\mathbf{x}^{(m)}) = \frac{1}{N}\mathbf{y}\cdot\mathbf{x}^{(m)}$ | Similarity statistic |
+| Fuzzy commitment | $c = \mathbf{b}_x \oplus \text{ECC}(m)$ | Biometric commitment |
+| Hamming distance | $d_H(\mathbf{b}_x,\mathbf{b}_y) = \sum_{i=1}^L b_{xi} \oplus b_{yi}$ | Binary similarity metric |
+
+---
+
+## Threats and Attacks
+
+| Threat | Description | Defense |
+|:-------|:-----------|:--------|
+| Identity theft | Template replay | Robust hashing + revocability |
+| Blind attack | Exploit statistics of $T(\mathbf{y},\mathbf{x})$ without key | Increase $L$, adaptive threshold |
+| Informed attack | Access to $\mathbf{x}^{(m)}$ or matrix $\mathbf{P}$ | Secret key $k$, irreversibility |
+| Cross-database matching | Same biometrics in $N$ databases | Different keys per database |
+| Attribute inference | Soft biometrics from template | Random projection + sign |
+
+---
+
+## Visual Comparison of Three Approaches
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Column 1: Cryptographic
+  content((1.75, 6.5), [*Cryptographic*])
+  rect((0.5, 5.5), (3.0, 6.3), fill: luma(85%), stroke: luma(40%))
+  content((1.75, 5.9), [$bold(upright(x))$])
+  line((1.75, 5.5), (1.75, 4.7), mark: (end: ">"))
+  rect((0.5, 3.8), (3.0, 4.7), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((1.75, 4.25), [*Hash h(·)*])
+  line((1.75, 3.8), (1.75, 3.0), mark: (end: ">"))
+  rect((0.5, 2.2), (3.0, 3.0), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((1.75, 2.6), [$b_x in {0,1}^L$])
+  content((1.75, 1.2), [✗ non-invertible])
+
+  // Column 2: Signal processing
+  content((6.5, 6.5), [*Signal Processing*])
+  rect((4.8, 5.5), (8.2, 6.3), fill: luma(85%), stroke: luma(40%))
+  content((6.5, 5.9), [$bold(upright(x)), bold(upright(y))$])
+  line((6.5, 5.5), (6.5, 4.7), mark: (end: ">"))
+  rect((4.8, 3.8), (8.2, 4.7), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((6.5, 4.25), [$T(bold(upright(y)), bold(upright(x))^((m)))$])
+  line((6.5, 3.8), (6.5, 3.0), mark: (end: ">"))
+  rect((4.8, 2.2), (8.2, 3.0), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((6.5, 2.6), [Decision $H_0 / H_1$])
+  content((6.5, 1.2), [✓ robust, ✗ invertible])
+
+  // Column 3: Robust hashing
+  content((11.25, 6.5), [*Robust Hashing*])
+  rect((9.5, 5.5), (13.0, 6.3), fill: luma(85%), stroke: luma(40%))
+  content((11.25, 5.9), [$bold(upright(x))$])
+  line((11.25, 5.5), (11.25, 4.7), mark: (end: ">"))
+  rect((9.5, 3.8), (13.0, 4.7), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((11.25, 4.25), [*Proj. + sign(·)*])
+  line((11.25, 3.8), (11.25, 3.0), mark: (end: ">"))
+  rect((9.5, 2.2), (13.0, 3.0), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((11.25, 2.6), [$b_x in {0,1}^L$, key $k$])
+  content((11.25, 1.2), [✓ robust, ✓ revocable])
+})
+```
+
+---
+
+## Robust Hashing Properties
+
+- **Robustness**: same biometrics → same hash despite capture noise ($P_b < 0.15$ for same person)
+- **Irreversibility**: impossible to reconstruct $\mathbf{x}$ from $\mathbf{b}_x$ without key $k$
+- **Revocability**: changing key $k$ generates new matrix $\mathbf{P}' \neq \mathbf{P}$ and new hash $\mathbf{b}'_x$
+- **Compactness**: $\mathbf{b}_x \in \{0,1\}^L$, with $L \ll N$
+- **Diversity**: different keys per database → independent hashes → no cross-database matching
+
+---
+
+## BSC and Hamming Decision
+
+Under $H_0$ (same person), Hamming distance follows:
+$$d_H(\mathbf{b}_x, \mathbf{b}_y) \sim \mathcal{B}(L, P_b), \quad P_b \approx 0.05\text{–}0.15$$
+
+Under $H_1$ (different persons), bits are quasi-independent:
+$$d_H(\mathbf{b}_x, \mathbf{b}_y) \sim \mathcal{B}(L, 0.5)$$
+
+Optimal decision rule:
+$$d_H(\mathbf{b}_x, \mathbf{b}_y) \underset{H_1}{\overset{H_0}{\lessgtr}} \tau_H$$
+
+---
+
+## Link with Digital Watermarking
+
+| Concept | Watermarking (Ch. 3) | Biometric Hashing (Ch. 4) |
+|:--------|:----------------|:--------------------------|
+| Host signal | Image $\mathbf{x}$ | Biometric template $\mathbf{x}$ |
+| Transform | $\mathbf{y} = \mathbf{x} + \varepsilon\mathbf{w}$ | $\mathbf{b}_x = \text{sign}(\mathbf{P}\mathbf{x})$ |
+| Key | $k$ → $\mathbf{w} = \text{Gen}(k)$ | $k$ → $\mathbf{P} = f(k)$ |
+| Statistic | $S(\mathbf{v}) = \frac{1}{M}\mathbf{v}\cdot\mathbf{w}$ | $T(\mathbf{y},\mathbf{x}^{(m)}) = \frac{1}{N}\mathbf{y}\cdot\mathbf{x}^{(m)}$ |
+| Decision | $S \gtrless \tau$ | $d_H \lessgtr \tau_H$ |
+
+In both cases, key $k$ is the fundamental secret. Security rests on Kerckhoffs' principle: the algorithm is public, only the key is secret.
+
+---
+
+## Key Points
+
+- The fundamental problem is the **tension** between robustness to biometric noise (intra-class) and irreversibility (cryptographic property).
+- Solution: project onto a secret random subspace → binarize → dimensionality reduction ensures irreversibility; projection continuity ensures robustness.
+- Parameter $L$ controls the security/robustness trade-off: large $L$ → better inter-class separation; too large $L$ → more intra-class errors.
+- GDPR Art. 9: biometric data is a special category → processing prohibited by default → robust hashing is the technical implementation of privacy by design.

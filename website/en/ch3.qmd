@@ -1,0 +1,74 @@
+---
+title: "Chapter 3: Digital Watermarking"
+---
+
+## Overview
+
+Digital watermarking consists of embedding invisible information — a message or signature — directly into multimedia content (image, video, audio) so that it persists despite modifications. Applications range from copyright protection to broadcast monitoring, steganography, and tamper detection. The fundamental pipeline relies on a trio: an **embedder**, a potentially hostile channel, and a **decoder** that recovers the message or verifies the presence of the watermark using the secret key.
+
+**Navigation:**
+
+- 📖 [Detailed chapter content (ch3c)](ch3c.qmd)
+- 📝 [Quick review sheet (ch3r)](ch3r.qmd)
+
+---
+
+## Chapter Synthesis {#synthesis}
+
+::: {.callout-note title="Fundamental Trade-offs"}
+Every digital watermarking system must balance four antagonistic properties:
+
+- **Robustness**: the watermark survives compression, cropping, geometric attacks.
+- **Imperceptibility**: the visual quality of the watermarked image remains high (PSNR $> 40$ dB).
+- **Capacity**: number of bits $L$ that can be embedded.
+- **Security**: resistance to an adversary who knows the algorithm but not the key.
+
+**Additive embedding model (zero-bit):**
+$$\mathbf{y} = \mathbf{x} + \varepsilon\mathbf{w}, \quad \mathbf{w} = \text{Gen}(k), \quad \|\mathbf{w}\| = 1$$
+
+**Detection score:**
+$$S(\mathbf{v}) = \frac{1}{M}\mathbf{v}\cdot\mathbf{w}$$
+
+**Hypothesis test:**
+
+- $H_0$: $\mathbf{v} = \mathbf{x}$ (no watermark) → $\mathbb{E}[S] = 0$
+- $H_1$: $\mathbf{v} = \mathbf{x} + \varepsilon\mathbf{w}$ (watermark present) → $\mathbb{E}[S] = \varepsilon$
+
+**L-bit watermark:** $\hat{m} = g(\mathbf{v}, k)$, $m \in \{0,1\}^L$
+:::
+
+::: {.callout-note title="Main Applications"}
+| Application | Type | Principle |
+|:-----------|:-----|:---------|
+| Copyright protection | Zero-bit / L-bit | Identify the work or its owner |
+| Broadcast monitoring | L-bit | Track content distribution |
+| Steganography | L-bit | Secret communication channel in image |
+| Tamper detection | Fragile | Fragile watermark localized by region |
+| Fingerprinting | L-bit | Identify the acquirer (traceability) |
+:::
+
+::: {.callout-note title="Embedding Domains"}
+| Domain | Transform | Robustness | Notes |
+|:-------|:---------|:---------|:------|
+| Pixel | None | Low | Simple, sensitive to geometric attacks |
+| DCT | Discrete cosine | Good | JPEG-compatible, mid-frequency coefficients |
+| DWT | Discrete wavelets | Very good | Multi-resolution, perceptual masking |
+| Deep features | CNN/ViT | Excellent | End-to-end optimization, very robust |
+:::
+
+---
+
+## Introduction to Digital Watermarking
+
+Digital watermarking aims to make content **self-authenticating** by concealing information that will accompany the work throughout its digital life. Unlike electronic signatures, the watermark is tied to the signal itself rather than its metadata.
+
+General pipeline:
+$$\mathbf{y} = \omega(\mathbf{x}, k, m), \qquad \hat{m} = g(\mathbf{v}, k)$$
+
+where $\mathbf{v} = \mathcal{A}(\mathbf{y})$ denotes the received image after channel / attacks $\mathcal{A}$.
+
+The embedding strength $\varepsilon$ directly controls the robustness–imperceptibility trade-off:
+
+$$D_{xy} = \frac{1}{M}\|\mathbf{x}-\mathbf{y}\|^2 = \frac{\varepsilon^2}{M}\|\mathbf{w}\|^2 = \varepsilon^2 \quad (\text{if } \|\mathbf{w}\|^2 = M)$$
+
+$$\text{PSNR} = 10\log_{10}\!\left(\frac{255^2}{\varepsilon^2}\right) \text{ [dB]}$$

@@ -1,0 +1,73 @@
+---
+title: "Home"
+format:
+  html:
+    toc: false
+---
+
+# Welcome to the Multimedia Security and Privacy Course
+
+This course, taught by **Professor S. Voloshynovskiy** at the University of Geneva, presents the theoretical foundations and practical aspects of security and privacy in the multimedia domain. You will discover how to protect, authenticate, and analyze digital content (images, audio, video) using modern techniques grounded in information theory, signal processing, and deep learning.
+
+The course is organized around four major themes: **digital watermarking**, **perceptual hashing**, **foundation model security**, and **privacy preservation**. Each theme is approached both from a rigorous mathematical perspective and through concrete applications from research and industry.
+
+Course materials are organized into chapters, each available in three forms: a **quick synthesis** for review, a **chapter overview**, and **detailed content** for in-depth study. Use the sidebar navigation to access the different sections.
+
+---
+
+## Course Structure
+
+| Chapter | Title | Main Topics |
+|:-------:|:------|:-----------|
+| **1** | [Introduction to Multimedia Security](ch1.qmd) | Watermarking, perceptual hashing, foundation models, privacy |
+| **2** | [Notations and Core Concepts](ch2.qmd) | Image representations, SSL, signal detection |
+| **3** | [Digital Watermarking](ch3.qmd) | Embedders, extractors, attacks, metrics |
+| **4** | [Privacy-Preserving Methods](ch4.qmd) | Robust hashing, fuzzy commitment, biometrics |
+
+---
+
+## Course Overview
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Central title
+  rect((3.5, 3.2), (8.5, 4.8), fill: blue.lighten(60%), stroke: blue.darken(20%))
+  content((6.0, 4.0), [*Multimedia Security and Privacy*])
+
+  // Block 1: Watermarking
+  rect((0.0, 5.5), (4.0, 7.2), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((2.0, 6.55), [*Digital Watermarking*])
+  content((2.0, 6.1), [Protection & authentication])
+
+  // Block 2: Hashing
+  rect((8.0, 5.5), (12.0, 7.2), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((10.0, 6.55), [*Perceptual Hashing*])
+  content((10.0, 6.1), [Robust fingerprints])
+
+  // Block 3: Foundation Models
+  rect((0.0, 1.0), (4.0, 2.7), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((2.0, 2.05), [*Foundation Models*])
+  content((2.0, 1.6), [LLM/VLM security])
+
+  // Block 4: Privacy
+  rect((8.0, 1.0), (12.0, 2.7), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((10.0, 2.05), [*Privacy Preservation*])
+  content((10.0, 1.6), [Privacy & anonymization])
+
+  // Arrows: blocks to center
+  line((4.0, 6.35), (3.5, 4.8), mark: (end: ">"))
+  line((8.0, 6.35), (8.5, 4.8), mark: (end: ">"))
+  line((4.0, 1.85), (3.5, 3.2), mark: (end: ">"))
+  line((8.0, 1.85), (8.5, 3.2), mark: (end: ">"))
+})
+```
+
+---
+
+## Resources
+
+- **Language:** English (French version available via the language selector)
+- **Prerequisites:** Probability and statistics, linear algebra, basics of signal processing and machine learning
+- **Assessment:** Written exam covering all chapters

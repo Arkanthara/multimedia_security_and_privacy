@@ -1,0 +1,396 @@
+---
+title: "Chapter 1: Introduction to Multimedia Security — Detailed Content"
+---
+
+*Course by S. Voloshynovskiy — University of Geneva*
+
+---
+
+# Block 1: Digital Watermarking
+
+## Definition
+
+**Digital watermarking** is the process of imperceptibly embedding a piece of information — a message or signature — directly into a multimedia content (image, video, audio) in such a way that it persists despite modifications. The embedded information is called a **watermark**.
+
+Formally, the watermarking system is defined by:
+$$\mathbf{y} = \omega(\mathbf{x},\, k,\, m), \qquad \hat{m} = g(\mathbf{v},\, k)$$
+
+where:
+- $\mathbf{x} \in \mathbb{R}^{H \times W \times C}$: the original image
+- $k$: a secret symmetric key
+- $m \in \{0,1\}^M$: the message to embed ($M$ bits)
+- $\mathbf{y}$: the watermarked image
+- $\mathbf{v} = \mathcal{A}(\mathbf{y})$: the received image after attack $\mathcal{A}$
+- $\hat{m}$: the extracted message
+
+## Watermarking Pipeline
+
+**Diagram 1: Digital watermarking pipeline**
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Message input
+  content((2.0, 7.5), [Message $m$])
+  line((2.0, 7.3), (2.0, 6.7), mark: (end: ">"))
+
+  // Encoder
+  rect((0.5, 5.7), (3.5, 6.7), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((2.0, 6.2), [*Encoder*])
+
+  // Image x
+  content((-0.8, 4.2), [$bold(upright(x))$])
+  line((-0.3, 4.2), (0.5, 4.2), mark: (end: ">"))
+
+  // s: Encoder -> Embedder
+  line((2.0, 5.7), (2.0, 4.7), mark: (end: ">"))
+  content((2.4, 5.2), [$bold(upright(s))$])
+
+  // Key k
+  content((2.0, 1.5), [Key $k$])
+  line((2.0, 1.8), (2.0, 2.8), mark: (end: ">"))
+
+  // Embedder
+  rect((0.5, 2.8), (3.5, 4.7), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((2.0, 3.75), [*Embedder*])
+
+  // y: Embedder -> Channel
+  line((3.5, 4.0), (5.5, 4.0), mark: (end: ">"))
+  content((4.5, 4.3), [$bold(upright(y))$])
+
+  // Multimedia Channel
+  rect((5.5, 3.0), (8.0, 5.0), fill: blue.lighten(70%), stroke: blue.darken(15%))
+  content((6.75, 4.3), [*Multimedia*])
+  content((6.75, 3.7), [*Channel*])
+
+  // v: Channel -> Extractor
+  line((8.0, 4.0), (9.5, 4.0), mark: (end: ">"))
+  content((8.75, 4.3), [$bold(upright(v))$])
+
+  // Extractor
+  rect((9.5, 2.8), (12.0, 4.7), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((10.75, 3.75), [*Extractor*])
+
+  // Key k (right side)
+  content((10.75, 1.5), [Key $k$])
+  line((10.75, 1.8), (10.75, 2.8), mark: (end: ">"))
+
+  // ŝ: Extractor -> Decoder
+  line((10.75, 4.7), (10.75, 5.7), mark: (end: ">"))
+  content((11.2, 5.2), [$hat(bold(upright(s)))$])
+
+  // Decoder
+  rect((9.5, 5.7), (12.0, 6.7), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((10.75, 6.2), [*Decoder*])
+
+  // m̂: Decoder -> output
+  content((10.75, 7.5), [Message $hat(m)$])
+  line((10.75, 6.7), (10.75, 7.3), mark: (end: ">"))
+})
+```
+
+## Applications
+
+Digital watermarking is used in:
+
+1. **Copyright protection:** embed the owner's identity or a unique identifier. During a dispute, the extractor — which requires secret key $k$ — can prove ownership even after many transformations.
+2. **Broadcast monitoring:** an L-bit watermark encodes the distributor or buyer identifier. Automated systems scan television streams or online platforms to detect unauthorized broadcasts.
+3. **Marking generative AI content:** watermarking images, text, or videos produced by diffusion models or LLMs to indicate their artificial origin.
+4. **Steganography:** hiding the very existence of communication by concealing a secret message in an innocuous image.
+5. **Tamper detection:** fragile watermarks designed to be destroyed by any modification, allowing integrity verification.
+
+## Key Trade-offs
+
+Any watermarking system must balance four antagonistic properties:
+
+- **Robustness**: the watermark survives compression, cropping, geometric attacks.
+- **Imperceptibility**: the visual quality of the watermarked image remains high (PSNR $> 40$ dB).
+- **Capacity**: number of bits $L$ that can be embedded.
+- **Security**: resistance to an adversary who knows the algorithm but not the key.
+
+## Challenges
+
+- **Geometric attacks**: rotation, scaling, cropping can desynchronize the watermark.
+- **Adversarial attacks**: targeted attacks can remove the watermark while preserving visual quality.
+- **Collusion attacks**: combining several watermarked copies to erase the mark.
+- **Key management**: protecting key $k$ is essential for the whole system's security.
+
+---
+
+# Block 2: Perceptual Hashing
+
+## Definition
+
+**Perceptual hashing** computes a compact binary fingerprint that is robust to benign transformations:
+$$\mathbf{b}_x = h(\mathbf{x},\, k), \quad \mathbf{b}_x \in \{0,1\}^L$$
+
+Unlike cryptographic hashes (MD5, SHA-256), a perceptual hash must be **stable** under small perturbations: two versions of the same image (compressed, resized, slightly modified) must produce similar (or identical) hashes.
+
+## Perceptual Hashing Pipeline
+
+**Diagram 2: Perceptual hashing and BSC channel model**
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Original image x
+  rect((0.0, 4.0), (2.0, 5.5), fill: luma(85%), stroke: luma(40%))
+  content((1.0, 4.75), [$bold(upright(x))$])
+
+  // Perceptual hash function
+  line((2.0, 4.75), (3.5, 4.75), mark: (end: ">"))
+  rect((3.5, 4.0), (6.0, 5.5), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((4.75, 5.0), [*Hash*])
+  content((4.75, 4.5), [$h(dot, k)$])
+
+  // Fingerprint bx
+  line((6.0, 4.75), (7.5, 4.75), mark: (end: ">"))
+  rect((7.5, 4.0), (10.0, 5.5), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((8.75, 5.0), [$bold(upright(b))_x in {0,1}^L$])
+  content((8.75, 4.4), [Fingerprint])
+
+  // BSC channel
+  line((8.75, 4.0), (8.75, 2.8), mark: (end: ">"))
+  rect((7.0, 1.8), (10.5, 2.8), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((8.75, 2.3), [*BSC* $(P_b)$])
+
+  // bx after channel
+  line((8.75, 1.8), (8.75, 0.8), mark: (end: ">"))
+  rect((7.5, 0.0), (10.0, 0.8), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((8.75, 0.4), [$hat(bold(upright(b)))_x$])
+
+  // Attacked image y
+  rect((0.0, 0.0), (2.0, 1.5), fill: luma(75%), stroke: luma(40%))
+  content((1.0, 0.9), [$bold(upright(y)) = cal(A)(bold(upright(x)))$])
+  content((1.0, 0.3), [Attacked])
+
+  // Hash of attacked image
+  line((2.0, 0.75), (3.5, 0.75), mark: (end: ">"))
+  rect((3.5, 0.0), (6.0, 1.5), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((4.75, 1.0), [*Hash*])
+  content((4.75, 0.5), [$h(dot, k)$])
+  line((6.0, 0.75), (7.5, 0.75), mark: (end: ">"))
+
+  // Hamming distance
+  rect((7.5, 0.0), (10.0, 1.5), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((8.75, 1.0), [$bold(upright(b))_y in {0,1}^L$])
+  content((8.75, 0.4), [Direct hash])
+})
+```
+
+## Irreversibility
+
+A fundamental property: **it is impossible to reconstruct $\mathbf{x}$ from $\mathbf{b}_x$**. This is guaranteed by the dimensionality reduction ($L \ll H \times W \times C$) and the non-linear binarization (sign function).
+
+This irreversibility is essential for privacy-preserving applications: one can compare fingerprints without ever exposing the original images.
+
+## Required Properties
+
+| Property | Mathematical formulation | Importance |
+|:---------|:------------------------|:----------|
+| Robustness | $h(\mathcal{A}(\mathbf{x}), k) \approx h(\mathbf{x}, k)$ for small $\mathcal{A}$ | Similar images → similar hashes |
+| Irreversibility | $\not\exists$ algorithm to recover $\mathbf{x}$ from $\mathbf{b}_x$ | Privacy protection |
+| Sensitivity | $h(\mathbf{x}, k) \not\approx h(\mathbf{x}', k)$ for $\mathbf{x}' \neq \mathbf{x}$ | Different images → different hashes |
+| Compactness | $L \ll H \times W \times C$ | Storage and search efficiency |
+| Key-dependency | $h(\mathbf{x}, k) \neq h(\mathbf{x}, k')$ for $k \neq k'$ | Revocability and security |
+
+---
+
+# Block 3: Why Traditional Security Tools Don't Work for Multimedia
+
+## Cryptographic Hash vs. Perceptual Hash
+
+**Diagram 3: Comparison of cryptographic vs. perceptual hashing**
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Left: Cryptographic Hash
+  content((2.5, 7.5), [*Cryptographic Hash (SHA-256)*])
+  rect((0.5, 6.2), (4.5, 7.2), fill: luma(85%), stroke: luma(40%))
+  content((2.5, 6.7), [Image $bold(upright(x))$])
+  line((2.5, 6.2), (2.5, 5.4), mark: (end: ">"))
+  rect((0.5, 4.5), (4.5, 5.4), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((2.5, 4.95), [*SHA-256*])
+  line((2.5, 4.5), (2.5, 3.7), mark: (end: ">"))
+  rect((0.5, 2.8), (4.5, 3.7), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((2.5, 3.25), [256-bit hash])
+
+  // Avalanche effect
+  rect((0.5, 1.5), (4.5, 2.5), fill: red.lighten(70%), stroke: red.darken(20%))
+  content((2.5, 2.1), [*Avalanche effect:*])
+  content((2.5, 1.7), [1 bit changed → 50% hash changed])
+
+  // Right: Perceptual Hash
+  content((9.5, 7.5), [*Perceptual Hash*])
+  rect((7.5, 6.2), (11.5, 7.2), fill: luma(85%), stroke: luma(40%))
+  content((9.5, 6.7), [Image $bold(upright(x))$])
+  line((9.5, 6.2), (9.5, 5.4), mark: (end: ">"))
+  rect((7.5, 4.5), (11.5, 5.4), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((9.5, 4.95), [*Perceptual Hash $h(dot, k)$*])
+  line((9.5, 4.5), (9.5, 3.7), mark: (end: ">"))
+  rect((7.5, 2.8), (11.5, 3.7), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((9.5, 3.25), [$L$-bit fingerprint])
+
+  // Robustness
+  rect((7.5, 1.5), (11.5, 2.5), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((9.5, 2.1), [*Robustness:*])
+  content((9.5, 1.7), [JPEG 70% → small Hamming dist.])
+})
+```
+
+## Why Classical Encryption Doesn't Apply Directly
+
+Classical encryption (AES, RSA) operates on binary data and produces completely different outputs for any modification of the input. This is useful for confidentiality but incompatible with the needs of multimedia security:
+
+1. **Robustness requirement**: a JPEG-compressed image must still be recognizable as containing the same watermark. Encryption breaks this property completely.
+2. **Perceptual metrics**: multimedia quality is measured in PSNR, SSIM — not in bit error rate. Modifications that are imperceptible to humans may produce completely different encrypted outputs.
+3. **Semantic search**: databases of images or fingerprints require content-based similarity — not exact equality.
+
+## Foundation Models and New Attack Surfaces
+
+Large pre-trained models (CLIP, DALL-E, GPT-4V) introduce new vulnerabilities:
+
+- **Model inversion**: from the model's output, reconstruct training samples.
+- **Membership inference**: determine whether a particular image was used for training.
+- **Adversarial attacks**: perturbations imperceptible to humans fool the model.
+
+---
+
+# Block 4: Foundation Model Security
+
+## Adversarial Attacks
+
+An **adversarial attack** adds a perturbation $\boldsymbol{\delta}$ to an image $\mathbf{x}$ that is imperceptible but causes a model $f$ to make an incorrect prediction:
+
+$$\mathbf{x}^{adv} = \mathbf{x} + \boldsymbol{\delta}, \quad \|\boldsymbol{\delta}\|_\infty \leq \epsilon, \quad f(\mathbf{x}^{adv}) \neq f(\mathbf{x})$$
+
+**Diagram 4: Two cases of adversarial attacks**
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Case 1: White-box attack
+  content((3.0, 7.5), [*Case 1: White-box Attack*])
+
+  rect((0.5, 6.0), (2.5, 7.0), fill: luma(85%), stroke: luma(40%))
+  content((1.5, 6.5), [Image $bold(upright(x))$])
+
+  rect((0.5, 4.5), (2.5, 5.5), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((1.5, 5.0), [Perturbation $bold(delta)$])
+
+  line((1.5, 6.0), (1.5, 5.5), mark: (end: ">"))
+
+  rect((0.0, 3.2), (3.0, 4.2), fill: red.lighten(70%), stroke: red.darken(20%))
+  content((1.5, 3.7), [$bold(upright(x))^(a d v) = bold(upright(x)) + bold(delta)$])
+  line((1.5, 4.5), (1.5, 4.2), mark: (end: ">"))
+
+  line((1.5, 3.2), (1.5, 2.5), mark: (end: ">"))
+  rect((0.0, 1.5), (3.0, 2.5), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((1.5, 2.1), [*Model $f$*])
+  content((1.5, 1.6), [(known gradient)])
+
+  line((1.5, 1.5), (1.5, 0.8), mark: (end: ">"))
+  rect((0.0, 0.0), (3.0, 0.8), fill: red.lighten(70%), stroke: red.darken(20%))
+  content((1.5, 0.4), [Wrong prediction])
+
+  // Case 2: Transferability
+  content((9.0, 7.5), [*Case 2: Black-box Attack (Transfer)*])
+
+  rect((6.5, 6.0), (8.5, 7.0), fill: luma(85%), stroke: luma(40%))
+  content((7.5, 6.5), [Image $bold(upright(x))$])
+
+  rect((6.5, 4.5), (8.5, 5.5), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((7.5, 5.0), [Perturbation $bold(delta)$])
+  content((7.5, 4.6), [(on surrogate)])
+
+  line((7.5, 6.0), (7.5, 5.5), mark: (end: ">"))
+
+  rect((6.0, 3.2), (9.0, 4.2), fill: red.lighten(70%), stroke: red.darken(20%))
+  content((7.5, 3.7), [$bold(upright(x))^(a d v)$])
+  line((7.5, 4.5), (7.5, 4.2), mark: (end: ">"))
+
+  line((9.0, 3.7), (10.5, 3.7), mark: (end: ">"))
+  rect((10.5, 3.2), (13.0, 4.2), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((11.75, 3.7), [*Model $f'$*])
+  content((11.75, 3.3), [(unknown)])
+
+  line((11.75, 3.2), (11.75, 2.5), mark: (end: ">"))
+  rect((10.5, 1.5), (13.0, 2.5), fill: red.lighten(70%), stroke: red.darken(20%))
+  content((11.75, 2.0), [Transferable])
+  content((11.75, 1.6), [wrong prediction])
+})
+```
+
+## Main Attack Types
+
+| Attack | Method | Knowledge of model |
+|:-------|:-------|:-----------------|
+| FGSM (Fast Gradient Sign Method) | $\boldsymbol{\delta} = \epsilon \cdot \text{sign}(\nabla_{\mathbf{x}} \mathcal{L})$ | White-box |
+| PGD (Projected Gradient Descent) | Iterative FGSM with projection | White-box |
+| C&W (Carlini & Wagner) | Optimization of distortion + misclassification | White-box |
+| Transfer attack | Adversarial on surrogate model | Black-box |
+| Query-based attack | Gradient estimation by queries | Black-box |
+
+## Defenses
+
+- **Adversarial training**: include adversarial examples in training.
+- **Certified defenses**: randomized smoothing, provable robustness bounds.
+- **Detection**: detect anomalous inputs before classification.
+- **Watermarking generated content**: identify AI-generated images for later verification.
+
+---
+
+# Block 5: Privacy Preservation
+
+## Definition and Context
+
+**Privacy preservation** in multimedia refers to all techniques that protect the identity and sensitive attributes of individuals present in digital content, while maintaining utility for legitimate applications.
+
+Formally, a privacy-preserving system must satisfy:
+$$P[\mathcal{M}(D) \in S] \leq e^\varepsilon \cdot P[\mathcal{M}(D') \in S] + \delta$$
+
+for all sets $S$ and all pairs of adjacent datasets $D, D'$ ($(\varepsilon, \delta)$-**Differential Privacy**).
+
+## Main Techniques
+
+### Differential Privacy (DP)
+
+Adds calibrated noise to an algorithm's output to guarantee that an individual's presence in the dataset has negligible impact on results:
+
+$$\mathcal{M}(\mathbf{x}) = f(\mathbf{x}) + \mathbf{n}, \quad \mathbf{n} \sim \mathcal{N}(\mathbf{0}, \sigma^2 \mathbf{I})$$
+
+### Federated Learning
+
+Trains a model on distributed data without centralizing raw data:
+
+1. Local training on each device/organization
+2. Sharing only model gradients (not data)
+3. Aggregation on a central server
+4. Updated global model sent back
+
+### Multimedia Anonymization
+
+- **Face blurring**: Gaussian or pixelation blur on detected regions
+- **Attribute removal**: removing identifiable attributes (tattoos, clothing)
+- **GAN-based anonymization**: replacing faces with synthetic faces while preserving expression
+
+### Privacy-Preserving Retrieval
+
+Search similar images in a database without revealing query content:
+$$\text{Query}: \mathbf{b}_q = h(\mathbf{x}_q, k) \in \{0,1\}^L$$
+$$\text{Decision}: d_H(\mathbf{b}_q, \mathbf{b}_i) \leq \tau_H \Rightarrow \text{similar}$$
+
+## Applications
+
+| Application | Technique | Context |
+|:-----------|:---------|:--------|
+| Face recognition without exposure | Robust hashing | Smartphone, physical access |
+| Medical image search | Privacy-preserving hashing | Hospital networks |
+| GDPR compliance | Anonymization + DP | EU enterprises |
+| Federated learning | FL + DP | Mobile devices |
+| AI content marking | Watermarking | Generative models |

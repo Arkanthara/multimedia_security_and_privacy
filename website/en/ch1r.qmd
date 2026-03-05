@@ -1,0 +1,172 @@
+---
+title: "Synthesis — Chapter 1"
+format:
+  html:
+    toc-depth: 2
+---
+
+::: {.callout-important title="📚 Quick Review Sheet — Chapter 1"}
+This sheet summarizes the essential concepts from Chapter 1. Use it for quick review before an exam.
+
+**Navigation:** [Overview →](ch1.qmd) | [Detailed content →](ch1c.qmd)
+:::
+
+---
+
+## Key Formulas
+
+| Concept | Formula | Description |
+|:--------|:--------|:------------|
+| Watermarking — embedding | $\mathbf{y} = \omega(\mathbf{x}, k, m)$ | Watermarked image |
+| Watermarking — decoding | $\hat{m} = g(\mathbf{v}, k)$ | Decoded message |
+| Perceptual hashing | $\mathbf{b}_x = h(\mathbf{x}, k)$ | Binary fingerprint |
+| BSC channel | $P(\hat{b}_i \neq b_i) = P_b$ | Bit error probability |
+| Detection score | $S(\mathbf{v}) = \frac{1}{M} \mathbf{v} \cdot \mathbf{w}$ | Test statistic |
+| False alarm | $P_{FA} = P(H_1 \mid H_0)$ | Incorrect decision |
+| Detection power | $P_D = 1 - P_\text{miss}$ | Correct detection |
+
+---
+
+## Block 1 — Digital Watermarking
+
+**Definition:** Imperceptible embedding of a message into multimedia content.
+
+**Objectives:**
+
+- Copyright protection
+- Content authentication
+- Marking generative AI content
+
+**Fundamental trade-offs:**
+
+- **Robustness**: resistance to distortions (JPEG, rotation, noise, adversarial attacks)
+- **Imperceptibility**: the watermark must remain invisible
+- **Capacity**: number of encoded bits (typically 64–128 bits)
+- **Security**: resistance to targeted attacks on key $k$
+
+**Types:**
+
+- *Zero-bit*: detection only ($H_0$ vs $H_1$)
+- *M-bit*: decoding a binary message
+
+**Embedding domains:** spatial, DCT, DWT, latent space (deep watermarking)
+
+---
+
+## Watermarking Pipeline
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Message
+  content((2.0, 7.0), [Message $m$])
+  line((2.0, 6.8), (2.0, 6.2), mark: (end: ">"))
+
+  // Encoder
+  rect((0.5, 5.2), (3.5, 6.2), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((2.0, 5.7), [*Encoder*])
+
+  // Image x → Embedder
+  content((-0.8, 3.7), [$bold(upright(x))$])
+  line((-0.3, 3.7), (0.5, 3.7), mark: (end: ">"))
+
+  // s: Encoder → Embedder
+  line((2.0, 5.2), (2.0, 4.2), mark: (end: ">"))
+  content((2.4, 4.7), [$bold(upright(s))$])
+
+  // Key k
+  content((2.0, 1.5), [Key $k$])
+  line((2.0, 1.8), (2.0, 2.8), mark: (end: ">"))
+
+  // Embedder
+  rect((0.5, 2.8), (3.5, 4.2), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((2.0, 3.5), [*Embedder*])
+
+  // y: Embedder → Channel
+  line((3.5, 3.5), (5.5, 3.5), mark: (end: ">"))
+  content((4.5, 3.8), [$bold(upright(y))$])
+
+  // Channel
+  rect((5.5, 2.5), (8.0, 4.5), fill: blue.lighten(70%), stroke: blue.darken(15%))
+  content((6.75, 3.8), [*Multimedia*])
+  content((6.75, 3.2), [*Channel*])
+
+  // v: Channel → Extractor
+  line((8.0, 3.5), (9.5, 3.5), mark: (end: ">"))
+  content((8.75, 3.8), [$bold(upright(v))$])
+
+  // Extractor
+  rect((9.5, 2.8), (12.0, 4.2), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((10.75, 3.5), [*Extractor*])
+
+  // Key k (right side)
+  content((10.75, 1.5), [Key $k$])
+  line((10.75, 1.8), (10.75, 2.8), mark: (end: ">"))
+
+  // ŝ: Extractor → Decoder
+  line((10.75, 4.2), (10.75, 5.2), mark: (end: ">"))
+  content((11.15, 4.7), [$hat(bold(upright(s)))$])
+
+  // Decoder
+  rect((9.5, 5.2), (12.0, 6.2), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((10.75, 5.7), [*Decoder*])
+
+  // m̂: Decoder → output
+  content((10.75, 7.0), [Message $hat(m)$])
+  line((10.75, 6.2), (10.75, 6.8), mark: (end: ">"))
+})
+```
+
+---
+
+## Block 2 — Perceptual Hashing
+
+**Definition:** Robust binary fingerprint of multimedia content.
+
+**Properties:**
+
+- **Robustness**: $h(\mathcal{A}(\mathbf{x}), k) \approx h(\mathbf{x}, k)$ for small distortions $\mathcal{A}$
+- **Irreversibility**: impossible to reconstruct $\mathbf{x}$ from $\mathbf{b}_x$
+- **Sensitivity**: two different contents have very different fingerprints
+- **Compactness**: $L \ll H \times W \times C$
+
+**BSC channel**: the two fingerprints are linked by a binary symmetric channel with parameter $P_b$.
+
+**Applications:** similar multimedia content search, vector databases, illicit content detection.
+
+---
+
+## Block 3 — Foundation Models Security
+
+**Threats:**
+
+- Hallucination and misinformation
+- Model inversion (training data extraction)
+- Prompt injection and backdoors
+- Deepfakes and synthetic media
+
+**Defenses:**
+
+- Watermarking of generated content (LLM and diffusion)
+- Synthetic content detection via perceptual fingerprinting
+- Alignment by RLHF, guardrails
+
+---
+
+## Block 4 — Privacy Preservation
+
+**Formal definition — $(\varepsilon, \delta)$-Differential Privacy:**
+
+$$P[\mathcal{M}(D) \in S] \leq e^\varepsilon \cdot P[\mathcal{M}(D') \in S] + \delta$$
+
+for all sets $S$ and all pairs of adjacent datasets $D, D'$.
+
+**Techniques:**
+
+| Technique | Principle | Trade-off |
+|:----------|:---------|:----------|
+| Differential Privacy | Calibrated noise | Utility ↔ confidentiality |
+| Federated Learning | Local gradients | Communication ↔ accuracy |
+| Anonymization | Blurring, removal | Reversibility ↔ utility |
+| PPML | Homomorphic encryption, MPC | High computation cost |

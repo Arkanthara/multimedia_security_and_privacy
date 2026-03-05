@@ -1,15 +1,11 @@
 project:
   type: website
-  title: "Multimedia Security and Privacy"
+  title: "Sécurité et Confidentialité Multimédia"
   output-dir: ../_site/fr
 
 website:
-  # Language switching setup
-
   navbar:
-    # background: primary
     search: true
-    # Right side for language selector
     right:
       - text: Langage
         icon: globe
@@ -22,52 +18,46 @@ website:
   sidebar:
     style: docked
     search: true
-    
     contents:
       - index.qmd
       - section: "Cours"
         contents:
-          - section: "Chapitre 1 — Introduction"
+          - section: "Chapitre 1 : Introduction"
             contents:
-              - ch1.qmd
               - section: "Détails"
                 contents: ch1c.qmd
+              - ch1.qmd
               - section: "Synthèse"
                 contents: ch1r.qmd
-          - section: "Chapitre 2 — Notations et Fondamentaux"
+          - section: "Chapitre 2 : Notations et Concepts"
             contents:
-              - ch2.qmd
               - section: "Détails"
                 contents: ch2c.qmd
+              - ch2.qmd
               - section: "Synthèse"
                 contents: ch2r.qmd
-          - section: "Chapitre 3 — Digital Watermarking"
+          - section: "Chapitre 3 : Digital Watermarking"
             contents:
-              - ch3.qmd
               - section: "Détails"
                 contents: ch3c.qmd
+              - ch3.qmd
               - section: "Synthèse"
                 contents: ch3r.qmd
-          - section: "Chapitre 4 — Protection de la Vie Privée"
+          - section: "Chapitre 4 : Protection de la Vie Privée"
             contents:
-              - ch4.qmd
               - section: "Détails"
                 contents: ch4c.qmd
+              - ch4.qmd
               - section: "Synthèse"
                 contents: ch4r.qmd
-
 
 format:
   html:
     theme:
-      light: flatly
-      dark: darkly
+      light: ../latte.scss
+      dark: ../macchiato.scss
     toc: true
     embed-resources: true
-  # pdf:
-  #   toc: true
-  # docx:
-  #   toc: true
 
 filters:
   - diagram

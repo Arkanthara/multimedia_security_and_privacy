@@ -1,0 +1,403 @@
+---
+title: "Chapter 2: Notations and Core Concepts — Detailed Content"
+---
+
+*Course by S. Voloshynovskiy — University of Geneva*
+
+---
+
+# Part 1: Image Representations
+
+## Basic Notations
+
+### Tensor Representation
+
+A digital image is modeled as a three-dimensional tensor:
+$$\mathbf{x} \in \mathbb{R}^{H \times W \times C}$$
+
+- $H$: number of rows (height in pixels)
+- $W$: number of columns (width in pixels)
+- $C$: number of spectral channels
+
+For an **RGB** image in 8 bits: $C = 3$, $x_{h,w,c} \in \{0, 1, \ldots, 255\}$.
+
+For simplicity in calculations, the image is often vectorized:
+$$\mathbf{x} \in \mathbb{R}^N, \quad N = H \times W \times C$$
+
+---
+
+## Quality Metrics
+
+### MSE (Mean Squared Error)
+
+$$\text{MSE}(\mathbf{x}, \mathbf{y}) = \frac{1}{HWC} \sum_{h=1}^{H} \sum_{w=1}^{W} \sum_{c=1}^{C} (x_{h,w,c} - y_{h,w,c})^2 = \frac{1}{N} \|\mathbf{x} - \mathbf{y}\|_2^2$$
+
+### PSNR (Peak Signal-to-Noise Ratio)
+
+$$\text{PSNR}(\mathbf{x}, \mathbf{y}) = 10 \log_{10}\!\left(\frac{P_\text{max}^2}{\text{MSE}(\mathbf{x}, \mathbf{y})}\right) \quad [\text{dB}]$$
+
+with $P_\text{max} = 255$ for 8-bit images. PSNR $> 40\,\text{dB}$ is imperceptible.
+
+### Cosine Similarity
+
+$$\text{cos}(\mathbf{u}, \mathbf{v}) = \frac{\mathbf{u} \cdot \mathbf{v}}{\|\mathbf{u}\|_2 \|\mathbf{v}\|_2} = \frac{\sum_i u_i v_i}{\sqrt{\sum_i u_i^2} \cdot \sqrt{\sum_i v_i^2}} \in [-1, 1]$$
+
+**Special case:** for normalized vectors $\|\mathbf{u}\| = \|\mathbf{v}\| = 1$, cosine similarity equals the dot product.
+
+---
+
+## Frequency Transforms
+
+### DCT (Discrete Cosine Transform)
+
+For a 1D signal of length $N$, the DCT-II is defined by:
+$$X_k = \sum_{n=0}^{N-1} x_n \cos\!\left[\frac{\pi}{N}\left(n + \frac{1}{2}\right)k\right], \quad k = 0, \ldots, N-1$$
+
+**Three approaches for images:**
+
+1. **Full-frame DCT**: applied to the entire $H \times W$ image
+2. **Block-wise DCT (8×8)**: JPEG standard — image split into $8 \times 8$ pixel blocks
+3. **Tensor DCT**: applied separately on each dimension of the tensor
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Original image
+  rect((0.0, 3.0), (2.5, 5.5), fill: luma(85%), stroke: luma(40%))
+  content((1.25, 4.25), [*Image*])
+  content((1.25, 3.7), [$H times W$])
+
+  // Arrow to full-frame DCT
+  line((2.5, 5.0), (4.0, 5.0), mark: (end: ">"))
+  content((3.25, 5.3), [full])
+  rect((4.0, 4.5), (6.5, 5.5), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((5.25, 5.0), [*DCT*])
+
+  // Arrow to block DCT
+  line((2.5, 4.25), (4.0, 4.25), mark: (end: ">"))
+  content((3.25, 4.55), [8×8])
+  rect((4.0, 3.75), (6.5, 4.75), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((5.25, 4.25), [*Block DCT*])
+
+  // Arrow to tensor DCT
+  line((2.5, 3.5), (4.0, 3.5), mark: (end: ">"))
+  content((3.25, 3.8), [tensor])
+  rect((4.0, 3.0), (6.5, 4.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((5.25, 3.5), [*Tensor DCT*])
+
+  // Frequency coefficients
+  rect((7.0, 3.0), (10.0, 5.5), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((8.5, 4.5), [*Frequency*])
+  content((8.5, 4.0), [*Coefficients*])
+  content((8.5, 3.5), [$bold(upright(X)) in bb(R)^(H times W)$])
+
+  line((6.5, 5.0), (7.0, 4.5), mark: (end: ">"))
+  line((6.5, 4.25), (7.0, 4.25), mark: (end: ">"))
+  line((6.5, 3.5), (7.0, 4.0), mark: (end: ">"))
+})
+```
+
+### DFT (Discrete Fourier Transform)
+
+$$X_k = \sum_{n=0}^{N-1} x_n \, e^{-j2\pi kn/N}, \quad k = 0, \ldots, N-1$$
+
+**Important properties:**
+
+- **Linearity:** $\mathcal{F}\{ax + by\} = a\mathcal{F}\{x\} + b\mathcal{F}\{y\}$
+- **Parseval's theorem:** $\sum_n |x_n|^2 = \frac{1}{N}\sum_k |X_k|^2$
+- **Convolution:** spatial convolution ↔ frequency multiplication
+
+### DWT (Discrete Wavelet Transform)
+
+The DWT decomposes a signal into subbands at different resolutions:
+$$x = \sum_k \langle x, \psi_{j,k} \rangle \psi_{j,k} + \sum_k \langle x, \phi_{J,k} \rangle \phi_{J,k}$$
+
+where $\psi_{j,k}$ are the mother wavelets and $\phi_{J,k}$ the scaling functions.
+
+**Multi-resolution structure** (for a 2D image):
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Original level
+  rect((0.0, 0.0), (8.0, 8.0), fill: luma(90%), stroke: luma(40%))
+  content((4.0, 7.5), [Original image $N times N$])
+
+  // Level 1: 4 subbands
+  rect((0.0, 4.0), (4.0, 8.0), fill: green.lighten(70%), stroke: green.darken(20%))
+  content((2.0, 6.0), [*LL₁*])
+  content((2.0, 5.5), [Approx.])
+
+  rect((4.0, 4.0), (8.0, 8.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((6.0, 6.0), [*LH₁*])
+  content((6.0, 5.5), [Horiz.])
+
+  rect((0.0, 0.0), (4.0, 4.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((2.0, 2.0), [*HL₁*])
+  content((2.0, 1.5), [Vertical])
+
+  rect((4.0, 0.0), (8.0, 4.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((6.0, 2.0), [*HH₁*])
+  content((6.0, 1.5), [Diag.])
+
+  // Level 2 in LL1
+  rect((0.0, 6.0), (2.0, 8.0), fill: green.lighten(40%), stroke: green.darken(30%))
+  content((1.0, 7.0), [*LL₂*])
+  rect((2.0, 6.0), (4.0, 8.0), fill: blue.lighten(50%), stroke: blue.darken(30%))
+  content((3.0, 7.0), [*LH₂*])
+  rect((0.0, 4.0), (2.0, 6.0), fill: blue.lighten(50%), stroke: blue.darken(30%))
+  content((1.0, 5.0), [*HL₂*])
+  rect((2.0, 4.0), (4.0, 6.0), fill: blue.lighten(50%), stroke: blue.darken(30%))
+  content((3.0, 5.0), [*HH₂*])
+})
+```
+
+### PCA / Principal Component Analysis
+
+**PCA** projects data onto the directions of maximum variance.
+
+**Steps:**
+
+1. Compute the covariance matrix: $\mathbf{C} = \frac{1}{n}\sum_{i=1}^n (\mathbf{x}_i - \bar{\mathbf{x}})(\mathbf{x}_i - \bar{\mathbf{x}})^\top$
+2. Spectral decomposition: $\mathbf{C} = \mathbf{V} \mathbf{\Lambda} \mathbf{V}^\top$
+3. Projection: $\mathbf{z} = \mathbf{V}_d^\top (\mathbf{x} - \bar{\mathbf{x}}) \in \mathbb{R}^d$
+
+---
+
+# Part 2: Self-Supervised Learning for Feature Extraction
+
+## Foundation Models Concept
+
+A **foundation model** is a large model pre-trained on unlabeled data at very large scale, then adapted to various downstream tasks.
+
+**Examples:** CLIP, DINO, ResNet pre-trained with SimCLR, BERT, GPT.
+
+The latent representation:
+$$\mathbf{z}_x = f_\phi(\mathbf{x}), \quad \mathbf{z}_x \in \mathbb{R}^d$$
+
+encodes semantic features without explicit supervision.
+
+---
+
+## Contrastive Learning — SimCLR
+
+### Pipeline
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Anchor image x
+  rect((0.0, 5.5), (1.8, 7.0), fill: luma(80%), stroke: luma(40%))
+  content((0.9, 6.25), [$bold(upright(x))$])
+  content((0.9, 5.8), [Anchor])
+
+  // Positive augmentation x+
+  rect((0.0, 3.5), (1.8, 5.0), fill: green.lighten(70%), stroke: green.darken(20%))
+  content((0.9, 4.25), [$bold(upright(x))^+$])
+  content((0.9, 3.8), [Positive])
+
+  // Negative augmentation x-
+  rect((0.0, 1.5), (1.8, 3.0), fill: red.lighten(70%), stroke: red.darken(20%))
+  content((0.9, 2.25), [$bold(upright(x))^-$])
+  content((0.9, 1.8), [Negative])
+
+  // Encoder f_phi (anchor)
+  rect((3.0, 5.5), (5.5, 7.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((4.25, 6.35), [*Encoder*])
+  content((4.25, 5.9), [$f_phi$])
+
+  // Shared encoder (positive)
+  rect((3.0, 3.5), (5.5, 5.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((4.25, 4.35), [*Encoder*])
+  content((4.25, 3.9), [$f_phi$ (shared)])
+
+  // Shared encoder (negative)
+  rect((3.0, 1.5), (5.5, 3.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((4.25, 2.35), [*Encoder*])
+  content((4.25, 1.9), [$f_phi$ (shared)])
+
+  // Latent representations
+  rect((7.0, 5.5), (9.5, 7.0), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((8.25, 6.35), [$bold(upright(z))_x$])
+  content((8.25, 5.9), [Anchor])
+
+  rect((7.0, 3.5), (9.5, 5.0), fill: green.lighten(70%), stroke: green.darken(20%))
+  content((8.25, 4.35), [$bold(upright(z))_(x^+)$])
+  content((8.25, 3.9), [Positive])
+
+  rect((7.0, 1.5), (9.5, 3.0), fill: red.lighten(70%), stroke: red.darken(20%))
+  content((8.25, 2.35), [$bold(upright(z))_(x^-)$])
+  content((8.25, 1.9), [Negative])
+
+  // Arrows
+  line((1.8, 6.25), (3.0, 6.25), mark: (end: ">"))
+  line((1.8, 4.25), (3.0, 4.25), mark: (end: ">"))
+  line((1.8, 2.25), (3.0, 2.25), mark: (end: ">"))
+  line((5.5, 6.25), (7.0, 6.25), mark: (end: ">"))
+  line((5.5, 4.25), (7.0, 4.25), mark: (end: ">"))
+  line((5.5, 2.25), (7.0, 2.25), mark: (end: ">"))
+
+  // Contrastive loss
+  rect((7.0, 0.0), (9.5, 1.2), fill: yellow.lighten(70%), stroke: yellow.darken(20%))
+  content((8.25, 0.6), [*Loss*])
+  line((8.25, 1.5), (8.25, 1.2), mark: (end: ">"))
+
+  // Backpropagation arrow
+  line((8.25, 0.0), (4.25, 0.0), stroke: (paint: blue.darken(20%), dash: "dashed"))
+  line((4.25, 0.0), (4.25, 1.5), mark: (end: ">"), stroke: (paint: blue.darken(20%), dash: "dashed"))
+  content((6.0, -0.3), [Backpropagation])
+})
+```
+
+### NT-Xent Loss Function
+
+$$\mathcal{L}_\text{NT-Xent} = -\log \frac{\exp\!\left(\text{sim}(\mathbf{z}_x, \mathbf{z}_{x^+})/\tau\right)}{\sum_{j=1}^{2N} \mathbf{1}_{[j \neq x]} \exp\!\left(\text{sim}(\mathbf{z}_x, \mathbf{z}_j)/\tau\right)}$$
+
+where $\text{sim}(\mathbf{u}, \mathbf{v}) = \mathbf{u}^\top \mathbf{v} / (\|\mathbf{u}\| \|\mathbf{v}\|)$ and $\tau > 0$ is the temperature.
+
+**Intuition:**
+
+- **Maximize** similarity between views of the same image (anchor and positive)
+- **Minimize** similarity with all other images in the batch (negatives)
+
+---
+
+# Part 3: Notations for Watermarking and Perceptual Hashing
+
+## Digital Watermarking
+
+### Formalization
+
+The watermarking system is defined by:
+
+$$\mathbf{y} = \omega(\mathbf{x},\, k,\, m), \qquad \hat{m} = g(\mathbf{v},\, k)$$
+
+| Symbol | Type | Description |
+|:-------|:-----|:------------|
+| $\mathbf{x}$ | $\mathbb{R}^N$ | Original image (vector) |
+| $k$ | — | Secret symmetric key |
+| $m$ | $\{0,1\}^M$ | Message to embed ($M$ bits) |
+| $\mathbf{y}$ | $\mathbb{R}^N$ | Watermarked image |
+| $\mathbf{v} = \mathcal{A}(\mathbf{y})$ | $\mathbb{R}^N$ | Received image after attack $\mathcal{A}$ |
+| $\hat{m}$ | $\{0,1\}^M$ | Extracted message |
+
+### Distortion Constraint
+
+The embedding must be imperceptible:
+$$D(\mathbf{x}, \mathbf{y}) \leq \varepsilon$$
+
+with $D$ a distortion metric (MSE, SSIM, etc.).
+
+### Detection Score
+
+For **zero-bit** watermarking:
+$$S(\mathbf{v}) = \frac{1}{M} \mathbf{v} \cdot \mathbf{w}, \qquad \text{decision:} \quad S(\mathbf{v}) \underset{H_0}{\overset{H_1}{\gtrless}} \tau$$
+
+---
+
+## Perceptual Hashing
+
+### Formalization
+
+$$\mathbf{b}_x = h(\mathbf{x},\, k), \quad \mathbf{b}_x \in \{0,1\}^L$$
+
+### Hamming Distance
+
+$$d_H(\mathbf{b}_x, \mathbf{b}_y) = \sum_{i=1}^{L} \mathbf{1}[b_{x,i} \neq b_{y,i}] = \|\mathbf{b}_x \oplus \mathbf{b}_y\|_1$$
+
+### BSC Channel Model
+
+The fingerprints of two versions of the same image are related by:
+$$P(\hat{b}_i \neq b_i) = P_b \quad \Longleftrightarrow \quad \mathbf{b}_y = \mathbf{b}_x \oplus \mathbf{e}$$
+
+where $\mathbf{e} \in \{0,1\}^L$ is an error vector where each bit is independent with probability $P_b$.
+
+---
+
+# Part 4: Foundations of Signal Detection
+
+## AWGN Channel Model
+
+The additive Gaussian channel (AWGN) is written as:
+$$\mathbf{v} = \mathbf{s} + \mathbf{n}, \quad \mathbf{n} \sim \mathcal{N}(\mathbf{0}, \sigma^2 \mathbf{I}_N)$$
+
+where $\mathbf{s}$ is the transmitted signal, $\sigma^2$ is the noise variance, and $\mathbf{I}_N$ is the identity matrix of size $N = H \times W \times C$.
+
+The signal-to-noise ratio (SNR) is:
+$$\text{SNR} = \frac{\mathbb{E}[\|\mathbf{s}\|^2]}{N\sigma^2}$$
+
+---
+
+## Hypothesis Testing
+
+### Formulation
+
+- $H_0$: no watermark — $\mathbf{v} \sim p_0(\mathbf{v}) = \mathcal{N}(\mathbf{0}, \sigma^2\mathbf{I})$
+- $H_1$: watermark present — $\mathbf{v} \sim p_1(\mathbf{v}) = \mathcal{N}(\mathbf{s}, \sigma^2\mathbf{I})$
+
+### Neyman-Pearson Detector
+
+The likelihood ratio is:
+$$\Lambda(\mathbf{v}) = \frac{p_1(\mathbf{v})}{p_0(\mathbf{v})} = \exp\!\left(\frac{\mathbf{v}^\top \mathbf{s}}{\sigma^2} - \frac{\|\mathbf{s}\|^2}{2\sigma^2}\right)$$
+
+The decision rule reduces to:
+$$T(\mathbf{v}) = \mathbf{v}^\top \mathbf{s} \underset{H_0}{\overset{H_1}{\gtrless}} \eta$$
+
+### Performance
+
+Under $H_0$: $T(\mathbf{v}) \sim \mathcal{N}(0, \sigma^2 \|\mathbf{s}\|^2)$
+
+Under $H_1$: $T(\mathbf{v}) \sim \mathcal{N}(\|\mathbf{s}\|^2, \sigma^2 \|\mathbf{s}\|^2)$
+
+False alarm probability:
+$$P_{FA} = P(T > \eta \mid H_0) = Q\!\left(\frac{\eta}{\sigma\|\mathbf{s}\|}\right)$$
+
+Detection probability:
+$$P_D = P(T > \eta \mid H_1) = Q\!\left(\frac{\eta - \|\mathbf{s}\|^2}{\sigma\|\mathbf{s}\|}\right)$$
+
+where $Q(x) = \frac{1}{\sqrt{2\pi}}\int_x^\infty e^{-t^2/2}\,dt$ is the Gaussian Q-function.
+
+---
+
+## ROC Curve
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Axes
+  line((0.5, 0.5), (8.5, 0.5), mark: (end: ">"))
+  line((0.5, 0.5), (0.5, 7.0), mark: (end: ">"))
+  content((4.5, 0.0), [$P_(F A)$])
+  content((0.0, 3.75), [$P_D$])
+
+  // Random diagonal
+  line((0.5, 0.5), (8.0, 6.5), stroke: (paint: luma(60%), dash: "dashed"))
+  content((7.5, 5.5), [random])
+
+  // Ideal ROC (upper left corner)
+  line((0.5, 0.5), (0.5, 6.5), stroke: (paint: green.darken(20%)))
+  line((0.5, 6.5), (8.0, 6.5), stroke: (paint: green.darken(20%)))
+  content((3.0, 7.0), [ideal])
+
+  // Realistic ROC curve (arc)
+  line((0.5, 0.5), (1.5, 3.5), stroke: (paint: blue.darken(20%)))
+  line((1.5, 3.5), (3.0, 5.0), stroke: (paint: blue.darken(20%)))
+  line((3.0, 5.0), (5.0, 6.0), stroke: (paint: blue.darken(20%)))
+  line((5.0, 6.0), (8.0, 6.5), stroke: (paint: blue.darken(20%)))
+  content((5.5, 5.2), [*Real ROC*])
+
+  // Axis annotations
+  content((8.5, 0.2), [$1.0$])
+  content((0.2, 6.7), [$1.0$])
+  content((0.5, 0.2), [$0$])
+
+  // AUC label
+  content((2.5, 2.0), [*AUC*])
+})
+```
+
+The **area under the ROC curve (AUC)** quantifies the overall detector performance: AUC = 1 corresponds to a perfect detector, AUC = 0.5 to a random detector.
