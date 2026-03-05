@@ -1,0 +1,201 @@
+---
+title: "Synthèse — Chapitre 4"
+format:
+  html:
+    toc-depth: 2
+---
+
+::: {.callout-important title="📚 Fiche de révision rapide — Chapitre 4"}
+Cette fiche condense les notions essentielles du Chapitre 4. Elle couvre les trois approches de protection des templates biométriques (cryptographique, traitement du signal, hybride), les menaces associées, les formules clés du hachage robuste et du fuzzy commitment.
+
+**Navigation :** [Vue d'ensemble →](ch4.qmd) | [Contenu détaillé →](ch4c.qmd)
+:::
+
+---
+
+## Comparaison des trois approches
+
+| Approche | Principe | Avantage | Inconvénient |
+|:---------|:---------|:---------|:-------------|
+| Cryptographique | $\mathbf{b}_x = h(\mathbf{x})$ | Irréversible, standard | Sensible au bruit biométrique |
+| Traitement du signal | $T(\mathbf{y},\mathbf{x}^{(m)}) = \frac{1}{N}\mathbf{y}\cdot\mathbf{x}^{(m)}$ | Robuste au bruit | Inversible, template exposé |
+| Hybride (hachage robuste) | $\mathbf{b}_x = \text{sign}(\mathbf{P}\mathbf{x})$ | Robuste + irréversible + révocable | Conception plus complexe |
+
+---
+
+## Menaces et attaques
+
+| Menace | Description | Défense |
+|:-------|:-----------|:--------|
+| Usurpation d'identité | Replay d'un template volé | Hachage robuste + révocabilité |
+| Attaque aveugle | Exploit des statistiques de $T(\mathbf{y},\mathbf{x})$ sans clé | Augmenter $L$, seuil adaptatif |
+| Attaque informée | Accès à $\mathbf{x}^{(m)}$ ou à la matrice $\mathbf{P}$ | Clé secrète $k$, irréversibilité |
+| Correspondance inter-bases | Même biométrie dans $N$ bases | Clés différentes par base |
+| Inférence d'attributs | Soft biometrics depuis le template | Projection aléatoire + signe |
+
+---
+
+## Formules clés
+
+| Concept | Formule | Description |
+|:--------|:--------|:------------|
+| Hash biométrique | $\mathbf{b}_x = h(\mathbf{x}, k)$ | Empreinte compacte et robuste |
+| Hachage robuste | $\mathbf{b}_x = \text{sign}(\mathbf{P}\mathbf{x})$, $\mathbf{P} = f(k)$ | Projection aléatoire + signe |
+| Canal BSC | $P(\hat{b}_i \neq b_i) = P_b$ | Erreur par bit (intra-classe) |
+| Score d'authentification | $T(\mathbf{y},\mathbf{x}^{(m)}) = \frac{1}{N}\mathbf{y}\cdot\mathbf{x}^{(m)}$ | Statistique de similarité |
+| Fuzzy commitment | $c = \mathbf{b}_x \oplus e(m)$ | Engagement biométrique |
+| Helper data | $W = \mathbf{b}_x \oplus r$ | Données auxiliaires publiques |
+| Distance de Hamming | $d_H(\mathbf{b}_x,\mathbf{b}_y) = \sum_{i=1}^L b_{xi} \oplus b_{yi}$ | Métrique de similarité binaire |
+
+---
+
+## Comparaison visuelle des trois approches
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Colonne 1 : Cryptographique
+  content((1.75, 6.5), [*Cryptographique*])
+  rect((0.5, 5.5), (3.0, 6.3), fill: luma(85%), stroke: luma(40%))
+  content((1.75, 5.9), [$bold(upright(x))$])
+  line((1.75, 5.5), (1.75, 4.7), mark: (end: ">"))
+  rect((0.5, 3.8), (3.0, 4.7), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((1.75, 4.25), [*Hash h(·)*])
+  line((1.75, 3.8), (1.75, 3.0), mark: (end: ">"))
+  rect((0.5, 2.2), (3.0, 3.0), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((1.75, 2.6), [$b_x in {0,1}^L$])
+  line((1.75, 2.2), (1.75, 1.5))
+  content((1.75, 1.2), [✗ non inversible])
+
+  // Colonne 2 : Traitement du signal
+  content((6.5, 6.5), [*Traitement du signal*])
+  rect((4.8, 5.5), (8.2, 6.3), fill: luma(85%), stroke: luma(40%))
+  content((6.5, 5.9), [$bold(upright(x)), bold(upright(y))$])
+  line((6.5, 5.5), (6.5, 4.7), mark: (end: ">"))
+  rect((4.8, 3.8), (8.2, 4.7), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((6.5, 4.25), [$T(bold(upright(y)), bold(upright(x))^((m)))$])
+  line((6.5, 3.8), (6.5, 3.0), mark: (end: ">"))
+  rect((4.8, 2.2), (8.2, 3.0), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((6.5, 2.6), [Décision $H_0 / H_1$])
+  content((6.5, 1.2), [✓ robuste, ✗ inversible])
+
+  // Colonne 3 : Hachage robuste
+  content((11.25, 6.5), [*Hachage robuste*])
+  rect((9.5, 5.5), (13.0, 6.3), fill: luma(85%), stroke: luma(40%))
+  content((11.25, 5.9), [$bold(upright(x))$])
+  line((11.25, 5.5), (11.25, 4.7), mark: (end: ">"))
+  rect((9.5, 3.8), (13.0, 4.7), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((11.25, 4.25), [*Proj. + sign(·)*])
+  line((11.25, 3.8), (11.25, 3.0), mark: (end: ">"))
+  rect((9.5, 2.2), (13.0, 3.0), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((11.25, 2.6), [$b_x in {0,1}^L$, clé $k$])
+  content((11.25, 1.2), [✓ robuste, ✓ révocable])
+})
+```
+
+---
+
+## Propriétés du hachage robuste
+
+- **Robustesse** : même biométrie → même hash malgré le bruit de capture ($P_b < 0.1$ pour la même personne)
+- **Irréversibilité** : impossible de reconstruire $\mathbf{x}$ depuis $\mathbf{b}_x$ sans clé $k$
+- **Révocabilité** : changer la clé $k$ génère une nouvelle matrice $\mathbf{P}' \neq \mathbf{P}$ et donc un nouveau hash $\mathbf{b}'_x$
+- **Compacité** : $\mathbf{b}_x \in \{0,1\}^L$, avec $L \ll N$ (bien plus compact que le template original de $N$ flottants)
+- **Diversité** : clés différentes par base de données → hashes indépendants → pas de correspondance inter-bases
+- **Sécurité** : sans clé $k$, attaque → sécurité de type information-théorique (problème combinatoire NP-difficile)
+
+---
+
+## Canal BSC et décision Hamming
+
+Sous $H_0$ (même personne), la distance de Hamming suit :
+$$d_H(\mathbf{b}_x, \mathbf{b}_y) \sim \mathcal{B}(L, P_b), \quad P_b \approx 0.05\text{–}0.15$$
+
+Sous $H_1$ (personnes différentes), les bits sont quasi-indépendants :
+$$d_H(\mathbf{b}_x, \mathbf{b}_y) \sim \mathcal{B}(L, 0.5)$$
+
+La règle de décision optimale (Neyman-Pearson) est :
+$$d_H(\mathbf{b}_x, \mathbf{b}_y) \underset{H_1}{\overset{H_0}{\lessgtr}} \tau_H$$
+
+Pour $L = 256$ bits et $P_b = 0.1$ : les deux distributions sont bien séparées → faible $P_{FA}$ et faible $P_\text{miss}$ simultanément.
+
+---
+
+## Fuzzy Commitment — Résumé
+
+| Étape | Action | Stockage |
+|:------|:-------|:---------|
+| Enrôlement | $c = \mathbf{b}_x \oplus \text{ECC}(m)$ | $c$ (public) + $\text{hash}(m)$ |
+| Vérification | $e' = \mathbf{b}_y \oplus c$, décoder $m'$ | — |
+| Décision | $\text{hash}(m') \stackrel{?}{=} \text{hash}(m)$ | — |
+
+La capacité de correction du code ECC doit être $\geq L \cdot P_b$ bits.
+
+---
+
+## Sécurité comparée
+
+| Critère | Cryptographique | Signal | Hachage robuste |
+|:--------|:---------------|:-------|:----------------|
+| Résistance vol template | ✓ (hash irréversible) | ✗ (template brut) | ✓ (hash irréversible) |
+| Résistance bruit intra | ✗ (avalanche) | ✓ (distance) | ✓ (BSC $P_b < 0.15$) |
+| Revocabilité | Partielle (nouveau hash) | ✗ | ✓ (nouvelle clé $k$) |
+| Correspondance inter-bases | Partielle | ✗ | ✓ (clé différente par base) |
+| Inférence d'attributs | ✓ (hash opaque) | ✗ | ✓ (projection aléatoire) |
+
+---
+
+## Métriques de performance biométrique
+
+| Métrique | Définition | Signification |
+|:---------|:----------|:-------------|
+| FAR (False Accept Rate) | $P_{FA} = P(H_0 \mid H_1)$ | Taux d'imposteurs acceptés |
+| FRR (False Reject Rate) | $P_\text{miss} = P(H_1 \mid H_0)$ | Taux de légitimes rejetés |
+| EER (Equal Error Rate) | FAR = FRR | Point d'opération équilibré |
+| AUC ROC | Aire sous la courbe ROC | Performance globale |
+
+Pour un hachage robuste de longueur $L = 256$ bits avec $P_b = 0.1$ (intra-classe) :
+
+$$P_{FA} = \sum_{i=0}^{\tau_H} \binom{L}{i} 0.5^L \approx Q\!\left(\frac{L/2 - \tau_H}{\sqrt{L \cdot 0.25}}\right)$$
+
+$$P_\text{miss} = \sum_{i=\tau_H+1}^{L} \binom{L}{i} P_b^i (1-P_b)^{L-i} \approx Q\!\left(\frac{\tau_H - L P_b}{\sqrt{L P_b(1-P_b)}}\right)$$
+
+---
+
+## Lien avec le tatouage numérique
+
+La protection biométrique par hachage robuste partage la structure mathématique du tatouage numérique :
+
+| Concept | Tatouage (Ch. 3) | Hachage biométrique (Ch. 4) |
+|:--------|:----------------|:--------------------------|
+| Signal hôte | Image $\mathbf{x}$ | Template biométrique $\mathbf{x}$ |
+| Transformée | $\mathbf{y} = \mathbf{x} + \varepsilon\mathbf{w}$ | $\mathbf{b}_x = \text{sign}(\mathbf{P}\mathbf{x})$ |
+| Clé | $k$ → $\mathbf{w} = \text{Gen}(k)$ | $k$ → $\mathbf{P} = f(k)$ |
+| Statistique | $S(\mathbf{v}) = \frac{1}{M}\mathbf{v}\cdot\mathbf{w}$ | $T(\mathbf{y},\mathbf{x}^{(m)}) = \frac{1}{N}\mathbf{y}\cdot\mathbf{x}^{(m)}$ |
+| Décision | $S \gtrless \tau$ | $d_H \lessgtr \tau_H$ |
+| Robustesse | Aux attaques signal | Au bruit biométrique |
+
+Dans les deux cas, la clé $k$ est le secret fondamental, et la sécurité du système repose sur le principe de Kerckhoffs : l'algorithme est public, seule la clé est secrète.
+
+---
+
+## Cadre RGPD
+
+- **Art. 9 RGPD :** données biométriques = catégorie spéciale → traitement par défaut interdit.
+- **Privacy by design :** le hachage robuste est la mise en œuvre technique de ce principe.
+- **Droit à l'effacement :** effacer $\mathbf{b}_x$ et révoquer $k$ → aucune trace de la biométrie.
+- **Minimisation :** stocker $\mathbf{b}_x \in \{0,1\}^L$ plutôt que $\mathbf{x} \in \mathbb{R}^N$.
+
+---
+
+## Points clés à retenir
+
+- Le problème fondamental est la **tension** entre robustesse au bruit biométrique (intra-classe) et irréversibilité (propriété cryptographique).
+- La solution : projeter sur un sous-espace aléatoire secret → binariser → la réduction de dimension assure l'irréversibilité ; la continuité de la projection assure la robustesse.
+- Le paramètre $L$ contrôle le compromis sécurité/robustesse : $L$ grand → meilleure séparation inter-classe ; $L$ trop grand → plus d'erreurs intra-classe.
+- Le choix optimal de $\tau_H$ minimise $P_{FA} + P_\text{miss}$ sur des données d'entraînement représentatives.
+
+---
+
+> **Résumé :** Le hachage robuste est la solution qui réunit irréversibilité, robustesse au bruit biométrique et revocabilité. C'est la seule approche satisfaisant simultanément les exigences du RGPD, de la sécurité cryptographique et de la praticabilité biométrique.

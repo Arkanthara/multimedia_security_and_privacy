@@ -41,6 +41,20 @@ website:
                 contents: ch2c.qmd
               - section: "Synthèse"
                 contents: ch2r.qmd
+          - section: "Chapitre 3 — Digital Watermarking"
+            contents:
+              - ch3.qmd
+              - section: "Détails"
+                contents: ch3c.qmd
+              - section: "Synthèse"
+                contents: ch3r.qmd
+          - section: "Chapitre 4 — Protection de la Vie Privée"
+            contents:
+              - ch4.qmd
+              - section: "Détails"
+                contents: ch4c.qmd
+              - section: "Synthèse"
+                contents: ch4r.qmd
 
 
 format:

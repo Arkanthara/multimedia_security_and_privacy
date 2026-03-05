@@ -21,8 +21,8 @@ Les supports de cours sont organisés en chapitres, chacun décliné en trois fo
 |:--------:|:------|:-----------------|
 | **1** | [Introduction à la Sécurité Multimédia](ch1.qmd) | Watermarking, hachage perceptuel, foundation models, vie privée |
 | **2** | [Notations et Concepts Fondamentaux](ch2.qmd) | Représentations d'images, SSL, détection de signaux |
-| **3** | *(à venir)* Watermarking Robuste | Embedders, extracteurs, attaques, métriques |
-| **4** | *(à venir)* Vie Privée et Modèles Génératifs | Anonymisation, PPML, attaques d'inférence |
+| **3** | [Digital Watermarking](ch3.qmd) | Embedders, extracteurs, attaques, métriques |
+| **4** | [Méthodes de Protection de la Vie Privée](ch4.qmd) | Hachage robuste, fuzzy commitment, biométrie |
 
 ---
 

@@ -1,0 +1,51 @@
+---
+title: "Chapitre 4 : Méthodes de Protection de la Vie Privée"
+---
+
+## Vue d'ensemble
+
+La protection de la vie privée en biométrie vise à permettre l'authentification d'une personne sans stocker de template biométrique brut — données qui, une fois volées, ne peuvent pas être révoquées comme un mot de passe. Trois grandes familles d'approches existent : les méthodes **cryptographiques** (hachage one-way $h(\mathbf{x})$, irréversibles mais sensibles au bruit biométrique), les méthodes par **traitement du signal** (comparaison directe par score de similarité $T(\mathbf{y}, \mathbf{x}^{(m)})$, robustes mais inversibles), et les méthodes **hybrides** telles que le fuzzy commitment et le hachage robuste, qui combinent irréversibilité et robustesse au bruit. La revocabilité — la capacité à émettre de nouveaux identifiants si une base est compromise — est une propriété clé que seules les méthodes hybrides avec clé $k$ peuvent garantir pleinement.
+
+**Navigation :**
+
+- 📖 [Contenu détaillé du chapitre (ch4c)](ch4c.qmd)
+- 📝 [Fiche de révision rapide (ch4r)](ch4r.qmd)
+
+---
+
+## Synthèse du chapitre {#synthese}
+
+::: {.callout-note title="Trois approches de protection"}
+**Approche cryptographique :**
+$$\mathbf{b}_x = h(\mathbf{x}) \in \{0,1\}^L$$
+One-way, non-invertible, mais $h(\mathbf{x}) \neq h(\mathbf{y})$ même si $\|\mathbf{x}-\mathbf{y}\|^2 \leq \varepsilon$ → inadaptée aux biométriques bruyantes.
+
+**Approche traitement du signal :**
+$$T\!\left(\mathbf{y}, \mathbf{x}^{(m)}\right) = \frac{1}{N}\mathbf{y}\cdot\mathbf{x}^{(m)}, \quad \text{décision} : T \underset{H_1}{\overset{H_0}{\gtrless}} \tau$$
+Robuste au bruit biométrique, mais le template $\mathbf{x}^{(m)}$ peut être reconstruit depuis plusieurs sessions.
+
+**Approche hybride — hachage robuste :**
+$$\mathbf{b}_x = \text{sign}(\mathbf{P}\mathbf{x}), \quad \mathbf{P} \in \{-1,+1\}^{L\times N}, \quad \mathbf{P} = f(k)$$
+Robuste + irréversible + révocable (changer $k$ génère un nouveau $\mathbf{b}_x$).
+:::
+
+::: {.callout-note title="Problème fondamental : irréversibilité vs robustesse"}
+- **Biométrie = permanence :** le visage, l'empreinte, l'iris ne changent pas.
+- **Menace majeure :** si une base biométrique est compromise, les victimes ne peuvent pas « changer » leur biométrie.
+- **Double exigence contradictoire :** robustesse au bruit intra-classe (même personne, conditions différentes) ET irréversibilité (impossible de reconstituer le template depuis le hash stocké).
+- **Solution :** clé $k$ par base de données → clés différentes → hashes différents → pas de correspondance inter-bases.
+:::
+
+::: {.callout-note title="Sécurité du hachage robuste"}
+**Attaque aveugle :** sans $k$, un adversaire observant $\mathbf{b}_x \in \{0,1\}^L$ ne peut pas remonter à $\mathbf{x}$ (irréversibilité information-théorique si $L \ll N$).
+
+**Attaque informée :** avec $k$, la matrice $\mathbf{P}$ est connue, mais inverser $\text{sign}(\mathbf{P}\mathbf{x})$ reste un problème NP-difficile (pour $L < N$).
+
+**Revocabilité :** nouvelle clé $k' \neq k$ → nouvelle projection $\mathbf{P}' \neq \mathbf{P}$ → nouveau hash $\mathbf{b}'_x \neq \mathbf{b}_x$, et les deux hashes sont statistiquement indépendants.
+:::
+
+---
+
+## Introduction
+
+L'authentification biométrique compare un échantillon présenté à l'enrôlement à un template stocké. Si ce template est exposé, les conséquences sont bien plus graves que la fuite d'un mot de passe : l'individu ne peut pas changer son visage ou ses empreintes. Le **hachage robuste** est la brique fondamentale qui permet de transformer un template biométrique en un identifiant compact, irréversible et révocable. Conceptuellement, c'est l'analogue d'un hachage cryptographique (comme SHA-256) enrichi d'une tolérance au bruit — propriété que les hachages cryptographiques classiques n'ont pas par construction (l'effet avalanche garantit précisément qu'une petite modification de l'entrée change complètement la sortie).
