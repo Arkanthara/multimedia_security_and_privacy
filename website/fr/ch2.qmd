@@ -1,0 +1,210 @@
+---
+title: "Chapitre 2 : Notations et Concepts Fondamentaux"
+---
+
+## Vue d'ensemble
+
+Ce chapitre introduit le cadre mathématique utilisé tout au long du cours. Il couvre la représentation des images et les métriques de qualité, les fondements de l'apprentissage auto-supervisé pour l'extraction de représentations, les notations formelles pour le watermarking et le hachage perceptuel, et les bases de la théorie de la détection de signaux.
+
+**Navigation :**
+
+- 📖 [Contenu détaillé du chapitre (ch2c)](ch2c.qmd)
+- 📝 [Fiche de révision rapide (ch2r)](ch2r.qmd)
+
+---
+
+## Synthèse du chapitre {#synthese}
+
+::: {.callout-note title="Formules essentielles — Chapitre 2"}
+
+**Représentation d'une image :**
+$$\mathbf{x} \in \mathbb{R}^{H \times W \times C}, \quad x_{h,w,c} \in \{0, \ldots, 255\}$$
+
+**Métriques de qualité :**
+
+| Métrique | Formule |
+|:---------|:--------|
+| MSE | $\text{MSE}(\mathbf{x}, \mathbf{y}) = \frac{1}{HWC}\|\mathbf{x} - \mathbf{y}\|_2^2$ |
+| PSNR | $\text{PSNR} = 10 \log_{10}\!\left(\frac{255^2}{\text{MSE}}\right)$ |
+| Similarité cosinus | $\cos(\mathbf{u}, \mathbf{v}) = \frac{\mathbf{u} \cdot \mathbf{v}}{\|\mathbf{u}\|\|\mathbf{v}\|}$ |
+
+**Représentation latente (SSL) :**
+$$\mathbf{z}_x = f_\phi(\mathbf{x}), \quad \mathbf{z}_x \in \mathbb{R}^d$$
+
+**Watermarking :**
+$$\mathbf{y} = \omega(\mathbf{x}, k, m), \quad \hat{m} = g(\mathbf{v}, k)$$
+
+**Perceptual Hashing :**
+$$\mathbf{b}_x = h(\mathbf{x}, k), \quad \mathbf{b}_x \in \{0,1\}^L$$
+
+**Détection de signal (AWGN) :**
+$$\mathbf{v} = \mathbf{s} + \mathbf{n}, \quad \mathbf{n} \sim \mathcal{N}(\mathbf{0}, \sigma^2 \mathbf{I})$$
+:::
+
+---
+
+## Partie 1 — Représentations d'images
+
+### Notations de base
+
+Une image numérique est représentée comme un tenseur :
+$$\mathbf{x} \in \mathbb{R}^{H \times W \times C}$$
+
+où $H$ est la hauteur en pixels, $W$ la largeur et $C$ le nombre de canaux (1 pour niveaux de gris, 3 pour RGB). Les valeurs de pixels $x_{h,w,c}$ prennent des valeurs entières dans $\{0, \ldots, 255\}$ pour une quantification sur 8 bits.
+
+### Structure d'une image
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Canal 1 (rouge, devant)
+  rect((0.0, 0.0), (4.0, 4.0), fill: red.lighten(80%), stroke: red.darken(10%))
+  content((2.0, 2.0), [Canal $C=1$])
+  content((2.0, 0.5), [$H times W$])
+
+  // Canal 2 (vert, décalé)
+  rect((0.7, 4.4), (4.7, 8.4), fill: green.lighten(70%), stroke: green.darken(10%))
+  content((2.7, 6.4), [Canal $C=2$])
+
+  // Canal 3 (bleu, décalé)
+  rect((1.4, 4.8), (5.4, 8.8), fill: blue.lighten(70%), stroke: blue.darken(10%))
+  content((3.4, 6.8), [Canal $C=3$])
+
+  // Annotation dimensions
+  line((5.6, 0.0), (5.6, 4.0), mark: (end: ">"), stroke: (paint: luma(30%)))
+  content((6.3, 2.0), [$H$])
+
+  line((0.0, -0.3), (4.0, -0.3), mark: (end: ">"), stroke: (paint: luma(30%)))
+  content((2.0, -0.7), [$W$])
+
+  line((1.4, 9.0), (5.4, 9.0), stroke: (paint: luma(30%), dash: "dashed"))
+  content((6.5, 4.8), [$C$])
+  line((5.4, 4.0), (5.4, 8.8), stroke: (paint: luma(30%), dash: "dashed"))
+})
+```
+
+### Métriques de qualité perceptuelle
+
+La qualité de la reconstruction est mesurée par :
+
+**MSE (Mean Squared Error) :**
+$$\text{MSE}(\mathbf{x}, \mathbf{y}) = \frac{1}{HWC} \sum_{h,w,c} (x_{h,w,c} - y_{h,w,c})^2 = \frac{1}{HWC} \|\mathbf{x} - \mathbf{y}\|_2^2$$
+
+**PSNR (Peak Signal-to-Noise Ratio) :**
+$$\text{PSNR}(\mathbf{x}, \mathbf{y}) = 10 \log_{10}\!\left(\frac{255^2}{\text{MSE}(\mathbf{x}, \mathbf{y})}\right) \quad [\text{dB}]$$
+
+Un PSNR $> 40\,\text{dB}$ est généralement considéré comme imperceptible pour l'œil humain.
+
+**Similarité cosinus :**
+$$\text{cos}(\mathbf{u}, \mathbf{v}) = \frac{\mathbf{u} \cdot \mathbf{v}}{\|\mathbf{u}\|_2 \|\mathbf{v}\|_2} \in [-1, 1]$$
+
+Utilisée pour comparer des représentations latentes plutôt que des pixels bruts.
+
+---
+
+## Partie 2 — Self-Supervised Learning (SSL)
+
+### Représentations latentes
+
+Un encodeur profond $f_\phi : \mathbb{R}^{H \times W \times C} \to \mathbb{R}^d$ extrait une représentation compacte :
+$$\mathbf{z}_x = f_\phi(\mathbf{x})$$
+
+La dimension $d \ll HWC$ capture les caractéristiques sémantiques essentielles.
+
+### Pipeline SSL
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Image d'entrée
+  rect((0.0, 2.5), (1.8, 4.5), fill: luma(85%), stroke: luma(40%))
+  content((0.9, 3.5), [*Image*])
+  content((0.9, 3.0), [$bold(upright(x))$])
+
+  // Flèche vers encodeur
+  line((1.8, 3.5), (3.2, 3.5), mark: (end: ">"))
+
+  // Encodeur DNN
+  rect((3.2, 2.5), (6.0, 4.5), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((4.6, 4.0), [*Encodeur DNN*])
+  content((4.6, 3.5), [$f_phi$])
+  content((4.6, 3.0), [(ResNet / ViT)])
+
+  // Flèche vers latent
+  line((6.0, 3.5), (7.5, 3.5), mark: (end: ">"))
+
+  // Espace latent
+  rect((7.5, 2.5), (10.0, 4.5), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((8.75, 4.0), [*Représentation*])
+  content((8.75, 3.5), [*Latente*])
+  content((8.75, 3.0), [$bold(upright(z))_x in bb(R)^d$])
+
+  // Paramètres phi
+  content((4.6, 1.8), [Paramètres $phi$])
+  line((4.6, 2.0), (4.6, 2.5), mark: (end: ">"), stroke: (paint: blue.darken(20%)))
+})
+```
+
+### Apprentissage contrastif
+
+Le **SimCLR** (et variantes) apprend à rendre similaires les représentations de deux augmentations de la même image :
+
+$$\mathcal{L}_\text{contrastive} = -\log \frac{\exp(\text{cos}(\mathbf{z}_x, \mathbf{z}_{x^+})/\tau)}{\sum_{j} \exp(\text{cos}(\mathbf{z}_x, \mathbf{z}_j)/\tau)}$$
+
+où $x^+$ est une vue positive (augmentation de $x$) et $\tau$ est une température.
+
+---
+
+## Partie 3 — Watermarking et Hachage Perceptuel
+
+### Notations pour le watermarking
+
+Le pipeline complet se formalise par :
+
+$$\mathbf{y} = \omega(\mathbf{x},\, k,\, m), \qquad \hat{m} = g(\mathbf{v},\, k)$$
+
+- $\mathbf{x} \in \mathbb{R}^{H \times W \times C}$ : image originale
+- $k$ : clé secrète
+- $m \in \{0,1\}^M$ : message à dissimuler ($M$ bits)
+- $\mathbf{y}$ : image tatouée
+- $\mathbf{v} = \mathcal{A}(\mathbf{y})$ : image reçue après attaques
+- $\hat{m}$ : message extrait
+
+### Score de détection (zero-bit)
+
+$$S(\mathbf{v}) = \frac{1}{M} \mathbf{v} \cdot \mathbf{w} = \frac{1}{M} \sum_{i=1}^{M} v_i w_i$$
+
+où $\mathbf{w}$ est le vecteur de référence généré à partir de la clé $k$.
+
+### Notations pour le hachage perceptuel
+
+$$\mathbf{b}_x = h(\mathbf{x},\, k), \quad \mathbf{b}_x \in \{0,1\}^L$$
+
+La **distance de Hamming** entre deux empreintes mesure leur similarité :
+$$d_H(\mathbf{b}_x, \mathbf{b}_y) = \sum_{i=1}^{L} \mathbf{1}[b_{x,i} \neq b_{y,i}]$$
+
+---
+
+## Partie 4 — Théorie de la Détection de Signaux
+
+### Modèle AWGN
+
+Le modèle de canal le plus simple est le canal gaussien additif :
+$$\mathbf{v} = \mathbf{s} + \mathbf{n}, \quad \mathbf{n} \sim \mathcal{N}(\mathbf{0}, \sigma^2 \mathbf{I})$$
+
+### Test d'hypothèses
+
+- $H_0$ : $\mathbf{v} \sim \mathcal{N}(\mathbf{0}, \sigma^2 \mathbf{I})$ — pas de watermark
+- $H_1$ : $\mathbf{v} \sim \mathcal{N}(\mathbf{s}, \sigma^2 \mathbf{I})$ — watermark présent
+
+### Critère de Neyman-Pearson
+
+Le test NP optimal est un seuillage du log-rapport de vraisemblance :
+$$\Lambda(\mathbf{v}) = \log \frac{p(\mathbf{v} \mid H_1)}{p(\mathbf{v} \mid H_0)} \underset{H_0}{\overset{H_1}{\gtrless}} \eta$$
+
+Pour le modèle AWGN, ce test se réduit à :
+$$\mathbf{v} \cdot \mathbf{s} \underset{H_0}{\overset{H_1}{\gtrless}} \eta'$$
+
+Les performances sont caractérisées par la **courbe ROC** : $P_D = f(P_{FA})$.

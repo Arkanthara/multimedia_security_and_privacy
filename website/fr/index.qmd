@@ -1,0 +1,73 @@
+---
+title: "Accueil"
+format:
+  html:
+    toc: false
+---
+
+# Bienvenue dans le cours de Sécurité et Confidentialité Multimédia
+
+Ce cours, dispensé par le **Professeur S. Voloshynovskiy** à l'Université de Genève, présente les fondements théoriques et pratiques de la sécurité et de la confidentialité dans le domaine multimédia. Vous y découvrirez comment protéger, authentifier et analyser des contenus numériques (images, audio, vidéo) à l'aide de techniques modernes fondées sur la théorie de l'information, le traitement du signal et l'apprentissage profond.
+
+Le cours articule quatre grands thèmes : le **tatouage numérique** (*digital watermarking*), le **hachage perceptuel** (*perceptual hashing*), la **sécurité des modèles de fondation** (*foundation models security*) et la **préservation de la vie privée** (*privacy preservation*). Chaque thème est abordé à la fois sous l'angle mathématique rigoureux et à travers des applications concrètes issues de la recherche et de l'industrie.
+
+Les supports de cours sont organisés en chapitres, chacun décliné en trois formes : une page de **synthèse rapide** pour la révision, une **vue d'ensemble** du chapitre, et un **contenu détaillé** pour l'approfondissement. Utilisez la barre de navigation latérale pour accéder aux différentes sections.
+
+---
+
+## Structure du cours
+
+| Chapitre | Titre | Thèmes principaux |
+|:--------:|:------|:-----------------|
+| **1** | [Introduction à la Sécurité Multimédia](ch1.qmd) | Watermarking, hachage perceptuel, foundation models, vie privée |
+| **2** | [Notations et Concepts Fondamentaux](ch2.qmd) | Représentations d'images, SSL, détection de signaux |
+| **3** | *(à venir)* Watermarking Robuste | Embedders, extracteurs, attaques, métriques |
+| **4** | *(à venir)* Vie Privée et Modèles Génératifs | Anonymisation, PPML, attaques d'inférence |
+
+---
+
+## Vue d'ensemble du cours
+
+```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
+
+  // Titre central
+  rect((3.5, 3.2), (8.5, 4.8), fill: blue.lighten(60%), stroke: blue.darken(20%))
+  content((6.0, 4.0), [*Sécurité et Confidentialité Multimédia*])
+
+  // Bloc 1 : Watermarking
+  rect((0.0, 5.5), (4.0, 7.2), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((2.0, 6.55), [*Digital Watermarking*])
+  content((2.0, 6.1), [Protection & authentification])
+
+  // Bloc 2 : Hashing
+  rect((8.0, 5.5), (12.0, 7.2), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((10.0, 6.55), [*Perceptual Hashing*])
+  content((10.0, 6.1), [Empreintes robustes])
+
+  // Bloc 3 : Foundation Models
+  rect((0.0, 1.0), (4.0, 2.7), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((2.0, 2.05), [*Foundation Models*])
+  content((2.0, 1.6), [Sécurité des LLM/VLM])
+
+  // Bloc 4 : Privacy
+  rect((8.0, 1.0), (12.0, 2.7), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((10.0, 2.05), [*Privacy Preservation*])
+  content((10.0, 1.6), [Vie privée & anonymisation])
+
+  // Flèches : blocs vers centre
+  line((4.0, 6.35), (3.5, 4.8), mark: (end: ">"))
+  line((8.0, 6.35), (8.5, 4.8), mark: (end: ">"))
+  line((4.0, 1.85), (3.5, 3.2), mark: (end: ">"))
+  line((8.0, 1.85), (8.5, 3.2), mark: (end: ">"))
+})
+```
+
+---
+
+## Ressources
+
+- **Langue :** Français (version anglaise disponible via le sélecteur de langue)
+- **Prérequis :** Probabilités et statistiques, algèbre linéaire, bases de traitement du signal et d'apprentissage automatique
+- **Évaluation :** Examen écrit portant sur l'ensemble des chapitres

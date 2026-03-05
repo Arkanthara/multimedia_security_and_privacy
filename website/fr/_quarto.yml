@@ -24,15 +24,23 @@ website:
     search: true
     
     contents:
+      - index.qmd
       - section: "Cours"
         contents:
-          - section: "Introduction"
+          - section: "Chapitre 1 — Introduction"
             contents:
-              - section: "Details"
-                contents: ch1c.qmd
               - ch1.qmd
-              - section: "Synthese"
+              - section: "Détails"
+                contents: ch1c.qmd
+              - section: "Synthèse"
                 contents: ch1r.qmd
+          - section: "Chapitre 2 — Notations et Fondamentaux"
+            contents:
+              - ch2.qmd
+              - section: "Détails"
+                contents: ch2c.qmd
+              - section: "Synthèse"
+                contents: ch2r.qmd
 
 
 format:
