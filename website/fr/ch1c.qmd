@@ -30,6 +30,8 @@ Quelques points clés :
 Le pipeline complet peut se représenter ainsi :
 
 ```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
 // === GROUPE GAUCHE (fond jaune) ===
 rect((0.0, 1.8), (3.6, 7.2), fill: yellow.lighten(80%), stroke: yellow.lighten(80%))
 
@@ -49,10 +51,10 @@ line((1.8, 6.85), (1.8, 6.2), mark: (end: ">"))
 
 // s : Encoder → Embedder
 line((1.8, 5.2), (1.8, 3.8), mark: (end: ">"))
-content((2.2, 4.5), [$\mathbf{s}$])
+content((2.2, 4.5), [$bold(upright(s))$])   // ← correction : droite grasse
 
 // Image x → Embedder (gauche)
-content((-0.7, 3.3), [$\mathbf{x}$])
+content((-0.7, 3.3), [$bold(upright(x))$])   // ← correction
 line((-0.2, 3.3), (0.3, 3.3), mark: (end: ">"))
 
 // Clé k → Embedder (bas)
@@ -61,7 +63,7 @@ line((1.8, 1.6), (1.8, 2.8), mark: (end: ">"))
 
 // y : Embedder → Canal
 line((3.3, 3.3), (5.0, 3.3), mark: (end: ">"))
-content((4.15, 3.65), [$\mathbf{y}$])
+content((4.15, 3.65), [$bold(upright(y))$])   // ← correction
 
 // Label image stégo
 content((1.8, 2.3), [Image stégo])
@@ -85,7 +87,7 @@ content((10.7, 5.7), [*Decoder*])
 
 // v : Canal → Extractor
 line((8.5, 3.3), (9.2, 3.3), mark: (end: ">"))
-content((8.85, 3.65), [$\mathbf{v}$])
+content((8.85, 3.65), [$bold(upright(v))$])   // ← correction
 
 // Clé k → Extractor (bas)
 content((10.7, 1.3), [Clé $k$])
@@ -93,10 +95,10 @@ line((10.7, 1.6), (10.7, 2.8), mark: (end: ">"))
 
 // ŝ : Extractor → Decoder
 line((10.7, 3.8), (10.7, 5.2), mark: (end: ">"))
-content((11.05, 4.5), [$\hat{\mathbf{s}}$])
+content((11.05, 4.5), [$hat(bold(upright(s)))$])   // ← correction
 
 // m̂ : Decoder → sortie
-content((10.7, 7.0), [Message $\hat{m}$])
+content((10.7, 7.0), [Message $hat(m)$])   // ← correction
 line((10.7, 6.2), (10.7, 6.85), mark: (end: ">"))
 
 // Label image distordue
@@ -105,8 +107,9 @@ content((10.7, 2.3), [Image distordue])
 // === ENCART ATTAQUES ===
 rect((4.8, -0.8), (9.8, 1.1), fill: orange.lighten(82%), stroke: orange.darken(10%))
 content((7.3, 0.75), [*Attaques sur :*])
-content((7.3, 0.25), [• *Robustesse* : distorsions appliquées à $\mathbf{y}$])
+content((7.3, 0.25), [• *Robustesse* : distorsions appliquées à $bold(upright(y))$])   // ← correction
 content((7.3, -0.35), [• *Sécurité* : attaques adversariales / estimation de $k$])
+})
 ```
 
 **Types d'attaques :**
@@ -222,13 +225,15 @@ Le **Perceptual Hashing** (également appelé *robust hashing* ou *content finge
 ## Schéma général du Perceptual Hashing
 
 ```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
 // === CHEMIN HAUT : image originale → fingerprint → bx ===
 content((-0.5, 5.0), [Image originale])
-content((-0.5, 4.6), [$\mathbf{x}$])
+content((-0.5, 4.6), [$upright(bold(x))$])
 
 // x → Fingerprint haut
 line((0.5, 4.8), (1.8, 4.8), mark: (end: ">"))
-content((1.1, 5.05), [$\mathbf{x}$])
+content((1.1, 5.05), [$upright(bold(x))$])
 
 // Fingerprint haut
 rect((1.8, 4.3), (3.3, 5.3), fill: green.lighten(60%), stroke: green.darken(20%))
@@ -239,7 +244,7 @@ content((2.55, 3.7), [Clé $k$ ↑])
 
 // bx : Fingerprint → BSC
 line((3.3, 4.8), (5.5, 4.8), mark: (end: ">"))
-content((4.4, 5.1), [$\mathbf{b}_x$])
+content((4.4, 5.1), [$upright(bold(b))_x$])
 
 // Représentation binaire bx
 rect((5.5, 4.3), (9.5, 5.3), fill: luma(95%), stroke: luma(60%))
@@ -251,7 +256,7 @@ content((7.5, 4.8), [$0$])
 content((7.9, 4.8), [$1$])
 content((8.3, 4.8), [$0$])
 content((8.7, 4.8), [$1$])
-content((9.6, 4.8), [$\mathbf{b}_x in {0,1}^L$])
+content((9.6, 4.8), [$upright(bold(b))_x in {0,1}^L$])
 
 // === BSC CHANNEL (centre) ===
 rect((5.5, 2.0), (9.5, 3.8), fill: green.lighten(85%), stroke: green.darken(10%))
@@ -271,11 +276,11 @@ content((7.5, 2.5), [$P_b$])
 
 // === CHEMIN BAS : image distordue → fingerprint → by ===
 content((-0.5, 1.4), [Image distordue])
-content((-0.5, 1.0), [$\mathbf{y}$])
+content((-0.5, 1.0), [$upright(bold(y))$])
 
 // y → Fingerprint bas
 line((0.5, 1.2), (1.8, 1.2), mark: (end: ">"))
-content((1.1, 1.5), [$\mathbf{y}$])
+content((1.1, 1.5), [$upright(bold(y))$])
 
 // Fingerprint bas
 rect((1.8, 0.7), (3.3, 1.7), fill: green.lighten(60%), stroke: green.darken(20%))
@@ -286,7 +291,7 @@ content((2.55, 0.1), [Clé $k$ ↑])
 
 // by : Fingerprint → représentation
 line((3.3, 1.2), (5.5, 1.2), mark: (end: ">"))
-content((4.4, 1.5), [$\mathbf{b}_y$])
+content((4.4, 1.5), [$upright(bold(b))_y$])
 
 // Représentation binaire by
 rect((5.5, 0.7), (9.5, 1.7), fill: luma(95%), stroke: luma(60%))
@@ -298,7 +303,7 @@ content((7.5, 1.2), [$0$])
 content((7.9, 1.2), text(fill: red)[$0$])
 content((8.3, 1.2), [$0$])
 content((8.7, 1.2), [$1$])
-content((9.6, 1.2), [$\mathbf{b}_y in {0,1}^L$])
+content((9.6, 1.2), [$upright(bold(b))_y in {0,1}^L$])
 
 // Connexion BSC → by
 line((7.5, 2.0), (7.5, 1.7), mark: (end: ">"))
@@ -308,7 +313,8 @@ line((7.5, 4.3), (7.5, 3.8), mark: (end: ">"))
 
 // === Processing (gauche, flèche x→y) ===
 line((0.0, 4.5), (0.0, 1.5), mark: (end: ">"), stroke: (dash: "dashed"))
-content((-0.5, 3.0), [$p(\mathbf{y}|mathbf{x})$])
+content((-0.5, 3.0), [$p(upright(bold(y))|upright(bold(x)))$])
+})
 ```
 
 Le canal entre les deux empreintes est modélisé par un **Binary Symmetric Channel (BSC)** avec probabilité d'erreur $P_b$ :
@@ -322,14 +328,16 @@ $$P(\hat{b}_i \neq b_i) = P_b$$
 Une propriété fondamentale : le hash **ne doit pas permettre de reconstruire** l'image originale.
 
 ```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
 // Image originale / requête
 rect((-0.5, 1.5), (0.5, 2.5), fill: luma(85%), stroke: luma(40%))
 content((0.0, 2.0), [img])
-content((0.0, 1.2), [Image $\mathbf{x}$])
+content((0.0, 1.2), [Image $upright(bold(x))$])
 
 // x → Fingerprint
 line((0.5, 2.0), (2.0, 2.0), mark: (end: ">"))
-content((1.25, 2.25), [$\mathbf{x}$])
+content((1.25, 2.25), [$upright(bold(x))$])
 
 // Fingerprint
 rect((2.0, 1.5), (3.8, 2.5), fill: green.lighten(60%), stroke: green.darken(20%))
@@ -341,7 +349,7 @@ content((2.9, 0.7), [Clé $k$])
 
 // bx : Fingerprint → Estimate
 line((3.8, 2.0), (5.5, 2.0), mark: (end: ">"))
-content((4.65, 2.3), [$\mathbf{b}_x$])
+content((4.65, 2.3), [$upright(bold(b))_x$])
 
 // Estimate (avec clé INCONNUE)
 rect((5.5, 1.5), (7.3, 2.5), fill: green.lighten(60%), stroke: green.darken(20%))
@@ -353,19 +361,20 @@ content((6.4, 0.7), text(fill: red)[Clé *inconnue*])
 
 // x̂ : Estimate → image estimée (bruit)
 line((7.3, 2.0), (9.0, 2.0), mark: (end: ">"))
-content((8.15, 2.3), [$\hat{\mathbf{x}}$])
+content((8.15, 2.3), [$\hat{upright(bold(x))}$])
 
 // Image estimée (bruit)
 rect((9.0, 1.5), (10.0, 2.5), fill: luma(50%), stroke: luma(30%))
 content((9.5, 2.0), [≈ bruit])
-content((9.5, 1.2), [Image $\hat{\mathbf{x}}$])
+content((9.5, 1.2), [Image $\hat{upright(bold(x))}$])
 
 // Annotation "irréversible"
 line((5.5, 2.8), (3.8, 2.8), mark: (end: ">"), stroke: (paint: red.darken(10%), thickness: 1.2pt))
 content((4.65, 3.1), text(fill: red)[*Irréversible !*])
+})
 ```
 
-Même si un adversaire obtient l'empreinte $\mathbf{b}_x$, il ne peut pas retrouver $x$ sans la clé $k$.
+Même si un adversaire obtient l'empreinte $upright(bold(b))_x$, il ne peut pas retrouver $x$ sans la clé $k$.
 
 ---
 
@@ -415,17 +424,19 @@ Même si un adversaire obtient l'empreinte $\mathbf{b}_x$, il ne peut pas retrou
 
 Pour un hash cryptographique $H$ :
 
-$$H(\mathbf{x}) = H(\mathbf{y}) \iff \mathbf{x} = \mathbf{y}$$
+$$H(upright(bold(x))) = H(upright(bold(y))) \iff upright(bold(x)) = upright(bold(y))$$
 
-Mais en multimédia, une image distordue $\mathbf{y} = \mathbf{x} + \mathbf{z}$ donne :
+Mais en multimédia, une image distordue $upright(bold(y)) = upright(bold(x)) + upright(bold(z))$ donne :
 
-$$H(\mathbf{x}) \neq H(\mathbf{y}) \quad \text{même si } ||\mathbf{y} - \mathbf{x}||_2^2 \leq \varepsilon$$
+$$H(upright(bold(x))) \neq H(upright(bold(y))) \quad \text{même si } ||upright(bold(y)) - upright(bold(x))||_2^2 \leq \varepsilon$$
 
 ```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
 // Image originale
 rect((0.0, 3.0), (1.2, 4.0), fill: luma(85%), stroke: luma(40%))
 content((0.6, 3.5), [img])
-content((0.6, 2.7), [Image $\mathbf{x}$])
+content((0.6, 2.7), [Image $upright(bold(x))$])
 
 // Processing (distorsion)
 rect((0.0, 1.0), (1.2, 2.0), fill: blue.lighten(70%), stroke: blue)
@@ -433,7 +444,7 @@ content((0.6, 1.5), [Traitement])
 
 // x → Hash haut
 line((1.2, 3.5), (3.0, 3.5), mark: (end: ">"))
-content((2.1, 3.75), [$\mathbf{x}$])
+content((2.1, 3.75), [$upright(bold(x))$])
 
 // x → Processing
 line((0.6, 3.0), (0.6, 2.0), mark: (end: ">"), stroke: (dash: "dashed"))
@@ -449,7 +460,7 @@ content((4.2, 3.5), [*Hash*])
 
 // Processing → v → Hash bas
 line((1.2, 1.5), (3.0, 1.5), mark: (end: ">"))
-content((2.1, 1.75), [$\mathbf{v}$])
+content((2.1, 1.75), [$upright(bold(v))$])
 
 // Hash bas
 rect((3.0, 1.2), (5.4, 1.8), fill: blue.lighten(70%), stroke: blue)
@@ -473,13 +484,16 @@ line((8.5, 1.5), (9.65, 2.0), mark: (end: ">"), stroke: red)
 
 // Accolade / comparaison
 line((8.5, 3.5), (8.5, 1.5), stroke: (paint: luma(50%), thickness: 0.5pt))
+})
 ```
 
 ```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
 // Image originale x
 rect((0.0, 2.5), (1.2, 3.5), fill: luma(85%), stroke: luma(40%))
 content((0.6, 3.0), [img])
-content((0.6, 2.2), [$\mathbf{x}$])
+content((0.6, 2.2), [$upright(bold(x))$])
 
 // x → Canal public
 line((1.2, 3.0), (2.5, 3.0), mark: (end: ">"))
@@ -490,7 +504,7 @@ content((3.5, 3.0), [Canal public])
 
 // Canal public → v
 line((4.5, 3.0), (6.0, 3.0), mark: (end: ">"))
-content((5.25, 3.25), [$\mathbf{v}$])
+content((5.25, 3.25), [$upright(bold(v))$])
 
 // v → Hash (avec clé k)
 rect((6.0, 2.5), (7.8, 3.5), fill: blue.lighten(70%), stroke: blue)
@@ -513,12 +527,12 @@ content((3.5, 1.1), [Canal privé])
 
 // Code hash (envoyé via canal privé)
 line((4.5, 1.15), (8.5, 1.15), mark: (end: ">"))
-content((6.5, 0.85), [Code hash $H(\mathbf{x})$])
+content((6.5, 0.85), [Code hash $H(upright(bold(x)))$])
 
 // Comparateur
 rect((8.5, 1.8), (10.2, 3.0), fill: purple.lighten(70%), stroke: purple)
 content((9.35, 2.6), [*Match ?*])
-content((9.35, 2.1), [$H(\mathbf{x}) = H(\mathbf{v})$])
+content((9.35, 2.1), [$H(upright(bold(x))) = H(upright(bold(v)))$])
 
 // Hash → Match
 line((7.8, 3.0), (8.5, 2.7), mark: (end: ">"))
@@ -530,45 +544,48 @@ line((10.2, 2.7), (11.2, 2.9), mark: (end: ">"))
 content((11.5, 2.9), text(fill: green.darken(30%))[*Y*])
 line((10.2, 2.1), (11.2, 1.9), mark: (end: ">"))
 content((11.5, 1.9), text(fill: red.darken(20%))[*N*])
+})
 ```
 
 ## Comparaison : Hashs Cryptographiques vs Hashs Perceptuels
 
 ```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
 // === PARTIE GAUCHE : Hash Cryptographique ===
 content((2.0, 6.0), [*Hash Cryptographique*])
 
 // Vecteur image x (grand rectangle représentant le vecteur)
 rect((0.5, 4.0), (1.3, 5.8), fill: blue.lighten(80%), stroke: blue)
-content((0.9, 4.9), [$\mathbf{x}$])
+content((0.9, 4.9), [$upright(bold(x))$])
 content((-0.1, 5.5), [|])
 content((-0.1, 4.3), [|])
 content((1.7, 4.9), [$N = H times W$])
 
 // Bruit z
-content((2.5, 5.5), [$\mathbf{z}$])
+content((2.5, 5.5), [$upright(bold(z))$])
 line((2.2, 5.3), (2.7, 4.8), stroke: (paint: gray, thickness: 0.8pt))
 
 // y = x + z
-content((3.5, 5.5), [$\mathbf{y} = \mathbf{x} + \mathbf{z}$])
+content((3.5, 5.5), [$upright(bold(y)) = upright(bold(x)) + upright(bold(z))$])
 
 // Cercle représentant la boule de bruit
 circle((3.0, 4.5), radius: 0.8, fill: luma(90%), stroke: (paint: luma(60%), dash: "dashed"))
-content((3.0, 4.5), [$\mathbf{x}$])
+content((3.0, 4.5), [$upright(bold(x))$])
 line((3.0, 4.5), (3.6, 4.5), stroke: (paint: gray, thickness: 0.5pt))
 // Petit y proche de x
 circle((3.55, 4.35), radius: 0.06, fill: black)
-content((3.8, 4.2), [$\mathbf{y}$])
+content((3.8, 4.2), [$upright(bold(y))$])
 
 // Région de décision : point unique
 rect((0.5, 2.0), (3.5, 3.5), fill: luma(95%), stroke: luma(60%))
 content((2.0, 3.2), [Région de décision])
-content((2.0, 2.75), [$H(\mathbf{x}) = H(\mathbf{y})$])
-content((2.0, 2.25), [ssi $\mathbf{x} = \mathbf{y}$, i.e. $||\mathbf{y}-\mathbf{x}||_2^2 = 0$])
+content((2.0, 2.75), [$H(upright(bold(x))) = H(upright(bold(y)))$])
+content((2.0, 2.25), [ssi $upright(bold(x)) = upright(bold(y))$, i.e. $||upright(bold(y))-upright(bold(x))||_2^2 = 0$])
 
 // Point unique pour crypto
 circle((2.0, 1.3), radius: 0.08, fill: black)
-content((2.0, 0.9), [Point unique : $\mathbf{x} = \mathbf{y}$])
+content((2.0, 0.9), [Point unique : $upright(bold(x)) = upright(bold(y))$])
 
 // === SEPARATEUR ===
 line((6.0, 0.5), (6.0, 6.5), stroke: (paint: luma(70%), dash: "dashed"))
@@ -578,15 +595,15 @@ content((9.5, 6.0), [*Hash Perceptuel*])
 
 // Grande boule amorphe (région R0)
 circle((9.5, 3.5), radius: 2.2, fill: blue.lighten(88%), stroke: blue.lighten(40%))
-content((9.5, 5.4), [$\mathcal{R}_0$])
+content((9.5, 5.4), [$cal(R)_0$])
 
 // Petite boule intérieure (région R1 autour de x)
 circle((9.5, 3.5), radius: 1.0, fill: blue.lighten(70%), stroke: blue.lighten(20%))
-content((10.2, 3.8), [$\mathcal{R}_1$])
+content((10.2, 3.8), [$cal(R)_1$])
 
 // Point x au centre
 circle((9.5, 3.5), radius: 0.08, fill: black)
-content((9.2, 3.5), [$\mathbf{x}$])
+content((9.2, 3.5), [$upright(bold(x))$])
 
 // Rayon γL
 line((9.5, 3.5), (10.35, 3.0), stroke: (paint: blue, thickness: 0.8pt))
@@ -594,23 +611,24 @@ content((10.0, 2.8), [$gamma L$])
 
 // Point y dans la boule
 circle((9.8, 2.9), radius: 0.08, fill: black)
-content((10.1, 2.65), [$\mathbf{y}$])
+content((10.1, 2.65), [$upright(bold(y))$])
 
 // Région de décision perceptuelle
 rect((7.0, 0.3), (12.0, 1.5), fill: luma(95%), stroke: luma(60%))
 content((9.5, 1.2), [Région de décision])
-content((9.5, 0.7), [$||\mathbf{y} - \mathbf{x}||_2^2 <= gamma L$])
+content((9.5, 0.7), [$||upright(bold(y)) - upright(bold(x))||_2^2 <= gamma L$])
+})
 ```
 
 | Propriété | Hash Cryptographique | Hash Perceptuel |
 |---|---|---|
-| Région de décision | $\mathbf{x} = \mathbf{y}$ (point exact) | $||\mathbf{y} - \mathbf{x}||_2^2 \leq \gamma L$ |
+| Région de décision | $upright(bold(x)) = upright(bold(y))$ (point exact) | $||upright(bold(y)) - upright(bold(x))||_2^2 \leq \gamma L$ |
 | Robustesse au bruit | ❌ Nulle | ✅ Robuste |
 | Sensibilité aux distorsions | Totale | Contrôlée par $\gamma$ |
 
-La région de décision perceptuelle forme une **boule** autour de $\mathbf{x}$ dans l'espace $\mathbb{R}^N$ où $N = H \times W$ :
+La région de décision perceptuelle forme une **boule** autour de $upright(bold(x))$ dans l'espace $\mathbb{R}^N$ où $N = H \times W$ :
 
-$$\mathcal{R}_1 = \{\mathbf{y} : ||\mathbf{y} - \mathbf{x}||_2^2 \leq \gamma L\}$$
+$$cal(R)_1 = \{upright(bold(y)) : ||upright(bold(y)) - upright(bold(x))||_2^2 \leq \gamma L\}$$
 
 ## Pourquoi le Digital Watermarking et le Perceptual Hashing sont nécessaires
 
@@ -677,10 +695,12 @@ Les **Foundation Models** sont de grands réseaux de neurones entraînés sur de
 ## Idée principale de la Representation Learning
 
 ```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
 // Image d'entrée
 rect((0.0, 1.5), (1.2, 2.5), fill: luma(85%), stroke: luma(40%))
 content((0.6, 2.0), [img])
-content((0.6, 1.2), [$\mathbf{x}$])
+content((0.6, 1.2), [$upright(bold(x))$])
 
 // Flèche x → encodeur
 line((1.2, 2.0), (2.2, 2.0), mark: (end: ">"))
@@ -707,13 +727,14 @@ rect((6.7, 1.7), (7.5, 2.3), fill: orange.lighten(70%), stroke: orange)
 content((7.1, 2.0), text(size: 0.75em)[\[CLS\]])
 
 // Labels
-content((6.0, 1.1), [Représentation latente $\mathbf{z}_x$])
+content((6.0, 1.1), [Représentation latente $upright(bold(z))_x$])
 content((6.0, 3.1), text(fill: green.darken(20%))[*Embedder / Encoder*])
+})
 ```
 
-L'encodeur $f_{\phi_x}$ mappe une entrée $\mathbf{x}$ vers un espace latent :
+L'encodeur $f_{\phi_x}$ mappe une entrée $upright(bold(x))$ vers un espace latent :
 
-$$\mathbf{z}_x = f_{\phi_x}(\mathbf{x})$$
+$$upright(bold(z))_x = f_{\phi_x}(upright(bold(x)))$$
 
 ---
 
@@ -744,9 +765,9 @@ Les foundation models sont largement utilisés dans des applications critiques :
 
 ### Cas 1 : Images perceptuellement similaires → hashs différents
 
-**Scénario :** $\mathbf{x}_0$ (original) et $\mathbf{x}_A$ (attaqué) sont proches visuellement, mais :
+**Scénario :** $upright(bold(x))_0$ (original) et $upright(bold(x))_A$ (attaqué) sont proches visuellement, mais :
 
-$$||\mathbf{x}_0 - \mathbf{x}_A||_2^2 \text{ petit} \quad \text{mais} \quad \cos(\mathbf{z}_{x_0}, \mathbf{z}_{x_A}) \ll 1$$
+$$||upright(bold(x))_0 - upright(bold(x))_A||_2^2 \text{ petit} \quad \text{mais} \quad \cos(upright(bold(z))_{x_0}, upright(bold(z))_{x_A}) << 1$$
 
 **Conséquence :** divergence significative dans les tâches de retrieval ou de reconnaissance
 
@@ -756,9 +777,9 @@ $$||\mathbf{x}_0 - \mathbf{x}_A||_2^2 \text{ petit} \quad \text{mais} \quad \cos
 
 ### Cas 2 : Images perceptuellement dissimilaires → hashs similaires
 
-**Scénario :** $\mathbf{x}_0$ (original) et $\mathbf{x}_A$ (attaqué) sont visuellement très différents, mais :
+**Scénario :** $upright(bold(x))_0$ (original) et $upright(bold(x))_A$ (attaqué) sont visuellement très différents, mais :
 
-$$||\mathbf{x}_0 - \mathbf{x}_A||_2^2 \text{ grand} \quad \text{mais} \quad \cos(\mathbf{z}_{x_0}, \mathbf{z}_{x_A}) \approx 1$$
+$$||upright(bold(x))_0 - upright(bold(x))_A||_2^2 \text{ grand} \quad \text{mais} \quad \cos(upright(bold(z))_{x_0}, upright(bold(z))_{x_A}) \approx 1$$
 
 **Conséquence :** fausses correspondances ou résultats de retrieval erronés
 
@@ -768,21 +789,23 @@ $$||\mathbf{x}_0 - \mathbf{x}_A||_2^2 \text{ grand} \quad \text{mais} \quad \cos
 - Critique pour les tâches nécessitant une représentation sécurisée du contenu (biométrie, sécurité)
 
 ```{.cetz}
+#cetz.canvas({
+  import cetz.draw: *
 // === CAS 1 (haut) ===
 content((4.5, 7.5), text(fill: red.darken(20%))[*Cas 1 : Images similaires → Hashs différents*])
 
 // x0 original
 rect((0.2, 5.8), (1.4, 6.8), fill: luma(85%), stroke: luma(40%))
 content((0.8, 6.3), [img])
-content((0.8, 5.5), [$\mathbf{x}_0$])
+content((0.8, 5.5), [$upright(bold(x))_0$])
 
 // xA attaqué (visuellement proche)
 rect((1.9, 5.8), (3.1, 6.8), fill: luma(83%), stroke: red)
 content((2.5, 6.3), [img $+epsilon$])
-content((2.5, 5.5), [$\mathbf{x}_A$])
+content((2.5, 5.5), [$upright(bold(x))_A$])
 
 // MSE ≈ 0
-content((1.75, 7.1), [$||\mathbf{x}_0 - \mathbf{x}_A||_2^2 approx 0$ ✓])
+content((1.75, 7.1), [$||upright(bold(x))_0 - upright(bold(x))_A||_2^2 approx 0$ ✓])
 
 // Encodeur haut
 rect((4.0, 5.8), (5.5, 6.8), fill: green.lighten(60%), stroke: green)
@@ -790,15 +813,15 @@ content((4.75, 6.3), [Encoder $f_phi$])
 line((3.1, 6.3), (4.0, 6.3), mark: (end: ">"))
 
 // Hashs résultants
-content((7.0, 7.1), [$\mathbf{z}_{x_0}$])
-content((7.0, 5.5), [$\mathbf{z}_{x_A}$])
+content((7.0, 7.1), [$upright(bold(z))_{x_0}$])
+content((7.0, 5.5), [$upright(bold(z))_{x_A}$])
 line((5.5, 6.5), (6.5, 6.9), mark: (end: ">"))
 line((5.5, 6.1), (6.5, 5.7), mark: (end: ">"))
 
 // Cosine similarity faible
 rect((7.2, 5.8), (9.8, 7.1), fill: red.lighten(75%), stroke: red)
 content((8.5, 6.7), [Similarité cosinus])
-content((8.5, 6.25), text(fill: red.darken(20%))[*faible* $ll 1$])
+content((8.5, 6.25), text(fill: red.darken(20%))[*faible* $<<1$])
 content((8.5, 5.95), [❌ Retrieval échoue])
 
 // === SEPARATEUR ===
@@ -810,16 +833,16 @@ content((4.5, 4.6), text(fill: red.darken(20%))[*Cas 2 : Images différentes →
 // x0 original
 rect((0.2, 2.8), (1.4, 3.8), fill: luma(85%), stroke: luma(40%))
 content((0.8, 3.3), [img])
-content((0.8, 2.5), [$\mathbf{x}_0$])
+content((0.8, 2.5), [$upright(bold(x))_0$])
 
 // xA attaqué (visuellement différent)
 rect((1.9, 2.8), (3.1, 3.8), fill: luma(40%), stroke: red)
 content((2.5, 3.3), [img']
 )
-content((2.5, 2.5), [$\mathbf{x}_A$])
+content((2.5, 2.5), [$upright(bold(x))_A$])
 
 // MSE grand
-content((1.75, 4.1), [$||\mathbf{x}_0 - \mathbf{x}_A||_2^2 gg 0$ ✗])
+content((1.75, 4.1), [$||upright(bold(x))_0 - upright(bold(x))_A||_2^2 >> 0$ ✗])
 
 // Encodeur bas
 rect((4.0, 2.8), (5.5, 3.8), fill: green.lighten(60%), stroke: green)
@@ -827,8 +850,8 @@ content((4.75, 3.3), [Encoder $f_phi$])
 line((3.1, 3.3), (4.0, 3.3), mark: (end: ">"))
 
 // Hashs résultants
-content((7.0, 4.1), [$\mathbf{z}_{x_0}$])
-content((7.0, 2.5), [$\mathbf{z}_{x_A}$])
+content((7.0, 4.1), [$upright(bold(z))_{x_0}$])
+content((7.0, 2.5), [$upright(bold(z))_{x_A}$])
 line((5.5, 3.5), (6.5, 3.9), mark: (end: ">"))
 line((5.5, 3.1), (6.5, 2.7), mark: (end: ">"))
 
@@ -843,6 +866,7 @@ rect((0.0, 0.0), (10.5, 1.8), fill: luma(97%), stroke: luma(60%))
 content((5.25, 1.5), [*Résumé des vulnérabilités adversariales*])
 content((5.25, 1.0), [Cas 1 : perturbation $epsilon$ imperceptible → hash complètement différent])
 content((5.25, 0.4), [Cas 2 : image très différente → même hash (collision forcée)])
+})
 ```
 
 ---
