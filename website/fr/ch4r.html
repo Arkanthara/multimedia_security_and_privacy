@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.6.43">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Synthèse — Chapitre 4 – Sécurité et Confidentialité Multimédia</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-d4d76bf8491c20bad77d141916dc28e1.css" rel="stylesheet" class="quarto-color-scheme" id="quarto-text-highlighting-styles">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting-dark-4379b0ccadffce622b03caf4c46266b3.css" rel="prefetch" class="quarto-color-scheme quarto-color-alternate" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap-e6ce61b8abf5c94a029dc3c97f35939c.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-df295a6a9888a72b0de9ffa9fe9bf918.min.css" rel="prefetch" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  
+  <script>
+    (function () {
+      var script = document.createElement("script");
+      script.type = "text/javascript";
+      script.src  = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js";
+      document.getElementsByTagName("head")[0].appendChild(script);
+    })();
+  </script>
+
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="nav-sidebar docked nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">Sécurité et Confidentialité Multimédia</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-langage" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="bi bi-globe" role="img">
+</i> 
+ <span class="menu-text">Langage</span>
+    </a>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nav-menu-langage">    
+        <li>
+    <a class="dropdown-item" href="./../index.html">
+ <span class="dropdown-text">Anglais</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./index.html">
+ <span class="dropdown-text">Français</span></a>
+  </li>  
+    </ul>
+  </li>
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+  <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item">Synthèse — Chapitre 4</li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+      <button type="button" class="btn quarto-search-button" aria-label="Search" onclick="window.quartoOpenSearch();">
+        <i class="bi bi-search"></i>
+      </button>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+        <div class="mt-2 flex-shrink-0 align-items-center">
+        <div class="sidebar-search">
+        <div id="quarto-search" class="" title="Search"></div>
+        </div>
+        </div>
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./index.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Accueil</span></a>
+  </div>
+</li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Cours</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false">
+ <span class="menu-text">Chapitre 1 : Introduction</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth2 ">  
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false">
+ <span class="menu-text">Détails</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth3 ">  
+      </ul>
+  </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./ch1.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Chapitre 1 : Introduction à la Sécurité Multimédia</span></a>
+  </div>
+</li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false">
+ <span class="menu-text">Synthèse</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth3 ">  
+      </ul>
+  </li>
+      </ul>
+  </li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false">
+ <span class="menu-text">Chapitre 2 : Notations et Concepts</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth2 ">  
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false">
+ <span class="menu-text">Détails</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth3 ">  
+      </ul>
+  </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./ch2.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Chapitre 2 : Notations et Concepts Fondamentaux</span></a>
+  </div>
+</li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false">
+ <span class="menu-text">Synthèse</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-7" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-7" class="collapse list-unstyled sidebar-section depth3 ">  
+      </ul>
+  </li>
+      </ul>
+  </li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="false">
+ <span class="menu-text">Chapitre 3 : Digital Watermarking</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-8" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-8" class="collapse list-unstyled sidebar-section depth2 ">  
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="false">
+ <span class="menu-text">Détails</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-9" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-9" class="collapse list-unstyled sidebar-section depth3 ">  
+      </ul>
+  </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./ch3.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Chapitre 3 : Digital Watermarking</span></a>
+  </div>
+</li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-10" role="navigation" aria-expanded="false">
+ <span class="menu-text">Synthèse</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-10" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-10" class="collapse list-unstyled sidebar-section depth3 ">  
+      </ul>
+  </li>
+      </ul>
+  </li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-11" role="navigation" aria-expanded="false">
+ <span class="menu-text">Chapitre 4 : Protection de la Vie Privée</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-11" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-11" class="collapse list-unstyled sidebar-section depth2 ">  
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-12" role="navigation" aria-expanded="false">
+ <span class="menu-text">Détails</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-12" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-12" class="collapse list-unstyled sidebar-section depth3 ">  
+      </ul>
+  </li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./ch4.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Chapitre 4 : Méthodes de Protection de la Vie Privée</span></a>
+  </div>
+</li>
+          <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-13" role="navigation" aria-expanded="false">
+ <span class="menu-text">Synthèse</span></a>
+          <a class="sidebar-item-toggle text-start collapsed" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-13" role="navigation" aria-expanded="false" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-13" class="collapse list-unstyled sidebar-section depth3 ">  
+      </ul>
+  </li>
+      </ul>
+  </li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul class="collapse">
+  <li><a href="#comparaison-des-trois-approches" id="toc-comparaison-des-trois-approches" class="nav-link active" data-scroll-target="#comparaison-des-trois-approches">Comparaison des trois approches</a></li>
+  <li><a href="#menaces-et-attaques" id="toc-menaces-et-attaques" class="nav-link" data-scroll-target="#menaces-et-attaques">Menaces et attaques</a></li>
+  <li><a href="#formules-clés" id="toc-formules-clés" class="nav-link" data-scroll-target="#formules-clés">Formules clés</a></li>
+  <li><a href="#comparaison-visuelle-des-trois-approches" id="toc-comparaison-visuelle-des-trois-approches" class="nav-link" data-scroll-target="#comparaison-visuelle-des-trois-approches">Comparaison visuelle des trois approches</a></li>
+  <li><a href="#propriétés-du-hachage-robuste" id="toc-propriétés-du-hachage-robuste" class="nav-link" data-scroll-target="#propriétés-du-hachage-robuste">Propriétés du hachage robuste</a></li>
+  <li><a href="#canal-bsc-et-décision-hamming" id="toc-canal-bsc-et-décision-hamming" class="nav-link" data-scroll-target="#canal-bsc-et-décision-hamming">Canal BSC et décision Hamming</a></li>
+  <li><a href="#fuzzy-commitment-résumé" id="toc-fuzzy-commitment-résumé" class="nav-link" data-scroll-target="#fuzzy-commitment-résumé">Fuzzy Commitment — Résumé</a></li>
+  <li><a href="#sécurité-comparée" id="toc-sécurité-comparée" class="nav-link" data-scroll-target="#sécurité-comparée">Sécurité comparée</a></li>
+  <li><a href="#métriques-de-performance-biométrique" id="toc-métriques-de-performance-biométrique" class="nav-link" data-scroll-target="#métriques-de-performance-biométrique">Métriques de performance biométrique</a></li>
+  <li><a href="#lien-avec-le-tatouage-numérique" id="toc-lien-avec-le-tatouage-numérique" class="nav-link" data-scroll-target="#lien-avec-le-tatouage-numérique">Lien avec le tatouage numérique</a></li>
+  <li><a href="#cadre-rgpd" id="toc-cadre-rgpd" class="nav-link" data-scroll-target="#cadre-rgpd">Cadre RGPD</a></li>
+  <li><a href="#points-clés-à-retenir" id="toc-points-clés-à-retenir" class="nav-link" data-scroll-target="#points-clés-à-retenir">Points clés à retenir</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Synthèse — Chapitre 4</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<div class="callout callout-style-default callout-important callout-titled" title="📚 Fiche de révision rapide — Chapitre 4">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+📚 Fiche de révision rapide — Chapitre 4
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>Cette fiche condense les notions essentielles du Chapitre 4. Elle couvre les trois approches de protection des templates biométriques (cryptographique, traitement du signal, hybride), les menaces associées, les formules clés du hachage robuste et du fuzzy commitment.</p>
+<p><strong>Navigation :</strong> <a href="./ch4.html">Vue d’ensemble →</a> | <a href="./ch4c.html">Contenu détaillé →</a></p>
+</div>
+</div>
+<hr>
+<section id="comparaison-des-trois-approches" class="level2">
+<h2 class="anchored" data-anchor-id="comparaison-des-trois-approches">Comparaison des trois approches</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 22%">
+<col style="width: 22%">
+<col style="width: 22%">
+<col style="width: 31%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Approche</th>
+<th style="text-align: left;">Principe</th>
+<th style="text-align: left;">Avantage</th>
+<th style="text-align: left;">Inconvénient</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Cryptographique</td>
+<td style="text-align: left;"><span class="math inline">\(\mathbf{b}_x = h(\mathbf{x})\)</span></td>
+<td style="text-align: left;">Irréversible, standard</td>
+<td style="text-align: left;">Sensible au bruit biométrique</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Traitement du signal</td>
+<td style="text-align: left;"><span class="math inline">\(T(\mathbf{y},\mathbf{x}^{(m)}) = \frac{1}{N}\mathbf{y}\cdot\mathbf{x}^{(m)}\)</span></td>
+<td style="text-align: left;">Robuste au bruit</td>
+<td style="text-align: left;">Inversible, template exposé</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Hybride (hachage robuste)</td>
+<td style="text-align: left;"><span class="math inline">\(\mathbf{b}_x = \text{sign}(\mathbf{P}\mathbf{x})\)</span></td>
+<td style="text-align: left;">Robuste + irréversible + révocable</td>
+<td style="text-align: left;">Conception plus complexe</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="menaces-et-attaques" class="level2">
+<h2 class="anchored" data-anchor-id="menaces-et-attaques">Menaces et attaques</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 27%">
+<col style="width: 41%">
+<col style="width: 31%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Menace</th>
+<th style="text-align: left;">Description</th>
+<th style="text-align: left;">Défense</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Usurpation d’identité</td>
+<td style="text-align: left;">Replay d’un template volé</td>
+<td style="text-align: left;">Hachage robuste + révocabilité</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Attaque aveugle</td>
+<td style="text-align: left;">Exploit des statistiques de <span class="math inline">\(T(\mathbf{y},\mathbf{x})\)</span> sans clé</td>
+<td style="text-align: left;">Augmenter <span class="math inline">\(L\)</span>, seuil adaptatif</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Attaque informée</td>
+<td style="text-align: left;">Accès à <span class="math inline">\(\mathbf{x}^{(m)}\)</span> ou à la matrice <span class="math inline">\(\mathbf{P}\)</span></td>
+<td style="text-align: left;">Clé secrète <span class="math inline">\(k\)</span>, irréversibilité</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Correspondance inter-bases</td>
+<td style="text-align: left;">Même biométrie dans <span class="math inline">\(N\)</span> bases</td>
+<td style="text-align: left;">Clés différentes par base</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Inférence d’attributs</td>
+<td style="text-align: left;">Soft biometrics depuis le template</td>
+<td style="text-align: left;">Projection aléatoire + signe</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="formules-clés" class="level2">
+<h2 class="anchored" data-anchor-id="formules-clés">Formules clés</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 29%">
+<col style="width: 29%">
+<col style="width: 41%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Concept</th>
+<th style="text-align: left;">Formule</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Hash biométrique</td>
+<td style="text-align: left;"><span class="math inline">\(\mathbf{b}_x = h(\mathbf{x}, k)\)</span></td>
+<td style="text-align: left;">Empreinte compacte et robuste</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Hachage robuste</td>
+<td style="text-align: left;"><span class="math inline">\(\mathbf{b}_x = \text{sign}(\mathbf{P}\mathbf{x})\)</span>, <span class="math inline">\(\mathbf{P} = f(k)\)</span></td>
+<td style="text-align: left;">Projection aléatoire + signe</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Canal BSC</td>
+<td style="text-align: left;"><span class="math inline">\(P(\hat{b}_i \neq b_i) = P_b\)</span></td>
+<td style="text-align: left;">Erreur par bit (intra-classe)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Score d’authentification</td>
+<td style="text-align: left;"><span class="math inline">\(T(\mathbf{y},\mathbf{x}^{(m)}) = \frac{1}{N}\mathbf{y}\cdot\mathbf{x}^{(m)}\)</span></td>
+<td style="text-align: left;">Statistique de similarité</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Fuzzy commitment</td>
+<td style="text-align: left;"><span class="math inline">\(c = \mathbf{b}_x \oplus e(m)\)</span></td>
+<td style="text-align: left;">Engagement biométrique</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Helper data</td>
+<td style="text-align: left;"><span class="math inline">\(W = \mathbf{b}_x \oplus r\)</span></td>
+<td style="text-align: left;">Données auxiliaires publiques</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Distance de Hamming</td>
+<td style="text-align: left;"><span class="math inline">\(d_H(\mathbf{b}_x,\mathbf{b}_y) = \sum_{i=1}^L b_{xi} \oplus b_{yi}\)</span></td>
+<td style="text-align: left;">Métrique de similarité binaire</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="comparaison-visuelle-des-trois-approches" class="level2">
+<h2 class="anchored" data-anchor-id="comparaison-visuelle-des-trois-approches">Comparaison visuelle des trois approches</h2>
+<pre class="cetz"><code>#cetz.canvas({
+  import cetz.draw: *
+
+  // Colonne 1 : Cryptographique
+  content((1.75, 6.5), [*Cryptographique*])
+  rect((0.5, 5.5), (3.0, 6.3), fill: luma(85%), stroke: luma(40%))
+  content((1.75, 5.9), [$bold(upright(x))$])
+  line((1.75, 5.5), (1.75, 4.7), mark: (end: "&gt;"))
+  rect((0.5, 3.8), (3.0, 4.7), fill: blue.lighten(70%), stroke: blue.darken(20%))
+  content((1.75, 4.25), [*Hash h(·)*])
+  line((1.75, 3.8), (1.75, 3.0), mark: (end: "&gt;"))
+  rect((0.5, 2.2), (3.0, 3.0), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((1.75, 2.6), [$b_x in {0,1}^L$])
+  line((1.75, 2.2), (1.75, 1.5))
+  content((1.75, 1.2), [✗ non inversible])
+
+  // Colonne 2 : Traitement du signal
+  content((6.5, 6.5), [*Traitement du signal*])
+  rect((4.8, 5.5), (8.2, 6.3), fill: luma(85%), stroke: luma(40%))
+  content((6.5, 5.9), [$bold(upright(x)), bold(upright(y))$])
+  line((6.5, 5.5), (6.5, 4.7), mark: (end: "&gt;"))
+  rect((4.8, 3.8), (8.2, 4.7), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((6.5, 4.25), [$T(bold(upright(y)), bold(upright(x))^((m)))$])
+  line((6.5, 3.8), (6.5, 3.0), mark: (end: "&gt;"))
+  rect((4.8, 2.2), (8.2, 3.0), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((6.5, 2.6), [Décision $H_0 / H_1$])
+  content((6.5, 1.2), [✓ robuste, ✗ inversible])
+
+  // Colonne 3 : Hachage robuste
+  content((11.25, 6.5), [*Hachage robuste*])
+  rect((9.5, 5.5), (13.0, 6.3), fill: luma(85%), stroke: luma(40%))
+  content((11.25, 5.9), [$bold(upright(x))$])
+  line((11.25, 5.5), (11.25, 4.7), mark: (end: "&gt;"))
+  rect((9.5, 3.8), (13.0, 4.7), fill: green.lighten(60%), stroke: green.darken(20%))
+  content((11.25, 4.25), [*Proj. + sign(·)*])
+  line((11.25, 3.8), (11.25, 3.0), mark: (end: "&gt;"))
+  rect((9.5, 2.2), (13.0, 3.0), fill: orange.lighten(70%), stroke: orange.darken(20%))
+  content((11.25, 2.6), [$b_x in {0,1}^L$, clé $k$])
+  content((11.25, 1.2), [✓ robuste, ✓ révocable])
+})</code></pre>
+<hr>
+</section>
+<section id="propriétés-du-hachage-robuste" class="level2">
+<h2 class="anchored" data-anchor-id="propriétés-du-hachage-robuste">Propriétés du hachage robuste</h2>
+<ul>
+<li><strong>Robustesse</strong> : même biométrie → même hash malgré le bruit de capture (<span class="math inline">\(P_b &lt; 0.1\)</span> pour la même personne)</li>
+<li><strong>Irréversibilité</strong> : impossible de reconstruire <span class="math inline">\(\mathbf{x}\)</span> depuis <span class="math inline">\(\mathbf{b}_x\)</span> sans clé <span class="math inline">\(k\)</span></li>
+<li><strong>Révocabilité</strong> : changer la clé <span class="math inline">\(k\)</span> génère une nouvelle matrice <span class="math inline">\(\mathbf{P}' \neq \mathbf{P}\)</span> et donc un nouveau hash <span class="math inline">\(\mathbf{b}'_x\)</span></li>
+<li><strong>Compacité</strong> : <span class="math inline">\(\mathbf{b}_x \in \{0,1\}^L\)</span>, avec <span class="math inline">\(L \ll N\)</span> (bien plus compact que le template original de <span class="math inline">\(N\)</span> flottants)</li>
+<li><strong>Diversité</strong> : clés différentes par base de données → hashes indépendants → pas de correspondance inter-bases</li>
+<li><strong>Sécurité</strong> : sans clé <span class="math inline">\(k\)</span>, attaque → sécurité de type information-théorique (problème combinatoire NP-difficile)</li>
+</ul>
+<hr>
+</section>
+<section id="canal-bsc-et-décision-hamming" class="level2">
+<h2 class="anchored" data-anchor-id="canal-bsc-et-décision-hamming">Canal BSC et décision Hamming</h2>
+<p>Sous <span class="math inline">\(H_0\)</span> (même personne), la distance de Hamming suit : <span class="math display">\[d_H(\mathbf{b}_x, \mathbf{b}_y) \sim \mathcal{B}(L, P_b), \quad P_b \approx 0.05\text{–}0.15\]</span></p>
+<p>Sous <span class="math inline">\(H_1\)</span> (personnes différentes), les bits sont quasi-indépendants : <span class="math display">\[d_H(\mathbf{b}_x, \mathbf{b}_y) \sim \mathcal{B}(L, 0.5)\]</span></p>
+<p>La règle de décision optimale (Neyman-Pearson) est : <span class="math display">\[d_H(\mathbf{b}_x, \mathbf{b}_y) \underset{H_1}{\overset{H_0}{\lessgtr}} \tau_H\]</span></p>
+<p>Pour <span class="math inline">\(L = 256\)</span> bits et <span class="math inline">\(P_b = 0.1\)</span> : les deux distributions sont bien séparées → faible <span class="math inline">\(P_{FA}\)</span> et faible <span class="math inline">\(P_\text{miss}\)</span> simultanément.</p>
+<hr>
+</section>
+<section id="fuzzy-commitment-résumé" class="level2">
+<h2 class="anchored" data-anchor-id="fuzzy-commitment-résumé">Fuzzy Commitment — Résumé</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 28%">
+<col style="width: 32%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Étape</th>
+<th style="text-align: left;">Action</th>
+<th style="text-align: left;">Stockage</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Enrôlement</td>
+<td style="text-align: left;"><span class="math inline">\(c = \mathbf{b}_x \oplus \text{ECC}(m)\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(c\)</span> (public) + <span class="math inline">\(\text{hash}(m)\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Vérification</td>
+<td style="text-align: left;"><span class="math inline">\(e' = \mathbf{b}_y \oplus c\)</span>, décoder <span class="math inline">\(m'\)</span></td>
+<td style="text-align: left;">—</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Décision</td>
+<td style="text-align: left;"><span class="math inline">\(\text{hash}(m') \stackrel{?}{=} \text{hash}(m)\)</span></td>
+<td style="text-align: left;">—</td>
+</tr>
+</tbody>
+</table>
+<p>La capacité de correction du code ECC doit être <span class="math inline">\(\geq L \cdot P_b\)</span> bits.</p>
+<hr>
+</section>
+<section id="sécurité-comparée" class="level2">
+<h2 class="anchored" data-anchor-id="sécurité-comparée">Sécurité comparée</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 18%">
+<col style="width: 32%">
+<col style="width: 16%">
+<col style="width: 34%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Critère</th>
+<th style="text-align: left;">Cryptographique</th>
+<th style="text-align: left;">Signal</th>
+<th style="text-align: left;">Hachage robuste</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Résistance vol template</td>
+<td style="text-align: left;">✓ (hash irréversible)</td>
+<td style="text-align: left;">✗ (template brut)</td>
+<td style="text-align: left;">✓ (hash irréversible)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Résistance bruit intra</td>
+<td style="text-align: left;">✗ (avalanche)</td>
+<td style="text-align: left;">✓ (distance)</td>
+<td style="text-align: left;">✓ (BSC <span class="math inline">\(P_b &lt; 0.15\)</span>)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Revocabilité</td>
+<td style="text-align: left;">Partielle (nouveau hash)</td>
+<td style="text-align: left;">✗</td>
+<td style="text-align: left;">✓ (nouvelle clé <span class="math inline">\(k\)</span>)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Correspondance inter-bases</td>
+<td style="text-align: left;">Partielle</td>
+<td style="text-align: left;">✗</td>
+<td style="text-align: left;">✓ (clé différente par base)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Inférence d’attributs</td>
+<td style="text-align: left;">✓ (hash opaque)</td>
+<td style="text-align: left;">✗</td>
+<td style="text-align: left;">✓ (projection aléatoire)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+</section>
+<section id="métriques-de-performance-biométrique" class="level2">
+<h2 class="anchored" data-anchor-id="métriques-de-performance-biométrique">Métriques de performance biométrique</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 28%">
+<col style="width: 31%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Métrique</th>
+<th style="text-align: left;">Définition</th>
+<th style="text-align: left;">Signification</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">FAR (False Accept Rate)</td>
+<td style="text-align: left;"><span class="math inline">\(P_{FA} = P(H_0 \mid H_1)\)</span></td>
+<td style="text-align: left;">Taux d’imposteurs acceptés</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">FRR (False Reject Rate)</td>
+<td style="text-align: left;"><span class="math inline">\(P_\text{miss} = P(H_1 \mid H_0)\)</span></td>
+<td style="text-align: left;">Taux de légitimes rejetés</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">EER (Equal Error Rate)</td>
+<td style="text-align: left;">FAR = FRR</td>
+<td style="text-align: left;">Point d’opération équilibré</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">AUC ROC</td>
+<td style="text-align: left;">Aire sous la courbe ROC</td>
+<td style="text-align: left;">Performance globale</td>
+</tr>
+</tbody>
+</table>
+<p>Pour un hachage robuste de longueur <span class="math inline">\(L = 256\)</span> bits avec <span class="math inline">\(P_b = 0.1\)</span> (intra-classe) :</p>
+<p><span class="math display">\[P_{FA} = \sum_{i=0}^{\tau_H} \binom{L}{i} 0.5^L \approx Q\!\left(\frac{L/2 - \tau_H}{\sqrt{L \cdot 0.25}}\right)\]</span></p>
+<p><span class="math display">\[P_\text{miss} = \sum_{i=\tau_H+1}^{L} \binom{L}{i} P_b^i (1-P_b)^{L-i} \approx Q\!\left(\frac{\tau_H - L P_b}{\sqrt{L P_b(1-P_b)}}\right)\]</span></p>
+<hr>
+</section>
+<section id="lien-avec-le-tatouage-numérique" class="level2">
+<h2 class="anchored" data-anchor-id="lien-avec-le-tatouage-numérique">Lien avec le tatouage numérique</h2>
+<p>La protection biométrique par hachage robuste partage la structure mathématique du tatouage numérique :</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 16%">
+<col style="width: 32%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Concept</th>
+<th style="text-align: left;">Tatouage (Ch. 3)</th>
+<th style="text-align: left;">Hachage biométrique (Ch. 4)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Signal hôte</td>
+<td style="text-align: left;">Image <span class="math inline">\(\mathbf{x}\)</span></td>
+<td style="text-align: left;">Template biométrique <span class="math inline">\(\mathbf{x}\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Transformée</td>
+<td style="text-align: left;"><span class="math inline">\(\mathbf{y} = \mathbf{x} + \varepsilon\mathbf{w}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(\mathbf{b}_x = \text{sign}(\mathbf{P}\mathbf{x})\)</span></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Clé</td>
+<td style="text-align: left;"><span class="math inline">\(k\)</span> → <span class="math inline">\(\mathbf{w} = \text{Gen}(k)\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(k\)</span> → <span class="math inline">\(\mathbf{P} = f(k)\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Statistique</td>
+<td style="text-align: left;"><span class="math inline">\(S(\mathbf{v}) = \frac{1}{M}\mathbf{v}\cdot\mathbf{w}\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(T(\mathbf{y},\mathbf{x}^{(m)}) = \frac{1}{N}\mathbf{y}\cdot\mathbf{x}^{(m)}\)</span></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Décision</td>
+<td style="text-align: left;"><span class="math inline">\(S \gtrless \tau\)</span></td>
+<td style="text-align: left;"><span class="math inline">\(d_H \lessgtr \tau_H\)</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Robustesse</td>
+<td style="text-align: left;">Aux attaques signal</td>
+<td style="text-align: left;">Au bruit biométrique</td>
+</tr>
+</tbody>
+</table>
+<p>Dans les deux cas, la clé <span class="math inline">\(k\)</span> est le secret fondamental, et la sécurité du système repose sur le principe de Kerckhoffs : l’algorithme est public, seule la clé est secrète.</p>
+<hr>
+</section>
+<section id="cadre-rgpd" class="level2">
+<h2 class="anchored" data-anchor-id="cadre-rgpd">Cadre RGPD</h2>
+<ul>
+<li><strong>Art. 9 RGPD :</strong> données biométriques = catégorie spéciale → traitement par défaut interdit.</li>
+<li><strong>Privacy by design :</strong> le hachage robuste est la mise en œuvre technique de ce principe.</li>
+<li><strong>Droit à l’effacement :</strong> effacer <span class="math inline">\(\mathbf{b}_x\)</span> et révoquer <span class="math inline">\(k\)</span> → aucune trace de la biométrie.</li>
+<li><strong>Minimisation :</strong> stocker <span class="math inline">\(\mathbf{b}_x \in \{0,1\}^L\)</span> plutôt que <span class="math inline">\(\mathbf{x} \in \mathbb{R}^N\)</span>.</li>
+</ul>
+<hr>
+</section>
+<section id="points-clés-à-retenir" class="level2">
+<h2 class="anchored" data-anchor-id="points-clés-à-retenir">Points clés à retenir</h2>
+<ul>
+<li>Le problème fondamental est la <strong>tension</strong> entre robustesse au bruit biométrique (intra-classe) et irréversibilité (propriété cryptographique).</li>
+<li>La solution : projeter sur un sous-espace aléatoire secret → binariser → la réduction de dimension assure l’irréversibilité ; la continuité de la projection assure la robustesse.</li>
+<li>Le paramètre <span class="math inline">\(L\)</span> contrôle le compromis sécurité/robustesse : <span class="math inline">\(L\)</span> grand → meilleure séparation inter-classe ; <span class="math inline">\(L\)</span> trop grand → plus d’erreurs intra-classe.</li>
+<li>Le choix optimal de <span class="math inline">\(\tau_H\)</span> minimise <span class="math inline">\(P_{FA} + P_\text{miss}\)</span> sur des données d’entraînement représentatives.</li>
+</ul>
+<hr>
+<blockquote class="blockquote">
+<p><strong>Résumé :</strong> Le hachage robuste est la solution qui réunit irréversibilité, robustesse au bruit biométrique et revocabilité. C’est la seule approche satisfaisant simultanément les exigences du RGPD, de la sécurité cryptographique et de la praticabilité biométrique.</p>
+</blockquote>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const disableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'prefetch';
+    }
+  }
+  const enableStylesheet = (stylesheets) => {
+    for (let i=0; i < stylesheets.length; i++) {
+      const stylesheet = stylesheets[i];
+      stylesheet.rel = 'stylesheet';
+    }
+  }
+  const manageTransitions = (selector, allowTransitions) => {
+    const els = window.document.querySelectorAll(selector);
+    for (let i=0; i < els.length; i++) {
+      const el = els[i];
+      if (allowTransitions) {
+        el.classList.remove('notransition');
+      } else {
+        el.classList.add('notransition');
+      }
+    }
+  }
+  const toggleGiscusIfUsed = (isAlternate, darkModeDefault) => {
+    const baseTheme = document.querySelector('#giscus-base-theme')?.value ?? 'light';
+    const alternateTheme = document.querySelector('#giscus-alt-theme')?.value ?? 'dark';
+    let newTheme = '';
+    if(darkModeDefault) {
+      newTheme = isAlternate ? baseTheme : alternateTheme;
+    } else {
+      newTheme = isAlternate ? alternateTheme : baseTheme;
+    }
+    const changeGiscusTheme = () => {
+      // From: https://github.com/giscus/giscus/issues/336
+      const sendMessage = (message) => {
+        const iframe = document.querySelector('iframe.giscus-frame');
+        if (!iframe) return;
+        iframe.contentWindow.postMessage({ giscus: message }, 'https://giscus.app');
+      }
+      sendMessage({
+        setConfig: {
+          theme: newTheme
+        }
+      });
+    }
+    const isGiscussLoaded = window.document.querySelector('iframe.giscus-frame') !== null;
+    if (isGiscussLoaded) {
+      changeGiscusTheme();
+    }
+  }
+  const toggleColorMode = (alternate) => {
+    // Switch the stylesheets
+    const alternateStylesheets = window.document.querySelectorAll('link.quarto-color-scheme.quarto-color-alternate');
+    manageTransitions('#quarto-margin-sidebar .nav-link', false);
+    if (alternate) {
+      enableStylesheet(alternateStylesheets);
+      for (const sheetNode of alternateStylesheets) {
+        if (sheetNode.id === "quarto-bootstrap") {
+          toggleBodyColorMode(sheetNode);
+        }
+      }
+    } else {
+      disableStylesheet(alternateStylesheets);
+      toggleBodyColorPrimary();
+    }
+    manageTransitions('#quarto-margin-sidebar .nav-link', true);
+    // Switch the toggles
+    const toggles = window.document.querySelectorAll('.quarto-color-scheme-toggle');
+    for (let i=0; i < toggles.length; i++) {
+      const toggle = toggles[i];
+      if (toggle) {
+        if (alternate) {
+          toggle.classList.add("alternate");     
+        } else {
+          toggle.classList.remove("alternate");
+        }
+      }
+    }
+    // Hack to workaround the fact that safari doesn't
+    // properly recolor the scrollbar when toggling (#1455)
+    if (navigator.userAgent.indexOf('Safari') > 0 && navigator.userAgent.indexOf('Chrome') == -1) {
+      manageTransitions("body", false);
+      window.scrollTo(0, 1);
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+        manageTransitions("body", true);
+      }, 40);  
+    }
+  }
+  const isFileUrl = () => { 
+    return window.location.protocol === 'file:';
+  }
+  const hasAlternateSentinel = () => {  
+    let styleSentinel = getColorSchemeSentinel();
+    if (styleSentinel !== null) {
+      return styleSentinel === "alternate";
+    } else {
+      return false;
+    }
+  }
+  const setStyleSentinel = (alternate) => {
+    const value = alternate ? "alternate" : "default";
+    if (!isFileUrl()) {
+      window.localStorage.setItem("quarto-color-scheme", value);
+    } else {
+      localAlternateSentinel = value;
+    }
+  }
+  const getColorSchemeSentinel = () => {
+    if (!isFileUrl()) {
+      const storageValue = window.localStorage.getItem("quarto-color-scheme");
+      return storageValue != null ? storageValue : localAlternateSentinel;
+    } else {
+      return localAlternateSentinel;
+    }
+  }
+  const darkModeDefault = false;
+  let localAlternateSentinel = darkModeDefault ? 'alternate' : 'default';
+  // Dark / light mode switch
+  window.quartoToggleColorScheme = () => {
+    // Read the current dark / light value 
+    let toAlternate = !hasAlternateSentinel();
+    toggleColorMode(toAlternate);
+    setStyleSentinel(toAlternate);
+    toggleGiscusIfUsed(toAlternate, darkModeDefault);
+  };
+  // Ensure there is a toggle, if there isn't float one in the top right
+  if (window.document.querySelector('.quarto-color-scheme-toggle') === null) {
+    const a = window.document.createElement('a');
+    a.classList.add('top-right');
+    a.classList.add('quarto-color-scheme-toggle');
+    a.href = "";
+    a.onclick = function() { try { window.quartoToggleColorScheme(); } catch {} return false; };
+    const i = window.document.createElement("i");
+    i.classList.add('bi');
+    a.appendChild(i);
+    window.document.body.appendChild(a);
+  }
+  // Switch to dark mode if need be
+  if (hasAlternateSentinel()) {
+    toggleColorMode(true);
+  } else {
+    toggleColorMode(false);
+  }
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

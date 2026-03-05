@@ -1,7 +1,9 @@
 on:
   workflow_dispatch:
   push:
-    branches: course
+    branches:
+      - course
+      - copilot/create-course-website-with-themes
 
 name: Quarto Publish
 
@@ -13,23 +15,14 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-      
-      - name: Add typst for ceTZ diagrams
+
+      - name: Add Typst for CeTZ diagram rendering
         uses: typst-community/setup-typst@v4
 
       - name: Set up Quarto
         uses: quarto-dev/quarto-actions/setup@v2
         with:
           tinytex: true
-          chromium: true
-
-      # - name: Add extension for CeTZ diagram rendering
-      #   run: |
-      #     cd en
-      #     quarto install extension pandoc-ext/diagram --no-prompt
-      #     cd ../fr
-      #     quarto install extension pandoc-ext/diagram --no-prompt
-      #     cd ..
 
       - name: Render French project
         uses: quarto-dev/quarto-actions/render@v2
@@ -40,6 +33,23 @@ jobs:
         uses: quarto-dev/quarto-actions/render@v2
         with:
           path: website/en
+
+      - name: Add redirect index.html at root
+        run: |
+          mkdir -p website/_site
+          cat > website/_site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <meta http-equiv="refresh" content="0; url=index.html">
+            <title>Multimedia Security and Privacy</title>
+          </head>
+          <body>
+            <p>Redirecting to <a href="index.html">English site</a>…</p>
+          </body>
+          </html>
+          EOF
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
