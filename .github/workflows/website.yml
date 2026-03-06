@@ -42,23 +42,6 @@ jobs:
         with:
           path: website/en
 
-      - name: Add redirect index.html at root
-        run: |
-          mkdir -p website/_site
-          cat > website/_site/index.html << 'EOF'
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <meta charset="utf-8">
-            <meta http-equiv="refresh" content="0; url=index.html">
-            <title>Multimedia Security and Privacy</title>
-          </head>
-          <body>
-            <p>Redirecting to <a href="index.html">English site</a>…</p>
-          </body>
-          </html>
-          EOF
-
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
