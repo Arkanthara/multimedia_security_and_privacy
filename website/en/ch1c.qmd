@@ -16,6 +16,7 @@ Formally, the watermarking system is defined by:
 $$\mathbf{y} = \omega(\mathbf{x},\, k,\, m), \qquad \hat{m} = g(\mathbf{v},\, k)$$
 
 where:
+
 - $\mathbf{x} \in \mathbb{R}^{H \times W \times C}$: the original image
 - $k$: a secret symmetric key
 - $m \in \{0,1\}^M$: the message to embed ($M$ bits)
@@ -27,67 +28,68 @@ where:
 
 **Diagram 1: Digital watermarking pipeline**
 
-```{.cetz}
-#cetz.canvas({
-  import cetz.draw: *
+```{.tikz}
+\usetikzlibrary{arrows.meta}
+\begin{tikzpicture}[>=Latex, font=\small]
 
-  // Message input
-  content((2.0, 7.5), [Message $m$])
-  line((2.0, 7.3), (2.0, 6.7), mark: (end: ">"))
+% Message m (top left)
+\node at (2.0, 7.5) {Message $m$};
+\draw[->] (2.0, 7.3) -- (2.0, 6.7);
 
-  // Encoder
-  rect((0.5, 5.7), (3.5, 6.7), fill: green.lighten(60%), stroke: green.darken(20%))
-  content((2.0, 6.2), [*Encoder*])
+% Encoder
+\draw[fill=green!40, draw=green!60!black] (0.5, 5.7) rectangle (3.5, 6.7);
+\node at (2.0, 6.2) {\textbf{Encoder}};
 
-  // Image x
-  content((-0.8, 4.2), [$bold(upright(x))$])
-  line((-0.3, 4.2), (0.5, 4.2), mark: (end: ">"))
+% Image x
+\node at (-0.8, 4.2) {$\mathbf{x}$};
+\draw[->] (-0.3, 4.2) -- (0.5, 4.2);
 
-  // s: Encoder -> Embedder
-  line((2.0, 5.7), (2.0, 4.7), mark: (end: ">"))
-  content((2.4, 5.2), [$bold(upright(s))$])
+% s: Encoder -> Embedder
+\draw[->] (2.0, 5.7) -- (2.0, 4.7);
+\node at (2.4, 5.2) {$\mathbf{s}$};
 
-  // Key k
-  content((2.0, 1.5), [Key $k$])
-  line((2.0, 1.8), (2.0, 2.8), mark: (end: ">"))
+% Key k (left)
+\node at (2.0, 1.5) {Key $k$};
+\draw[->] (2.0, 1.8) -- (2.0, 2.8);
 
-  // Embedder
-  rect((0.5, 2.8), (3.5, 4.7), fill: green.lighten(60%), stroke: green.darken(20%))
-  content((2.0, 3.75), [*Embedder*])
+% Embedder
+\draw[fill=green!40, draw=green!60!black] (0.5, 2.8) rectangle (3.5, 4.7);
+\node at (2.0, 3.75) {\textbf{Embedder}};
 
-  // y: Embedder -> Channel
-  line((3.5, 4.0), (5.5, 4.0), mark: (end: ">"))
-  content((4.5, 4.3), [$bold(upright(y))$])
+% y: Embedder -> Channel
+\draw[->] (3.5, 4.0) -- (5.5, 4.0);
+\node at (4.5, 4.3) {$\mathbf{y}$};
 
-  // Multimedia Channel
-  rect((5.5, 3.0), (8.0, 5.0), fill: blue.lighten(70%), stroke: blue.darken(15%))
-  content((6.75, 4.3), [*Multimedia*])
-  content((6.75, 3.7), [*Channel*])
+% Multimedia Channel
+\draw[fill=blue!30, draw=blue!70!black] (5.5, 3.0) rectangle (8.0, 5.0);
+\node at (6.75, 4.3) {\textbf{Multimedia}};
+\node at (6.75, 3.7) {\textbf{Channel}};
 
-  // v: Channel -> Extractor
-  line((8.0, 4.0), (9.5, 4.0), mark: (end: ">"))
-  content((8.75, 4.3), [$bold(upright(v))$])
+% v: Channel -> Extractor
+\draw[->] (8.0, 4.0) -- (9.5, 4.0);
+\node at (8.75, 4.3) {$\mathbf{v}$};
 
-  // Extractor
-  rect((9.5, 2.8), (12.0, 4.7), fill: green.lighten(60%), stroke: green.darken(20%))
-  content((10.75, 3.75), [*Extractor*])
+% Extractor
+\draw[fill=green!40, draw=green!60!black] (9.5, 2.8) rectangle (12.0, 4.7);
+\node at (10.75, 3.75) {\textbf{Extractor}};
 
-  // Key k (right side)
-  content((10.75, 1.5), [Key $k$])
-  line((10.75, 1.8), (10.75, 2.8), mark: (end: ">"))
+% Key k (right)
+\node at (10.75, 1.5) {Key $k$};
+\draw[->] (10.75, 1.8) -- (10.75, 2.8);
 
-  // ŝ: Extractor -> Decoder
-  line((10.75, 4.7), (10.75, 5.7), mark: (end: ">"))
-  content((11.2, 5.2), [$hat(bold(upright(s)))$])
+% s-hat: Extractor -> Decoder
+\draw[->] (10.75, 4.7) -- (10.75, 5.7);
+\node at (11.2, 5.2) {$\hat{\mathbf{s}}$};
 
-  // Decoder
-  rect((9.5, 5.7), (12.0, 6.7), fill: green.lighten(60%), stroke: green.darken(20%))
-  content((10.75, 6.2), [*Decoder*])
+% Decoder
+\draw[fill=green!40, draw=green!60!black] (9.5, 5.7) rectangle (12.0, 6.7);
+\node at (10.75, 6.2) {\textbf{Decoder}};
 
-  // m̂: Decoder -> output
-  content((10.75, 7.5), [Message $hat(m)$])
-  line((10.75, 6.7), (10.75, 7.3), mark: (end: ">"))
-})
+% Message m-hat (top right)
+\node at (10.75, 7.5) {Message $\hat{m}$};
+\draw[->] (10.75, 6.7) -- (10.75, 7.3);
+
+\end{tikzpicture}
 ```
 
 ## Applications
@@ -131,53 +133,60 @@ Unlike cryptographic hashes (MD5, SHA-256), a perceptual hash must be **stable**
 
 **Diagram 2: Perceptual hashing and BSC channel model**
 
-```{.cetz}
-#cetz.canvas({
-  import cetz.draw: *
+```{.tikz}
+\usetikzlibrary{arrows.meta}
+\begin{tikzpicture}[>=Latex, font=\small]
 
-  // Original image x
-  rect((0.0, 4.0), (2.0, 5.5), fill: luma(85%), stroke: luma(40%))
-  content((1.0, 4.75), [$bold(upright(x))$])
+% Original image x
+\draw[fill=gray!15, draw=gray!60] (0.0, 4.0) rectangle (2.0, 5.5);
+\node at (1.0, 4.75) {$\mathbf{x}$};
 
-  // Perceptual hash function
-  line((2.0, 4.75), (3.5, 4.75), mark: (end: ">"))
-  rect((3.5, 4.0), (6.0, 5.5), fill: green.lighten(60%), stroke: green.darken(20%))
-  content((4.75, 5.0), [*Hash*])
-  content((4.75, 4.5), [$h(dot, k)$])
+% x -> Hash
+\draw[->] (2.0, 4.75) -- (3.5, 4.75);
 
-  // Fingerprint bx
-  line((6.0, 4.75), (7.5, 4.75), mark: (end: ">"))
-  rect((7.5, 4.0), (10.0, 5.5), fill: orange.lighten(70%), stroke: orange.darken(20%))
-  content((8.75, 5.0), [$bold(upright(b))_x in {0,1}^L$])
-  content((8.75, 4.4), [Fingerprint])
+% Hash function h(.,k)
+\draw[fill=green!40, draw=green!60!black] (3.5, 4.0) rectangle (6.0, 5.5);
+\node at (4.75, 5.0) {\textbf{Hash}};
+\node at (4.75, 4.5) {$h(\cdot, k)$};
 
-  // BSC channel
-  line((8.75, 4.0), (8.75, 2.8), mark: (end: ">"))
-  rect((7.0, 1.8), (10.5, 2.8), fill: blue.lighten(70%), stroke: blue.darken(20%))
-  content((8.75, 2.3), [*BSC* $(P_b)$])
+% Fingerprint bx
+\draw[->] (6.0, 4.75) -- (7.5, 4.75);
+\draw[fill=orange!30, draw=orange!60!black] (7.5, 4.0) rectangle (10.0, 5.5);
+\node at (8.75, 5.0) {$\mathbf{b}_x \in \{0,1\}^L$};
+\node at (8.75, 4.4) {Fingerprint};
 
-  // bx after channel
-  line((8.75, 1.8), (8.75, 0.8), mark: (end: ">"))
-  rect((7.5, 0.0), (10.0, 0.8), fill: orange.lighten(70%), stroke: orange.darken(20%))
-  content((8.75, 0.4), [$hat(bold(upright(b)))_x$])
+% bx -> BSC
+\draw[->] (8.75, 4.0) -- (8.75, 2.8);
 
-  // Attacked image y
-  rect((0.0, 0.0), (2.0, 1.5), fill: luma(75%), stroke: luma(40%))
-  content((1.0, 0.9), [$bold(upright(y)) = cal(A)(bold(upright(x)))$])
-  content((1.0, 0.3), [Attacked])
+% BSC channel
+\draw[fill=blue!30, draw=blue!70!black] (7.0, 1.8) rectangle (10.5, 2.8);
+\node at (8.75, 2.3) {\textbf{BSC} $(P_b)$};
 
-  // Hash of attacked image
-  line((2.0, 0.75), (3.5, 0.75), mark: (end: ">"))
-  rect((3.5, 0.0), (6.0, 1.5), fill: green.lighten(60%), stroke: green.darken(20%))
-  content((4.75, 1.0), [*Hash*])
-  content((4.75, 0.5), [$h(dot, k)$])
-  line((6.0, 0.75), (7.5, 0.75), mark: (end: ">"))
+% BSC -> b-hat-x
+\draw[->] (8.75, 1.8) -- (8.75, 0.8);
+\draw[fill=orange!30, draw=orange!60!black] (7.5, 0.0) rectangle (10.0, 0.8);
+\node at (8.75, 0.4) {$\hat{\mathbf{b}}_x$};
 
-  // Hamming distance
-  rect((7.5, 0.0), (10.0, 1.5), fill: orange.lighten(70%), stroke: orange.darken(20%))
-  content((8.75, 1.0), [$bold(upright(b))_y in {0,1}^L$])
-  content((8.75, 0.4), [Direct hash])
-})
+% Attacked image y
+\draw[fill=gray!25, draw=gray!60] (0.0, 0.0) rectangle (2.0, 1.5);
+\node at (1.0, 0.9) {$\mathbf{y} = \mathcal{A}(\mathbf{x})$};
+\node at (1.0, 0.3) {Attacked};
+
+% y -> Hash2
+\draw[->] (2.0, 0.75) -- (3.5, 0.75);
+
+% Hash function for attacked image
+\draw[fill=green!40, draw=green!60!black] (3.5, 0.0) rectangle (6.0, 1.5);
+\node at (4.75, 1.0) {\textbf{Hash}};
+\node at (4.75, 0.5) {$h(\cdot, k)$};
+
+% by fingerprint
+\draw[->] (6.0, 0.75) -- (7.5, 0.75);
+\draw[fill=orange!30, draw=orange!60!black] (7.5, 0.0) rectangle (10.0, 1.5);
+\node at (8.75, 1.0) {$\mathbf{b}_y \in \{0,1\}^L$};
+\node at (8.75, 0.4) {Direct hash};
+
+\end{tikzpicture}
 ```
 
 ## Irreversibility
@@ -204,42 +213,43 @@ This irreversibility is essential for privacy-preserving applications: one can c
 
 **Diagram 3: Comparison of cryptographic vs. perceptual hashing**
 
-```{.cetz}
-#cetz.canvas({
-  import cetz.draw: *
+```{.tikz}
+\usetikzlibrary{arrows.meta}
+\begin{tikzpicture}[>=Latex, font=\small]
 
-  // Left: Cryptographic Hash
-  content((2.5, 7.5), [*Cryptographic Hash (SHA-256)*])
-  rect((0.5, 6.2), (4.5, 7.2), fill: luma(85%), stroke: luma(40%))
-  content((2.5, 6.7), [Image $bold(upright(x))$])
-  line((2.5, 6.2), (2.5, 5.4), mark: (end: ">"))
-  rect((0.5, 4.5), (4.5, 5.4), fill: blue.lighten(70%), stroke: blue.darken(20%))
-  content((2.5, 4.95), [*SHA-256*])
-  line((2.5, 4.5), (2.5, 3.7), mark: (end: ">"))
-  rect((0.5, 2.8), (4.5, 3.7), fill: orange.lighten(70%), stroke: orange.darken(20%))
-  content((2.5, 3.25), [256-bit hash])
+% === Left: Cryptographic Hash ===
+\node at (2.5, 7.5) {\textbf{Cryptographic Hash (SHA-256)}};
+\draw[fill=gray!15, draw=gray!60] (0.5, 6.2) rectangle (4.5, 7.2);
+\node at (2.5, 6.7) {Image $\mathbf{x}$};
+\draw[->] (2.5, 6.2) -- (2.5, 5.4);
+\draw[fill=blue!30, draw=blue!80!black] (0.5, 4.5) rectangle (4.5, 5.4);
+\node at (2.5, 4.95) {\textbf{SHA-256}};
+\draw[->] (2.5, 4.5) -- (2.5, 3.7);
+\draw[fill=orange!30, draw=orange!80!black] (0.5, 2.8) rectangle (4.5, 3.7);
+\node at (2.5, 3.25) {256-bit hash};
 
-  // Avalanche effect
-  rect((0.5, 1.5), (4.5, 2.5), fill: red.lighten(70%), stroke: red.darken(20%))
-  content((2.5, 2.1), [*Avalanche effect:*])
-  content((2.5, 1.7), [1 bit changed → 50% hash changed])
+% Avalanche effect
+\draw[fill=red!30, draw=red!80!black] (0.5, 1.5) rectangle (4.5, 2.5);
+\node at (2.5, 2.1) {\textbf{Avalanche effect:}};
+\node at (2.5, 1.7) {1 bit changed $\rightarrow$ 50\% hash changed};
 
-  // Right: Perceptual Hash
-  content((9.5, 7.5), [*Perceptual Hash*])
-  rect((7.5, 6.2), (11.5, 7.2), fill: luma(85%), stroke: luma(40%))
-  content((9.5, 6.7), [Image $bold(upright(x))$])
-  line((9.5, 6.2), (9.5, 5.4), mark: (end: ">"))
-  rect((7.5, 4.5), (11.5, 5.4), fill: green.lighten(60%), stroke: green.darken(20%))
-  content((9.5, 4.95), [*Perceptual Hash $h(dot, k)$*])
-  line((9.5, 4.5), (9.5, 3.7), mark: (end: ">"))
-  rect((7.5, 2.8), (11.5, 3.7), fill: orange.lighten(70%), stroke: orange.darken(20%))
-  content((9.5, 3.25), [$L$-bit fingerprint])
+% === Right: Perceptual Hash ===
+\node at (9.5, 7.5) {\textbf{Perceptual Hash}};
+\draw[fill=gray!15, draw=gray!60] (7.5, 6.2) rectangle (11.5, 7.2);
+\node at (9.5, 6.7) {Image $\mathbf{x}$};
+\draw[->] (9.5, 6.2) -- (9.5, 5.4);
+\draw[fill=green!40, draw=green!60!black] (7.5, 4.5) rectangle (11.5, 5.4);
+\node at (9.5, 4.95) {\textbf{Perceptual Hash} $h(\cdot, k)$};
+\draw[->] (9.5, 4.5) -- (9.5, 3.7);
+\draw[fill=orange!30, draw=orange!80!black] (7.5, 2.8) rectangle (11.5, 3.7);
+\node at (9.5, 3.25) {$L$-bit fingerprint};
 
-  // Robustness
-  rect((7.5, 1.5), (11.5, 2.5), fill: green.lighten(60%), stroke: green.darken(20%))
-  content((9.5, 2.1), [*Robustness:*])
-  content((9.5, 1.7), [JPEG 70% → small Hamming dist.])
-})
+% Robustness
+\draw[fill=green!40, draw=green!60!black] (7.5, 1.5) rectangle (11.5, 2.5);
+\node at (9.5, 2.1) {\textbf{Robustness:}};
+\node at (9.5, 1.7) {JPEG 70\% $\rightarrow$ small Hamming dist.};
+
+\end{tikzpicture}
 ```
 
 ## Why Classical Encryption Doesn't Apply Directly
@@ -270,60 +280,61 @@ $$\mathbf{x}^{adv} = \mathbf{x} + \boldsymbol{\delta}, \quad \|\boldsymbol{\delt
 
 **Diagram 4: Two cases of adversarial attacks**
 
-```{.cetz}
-#cetz.canvas({
-  import cetz.draw: *
+```{.tikz}
+\usetikzlibrary{arrows.meta}
+\begin{tikzpicture}[>=Latex, font=\small]
 
-  // Case 1: White-box attack
-  content((3.0, 7.5), [*Case 1: White-box Attack*])
+% === Case 1: White-box Attack ===
+\node at (3.0, 7.5) {\textbf{Case 1: White-box Attack}};
 
-  rect((0.5, 6.0), (2.5, 7.0), fill: luma(85%), stroke: luma(40%))
-  content((1.5, 6.5), [Image $bold(upright(x))$])
+\draw[fill=gray!15, draw=gray!60] (0.5, 6.0) rectangle (2.5, 7.0);
+\node at (1.5, 6.5) {Image $\mathbf{x}$};
 
-  rect((0.5, 4.5), (2.5, 5.5), fill: orange.lighten(70%), stroke: orange.darken(20%))
-  content((1.5, 5.0), [Perturbation $bold(delta)$])
+\draw[fill=orange!30, draw=orange!80!black] (0.5, 4.5) rectangle (2.5, 5.5);
+\node at (1.5, 5.0) {Perturbation $\boldsymbol{\delta}$};
 
-  line((1.5, 6.0), (1.5, 5.5), mark: (end: ">"))
+\draw[->] (1.5, 6.0) -- (1.5, 5.5);
 
-  rect((0.0, 3.2), (3.0, 4.2), fill: red.lighten(70%), stroke: red.darken(20%))
-  content((1.5, 3.7), [$bold(upright(x))^(a d v) = bold(upright(x)) + bold(delta)$])
-  line((1.5, 4.5), (1.5, 4.2), mark: (end: ">"))
+\draw[fill=red!30, draw=red!80!black] (0.0, 3.2) rectangle (3.0, 4.2);
+\node at (1.5, 3.7) {$\mathbf{x}^{adv} = \mathbf{x} + \boldsymbol{\delta}$};
+\draw[->] (1.5, 4.5) -- (1.5, 4.2);
 
-  line((1.5, 3.2), (1.5, 2.5), mark: (end: ">"))
-  rect((0.0, 1.5), (3.0, 2.5), fill: blue.lighten(70%), stroke: blue.darken(20%))
-  content((1.5, 2.1), [*Model $f$*])
-  content((1.5, 1.6), [(known gradient)])
+\draw[->] (1.5, 3.2) -- (1.5, 2.5);
+\draw[fill=blue!30, draw=blue!80!black] (0.0, 1.5) rectangle (3.0, 2.5);
+\node at (1.5, 2.1) {\textbf{Model $f$}};
+\node at (1.5, 1.7) {(known gradient)};
 
-  line((1.5, 1.5), (1.5, 0.8), mark: (end: ">"))
-  rect((0.0, 0.0), (3.0, 0.8), fill: red.lighten(70%), stroke: red.darken(20%))
-  content((1.5, 0.4), [Wrong prediction])
+\draw[->] (1.5, 1.5) -- (1.5, 0.8);
+\draw[fill=red!30, draw=red!80!black] (0.0, 0.0) rectangle (3.0, 0.8);
+\node at (1.5, 0.4) {Wrong prediction};
 
-  // Case 2: Transferability
-  content((9.0, 7.5), [*Case 2: Black-box Attack (Transfer)*])
+% === Case 2: Black-box Attack (Transfer) ===
+\node at (9.0, 7.5) {\textbf{Case 2: Black-box Attack (Transfer)}};
 
-  rect((6.5, 6.0), (8.5, 7.0), fill: luma(85%), stroke: luma(40%))
-  content((7.5, 6.5), [Image $bold(upright(x))$])
+\draw[fill=gray!15, draw=gray!60] (6.5, 6.0) rectangle (8.5, 7.0);
+\node at (7.5, 6.5) {Image $\mathbf{x}$};
 
-  rect((6.5, 4.5), (8.5, 5.5), fill: orange.lighten(70%), stroke: orange.darken(20%))
-  content((7.5, 5.0), [Perturbation $bold(delta)$])
-  content((7.5, 4.6), [(on surrogate)])
+\draw[fill=orange!30, draw=orange!80!black] (6.5, 4.5) rectangle (8.5, 5.5);
+\node at (7.5, 5.05) {Perturbation $\boldsymbol{\delta}$};
+\node at (7.5, 4.65) {(on surrogate)};
 
-  line((7.5, 6.0), (7.5, 5.5), mark: (end: ">"))
+\draw[->] (7.5, 6.0) -- (7.5, 5.5);
 
-  rect((6.0, 3.2), (9.0, 4.2), fill: red.lighten(70%), stroke: red.darken(20%))
-  content((7.5, 3.7), [$bold(upright(x))^(a d v)$])
-  line((7.5, 4.5), (7.5, 4.2), mark: (end: ">"))
+\draw[fill=red!30, draw=red!80!black] (6.0, 3.2) rectangle (9.0, 4.2);
+\node at (7.5, 3.7) {$\mathbf{x}^{adv}$};
+\draw[->] (7.5, 4.5) -- (7.5, 4.2);
 
-  line((9.0, 3.7), (10.5, 3.7), mark: (end: ">"))
-  rect((10.5, 3.2), (13.0, 4.2), fill: blue.lighten(70%), stroke: blue.darken(20%))
-  content((11.75, 3.7), [*Model $f'$*])
-  content((11.75, 3.3), [(unknown)])
+\draw[->] (9.0, 3.7) -- (10.5, 3.7);
+\draw[fill=blue!30, draw=blue!80!black] (10.5, 3.2) rectangle (13.0, 4.2);
+\node at (11.75, 3.75) {\textbf{Model $f'$}};
+\node at (11.75, 3.35) {(unknown)};
 
-  line((11.75, 3.2), (11.75, 2.5), mark: (end: ">"))
-  rect((10.5, 1.5), (13.0, 2.5), fill: red.lighten(70%), stroke: red.darken(20%))
-  content((11.75, 2.0), [Transferable])
-  content((11.75, 1.6), [wrong prediction])
-})
+\draw[->] (11.75, 3.2) -- (11.75, 2.5);
+\draw[fill=red!30, draw=red!80!black] (10.5, 1.5) rectangle (13.0, 2.5);
+\node at (11.75, 2.05) {Transferable};
+\node at (11.75, 1.65) {wrong prediction};
+
+\end{tikzpicture}
 ```
 
 ## Main Attack Types

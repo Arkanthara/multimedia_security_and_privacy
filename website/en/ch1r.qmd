@@ -55,67 +55,68 @@ This sheet summarizes the essential concepts from Chapter 1. Use it for quick re
 
 ## Watermarking Pipeline
 
-```{.cetz}
-#cetz.canvas({
-  import cetz.draw: *
+```{.tikz}
+\usetikzlibrary{arrows.meta}
+\begin{tikzpicture}[>=Latex, font=\small]
 
-  // Message
-  content((2.0, 7.0), [Message $m$])
-  line((2.0, 6.8), (2.0, 6.2), mark: (end: ">"))
+% Message m (top left)
+\node at (2.0, 7.0) {Message $m$};
+\draw[->] (2.0, 6.8) -- (2.0, 6.2);
 
-  // Encoder
-  rect((0.5, 5.2), (3.5, 6.2), fill: green.lighten(60%), stroke: green.darken(20%))
-  content((2.0, 5.7), [*Encoder*])
+% Encoder
+\draw[fill=green!40, draw=green!60!black] (0.5, 5.2) rectangle (3.5, 6.2);
+\node at (2.0, 5.7) {\textbf{Encoder}};
 
-  // Image x → Embedder
-  content((-0.8, 3.7), [$bold(upright(x))$])
-  line((-0.3, 3.7), (0.5, 3.7), mark: (end: ">"))
+% Image x -> Embedder
+\node at (-0.8, 3.7) {$\mathbf{x}$};
+\draw[->] (-0.3, 3.7) -- (0.5, 3.7);
 
-  // s: Encoder → Embedder
-  line((2.0, 5.2), (2.0, 4.2), mark: (end: ">"))
-  content((2.4, 4.7), [$bold(upright(s))$])
+% s: Encoder -> Embedder
+\draw[->] (2.0, 5.2) -- (2.0, 4.2);
+\node at (2.4, 4.7) {$\mathbf{s}$};
 
-  // Key k
-  content((2.0, 1.5), [Key $k$])
-  line((2.0, 1.8), (2.0, 2.8), mark: (end: ">"))
+% Key k (left)
+\node at (2.0, 1.5) {Key $k$};
+\draw[->] (2.0, 1.8) -- (2.0, 2.8);
 
-  // Embedder
-  rect((0.5, 2.8), (3.5, 4.2), fill: green.lighten(60%), stroke: green.darken(20%))
-  content((2.0, 3.5), [*Embedder*])
+% Embedder
+\draw[fill=green!40, draw=green!60!black] (0.5, 2.8) rectangle (3.5, 4.2);
+\node at (2.0, 3.5) {\textbf{Embedder}};
 
-  // y: Embedder → Channel
-  line((3.5, 3.5), (5.5, 3.5), mark: (end: ">"))
-  content((4.5, 3.8), [$bold(upright(y))$])
+% y: Embedder -> Channel
+\draw[->] (3.5, 3.5) -- (5.5, 3.5);
+\node at (4.5, 3.8) {$\mathbf{y}$};
 
-  // Channel
-  rect((5.5, 2.5), (8.0, 4.5), fill: blue.lighten(70%), stroke: blue.darken(15%))
-  content((6.75, 3.8), [*Multimedia*])
-  content((6.75, 3.2), [*Channel*])
+% Multimedia Channel
+\draw[fill=blue!30, draw=blue!70!black] (5.5, 2.5) rectangle (8.0, 4.5);
+\node at (6.75, 3.8) {\textbf{Multimedia}};
+\node at (6.75, 3.2) {\textbf{Channel}};
 
-  // v: Channel → Extractor
-  line((8.0, 3.5), (9.5, 3.5), mark: (end: ">"))
-  content((8.75, 3.8), [$bold(upright(v))$])
+% v: Channel -> Extractor
+\draw[->] (8.0, 3.5) -- (9.5, 3.5);
+\node at (8.75, 3.8) {$\mathbf{v}$};
 
-  // Extractor
-  rect((9.5, 2.8), (12.0, 4.2), fill: green.lighten(60%), stroke: green.darken(20%))
-  content((10.75, 3.5), [*Extractor*])
+% Extractor
+\draw[fill=green!40, draw=green!60!black] (9.5, 2.8) rectangle (12.0, 4.2);
+\node at (10.75, 3.5) {\textbf{Extractor}};
 
-  // Key k (right side)
-  content((10.75, 1.5), [Key $k$])
-  line((10.75, 1.8), (10.75, 2.8), mark: (end: ">"))
+% Key k (right side)
+\node at (10.75, 1.5) {Key $k$};
+\draw[->] (10.75, 1.8) -- (10.75, 2.8);
 
-  // ŝ: Extractor → Decoder
-  line((10.75, 4.2), (10.75, 5.2), mark: (end: ">"))
-  content((11.15, 4.7), [$hat(bold(upright(s)))$])
+% s-hat: Extractor -> Decoder
+\draw[->] (10.75, 4.2) -- (10.75, 5.2);
+\node at (11.15, 4.7) {$\hat{\mathbf{s}}$};
 
-  // Decoder
-  rect((9.5, 5.2), (12.0, 6.2), fill: green.lighten(60%), stroke: green.darken(20%))
-  content((10.75, 5.7), [*Decoder*])
+% Decoder
+\draw[fill=green!40, draw=green!60!black] (9.5, 5.2) rectangle (12.0, 6.2);
+\node at (10.75, 5.7) {\textbf{Decoder}};
 
-  // m̂: Decoder → output
-  content((10.75, 7.0), [Message $hat(m)$])
-  line((10.75, 6.2), (10.75, 6.8), mark: (end: ">"))
-})
+% Message m-hat (top right)
+\node at (10.75, 7.0) {Message $\hat{m}$};
+\draw[->] (10.75, 6.2) -- (10.75, 6.8);
+
+\end{tikzpicture}
 ```
 
 ---

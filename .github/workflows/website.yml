@@ -15,7 +15,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Add Typst for CeTZ diagram rendering
+      - name: Add Typst for CeTZ diagram rendering (chapters 2–4)
         uses: typst-community/setup-typst@v4
 
       - name: Set up Quarto
@@ -24,7 +24,7 @@ jobs:
           tinytex: true
           chromium: true
 
-      - name: Add extension for CeTZ diagram rendering
+      - name: Add extension for diagram rendering (CeTZ and TikZ)
         run: |
           cd website/en
           quarto install extension pandoc-ext/diagram --no-prompt
