@@ -24,31 +24,31 @@ website:
         contents:
           - section: "Chapter 1: Introduction"
             contents:
-              - section: "Details"
+              - text: "Details"
                 href: ch1c.qmd
               - ch1.qmd
-              - section: "Synthesis"
+              - text: "Synthesis"
                 href: ch1r.qmd
           - section: "Chapter 2: Notations & Core Concepts"
             contents:
-              - section: "Details"
+              - text: "Details"
                 href: ch2c.qmd
               - ch2.qmd
-              - section: "Synthesis"
+              - text: "Synthesis"
                 href: ch2r.qmd
           - section: "Chapter 3: Digital Watermarking"
             contents:
-              - section: "Details"
+              - text: "Details"
                 href: ch3c.qmd
               - ch3.qmd
-              - section: "Synthesis"
+              - text: "Synthesis"
                 href: ch3r.qmd
           - section: "Chapter 4: Privacy-Preserving Methods"
             contents:
-              - section: "Details"
+              - text: "Details"
                 href: ch4c.qmd
               - ch4.qmd
-              - section: "Synthesis"
+              - text: "Synthesis"
                 href: ch4r.qmd
 
 format:
