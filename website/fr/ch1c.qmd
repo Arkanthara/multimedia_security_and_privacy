@@ -29,87 +29,89 @@ Quelques points clés :
 
 Le pipeline complet peut se représenter ainsi :
 
-```{.cetz}
-#cetz.canvas({
-  import cetz.draw: *
-// === GROUPE GAUCHE (fond jaune) ===
-rect((0.0, 1.8), (3.6, 7.2), fill: yellow.lighten(80%), stroke: yellow.lighten(80%))
+```{.tikz}
+\usetikzlibrary{arrows.meta}
+\begin{tikzpicture}[>=Latex, font=\small]
 
-// Encoder
-rect((0.3, 5.2), (3.3, 6.2), fill: green.lighten(60%), stroke: green.darken(20%))
-content((1.8, 5.7), [*Encoder*])
-content((0.9, 5.95), [$+1$])
-content((0.9, 5.45), [$-1$])
+% === GROUPE GAUCHE (fond jaune) ===
+\draw[fill=yellow!20, draw=yellow!20] (0.0, 1.8) rectangle (3.6, 7.2);
 
-// Embedder
-rect((0.3, 2.8), (3.3, 3.8), fill: green.lighten(60%), stroke: green.darken(20%))
-content((1.8, 3.3), [*Embedder*])
+% Encoder
+\draw[fill=green!40, draw=green!80!black] (0.3, 5.2) rectangle (3.3, 6.2);
+\node at (1.8, 5.7) {\textbf{Encoder}};
+\node at (0.9, 5.95) {$+1$};
+\node at (0.9, 5.45) {$-1$};
 
-// Message m → Encoder
-content((1.8, 7.0), [Message $m$])
-line((1.8, 6.85), (1.8, 6.2), mark: (end: ">"))
+% Embedder
+\draw[fill=green!40, draw=green!80!black] (0.3, 2.8) rectangle (3.3, 3.8);
+\node at (1.8, 3.3) {\textbf{Embedder}};
 
-// s : Encoder → Embedder
-line((1.8, 5.2), (1.8, 3.8), mark: (end: ">"))
-content((2.2, 4.5), [$bold(upright(s))$])   // ← correction : droite grasse
+% Message m -> Encoder
+\node at (1.8, 7.0) {Message $m$};
+\draw[->] (1.8, 6.85) -- (1.8, 6.2);
 
-// Image x → Embedder (gauche)
-content((-0.7, 3.3), [$bold(upright(x))$])   // ← correction
-line((-0.2, 3.3), (0.3, 3.3), mark: (end: ">"))
+% s: Encoder -> Embedder
+\draw[->] (1.8, 5.2) -- (1.8, 3.8);
+\node at (2.2, 4.5) {$\mathbf{s}$};
 
-// Clé k → Embedder (bas)
-content((1.8, 1.3), [Clé $k$])
-line((1.8, 1.6), (1.8, 2.8), mark: (end: ">"))
+% Image x -> Embedder (left)
+\node at (-0.7, 3.3) {$\mathbf{x}$};
+\draw[->] (-0.2, 3.3) -- (0.3, 3.3);
 
-// y : Embedder → Canal
-line((3.3, 3.3), (5.0, 3.3), mark: (end: ">"))
-content((4.15, 3.65), [$bold(upright(y))$])   // ← correction
+% Key k -> Embedder (bottom)
+\node at (1.8, 1.3) {Clé $k$};
+\draw[->] (1.8, 1.6) -- (1.8, 2.8);
 
-// Label image stégo
-content((1.8, 2.3), [Image stégo])
+% y: Embedder -> Canal
+\draw[->] (3.3, 3.3) -- (5.0, 3.3);
+\node at (4.15, 3.65) {$\mathbf{y}$};
 
-// === CANAL PUBLIC MULTIMEDIA (centre bleu) ===
-rect((5.0, 1.5), (8.5, 6.8), fill: blue.lighten(78%), stroke: blue.darken(15%))
-content((6.75, 5.8), [*Canal*])
-content((6.75, 5.2), [*Public*])
-content((6.75, 4.6), [*Multimédia*])
+% Image stégo label
+\node at (1.8, 2.3) {Image stégo};
 
-// === GROUPE DROIT (fond jaune) ===
-rect((8.9, 1.8), (12.5, 7.2), fill: yellow.lighten(80%), stroke: yellow.lighten(80%))
+% === CANAL PUBLIC MULTIMEDIA (centre bleu) ===
+\draw[fill=blue!22, draw=blue!85!black] (5.0, 1.5) rectangle (8.5, 6.8);
+\node at (6.75, 5.8) {\textbf{Canal}};
+\node at (6.75, 5.2) {\textbf{Public}};
+\node at (6.75, 4.6) {\textbf{Multimédia}};
 
-// Extractor
-rect((9.2, 2.8), (12.2, 3.8), fill: green.lighten(60%), stroke: green.darken(20%))
-content((10.7, 3.3), [*Extractor*])
+% === GROUPE DROIT (fond jaune) ===
+\draw[fill=yellow!20, draw=yellow!20] (8.9, 1.8) rectangle (12.5, 7.2);
 
-// Decoder
-rect((9.2, 5.2), (12.2, 6.2), fill: green.lighten(60%), stroke: green.darken(20%))
-content((10.7, 5.7), [*Decoder*])
+% Extractor
+\draw[fill=green!40, draw=green!80!black] (9.2, 2.8) rectangle (12.2, 3.8);
+\node at (10.7, 3.3) {\textbf{Extractor}};
 
-// v : Canal → Extractor
-line((8.5, 3.3), (9.2, 3.3), mark: (end: ">"))
-content((8.85, 3.65), [$bold(upright(v))$])   // ← correction
+% Decoder
+\draw[fill=green!40, draw=green!80!black] (9.2, 5.2) rectangle (12.2, 6.2);
+\node at (10.7, 5.7) {\textbf{Decoder}};
 
-// Clé k → Extractor (bas)
-content((10.7, 1.3), [Clé $k$])
-line((10.7, 1.6), (10.7, 2.8), mark: (end: ">"))
+% v: Canal -> Extractor
+\draw[->] (8.5, 3.3) -- (9.2, 3.3);
+\node at (8.85, 3.65) {$\mathbf{v}$};
 
-// ŝ : Extractor → Decoder
-line((10.7, 3.8), (10.7, 5.2), mark: (end: ">"))
-content((11.05, 4.5), [$hat(bold(upright(s)))$])   // ← correction
+% Key k -> Extractor (bottom)
+\node at (10.7, 1.3) {Clé $k$};
+\draw[->] (10.7, 1.6) -- (10.7, 2.8);
 
-// m̂ : Decoder → sortie
-content((10.7, 7.0), [Message $hat(m)$])   // ← correction
-line((10.7, 6.2), (10.7, 6.85), mark: (end: ">"))
+% s-hat: Extractor -> Decoder
+\draw[->] (10.7, 3.8) -- (10.7, 5.2);
+\node at (11.05, 4.5) {$\hat{\mathbf{s}}$};
 
-// Label image distordue
-content((10.7, 2.3), [Image distordue])
+% m-hat: Decoder -> output
+\node at (10.7, 7.0) {Message $\hat{m}$};
+\draw[->] (10.7, 6.2) -- (10.7, 6.85);
 
-// === ENCART ATTAQUES ===
-rect((4.8, -0.8), (9.8, 1.1), fill: orange.lighten(82%), stroke: orange.darken(10%))
-content((7.3, 0.75), [*Attaques sur :*])
-content((7.3, 0.25), [• *Robustesse* : distorsions appliquées à $bold(upright(y))$])   // ← correction
-content((7.3, -0.35), [• *Sécurité* : attaques adversariales / estimation de $k$])
-})
+% Distorted image label
+\node at (10.7, 2.3) {Image distordue};
+
+% === ENCART ATTAQUES ===
+\draw[fill=orange!18, draw=orange!90!black] (4.8, -0.8) rectangle (9.8, 1.1);
+\node at (7.3, 0.75) {\textbf{Attaques sur :}};
+\node[font=\scriptsize] at (7.3, 0.25) {$\bullet$ \textbf{Robustesse} : distorsions appliquées à $\mathbf{y}$};
+\node[font=\scriptsize] at (7.3, -0.35) {$\bullet$ \textbf{Sécurité} : attaques adversariales / estimation de $k$};
+
+\end{tikzpicture}
 ```
 
 **Types d'attaques :**
@@ -224,97 +226,100 @@ Le **Perceptual Hashing** (également appelé *robust hashing* ou *content finge
 
 ## Schéma général du Perceptual Hashing
 
-```{.cetz}
-#cetz.canvas({
-  import cetz.draw: *
-// === CHEMIN HAUT : image originale → fingerprint → bx ===
-content((-0.5, 5.0), [Image originale])
-content((-0.5, 4.6), [$upright(bold(x))$])
+```{.tikz}
+\usetikzlibrary{arrows.meta}
+\begin{tikzpicture}[>=Latex, font=\small]
 
-// x → Fingerprint haut
-line((0.5, 4.8), (1.8, 4.8), mark: (end: ">"))
-content((1.1, 5.05), [$upright(bold(x))$])
+% === CHEMIN HAUT : image originale -> fingerprint -> bx ===
+\node at (-0.5, 5.0) {Image originale};
+\node at (-0.5, 4.6) {$\mathbf{x}$};
 
-// Fingerprint haut
-rect((1.8, 4.3), (3.3, 5.3), fill: green.lighten(60%), stroke: green.darken(20%))
-content((2.55, 4.8), [*Fingerprint*])
+% x -> Fingerprint haut
+\draw[->] (0.5, 4.8) -- (1.8, 4.8);
+\node at (1.1, 5.05) {$\mathbf{x}$};
 
-// Clé k haut
-content((2.55, 3.7), [Clé $k$ ↑])
+% Fingerprint haut
+\draw[fill=green!40, draw=green!80!black] (1.8, 4.3) rectangle (3.3, 5.3);
+\node at (2.55, 4.8) {\textbf{Fingerprint}};
 
-// bx : Fingerprint → BSC
-line((3.3, 4.8), (5.5, 4.8), mark: (end: ">"))
-content((4.4, 5.1), [$upright(bold(b))_x$])
+% Clé k haut
+\node at (2.55, 3.7) {Clé $k$ $\uparrow$};
 
-// Représentation binaire bx
-rect((5.5, 4.3), (9.5, 5.3), fill: luma(95%), stroke: luma(60%))
-content((5.9, 4.8), [$1$])
-content((6.3, 4.8), [$0$])
-content((6.7, 4.8), [$1$])
-content((7.1, 4.8), [$dots$])
-content((7.5, 4.8), [$0$])
-content((7.9, 4.8), [$1$])
-content((8.3, 4.8), [$0$])
-content((8.7, 4.8), [$1$])
-content((9.6, 4.8), [$upright(bold(b))_x in {0,1}^L$])
+% bx: Fingerprint -> binary representation
+\draw[->] (3.3, 4.8) -- (5.5, 4.8);
+\node at (4.4, 5.1) {$\mathbf{b}_x$};
 
-// === BSC CHANNEL (centre) ===
-rect((5.5, 2.0), (9.5, 3.8), fill: green.lighten(85%), stroke: green.darken(10%))
-content((7.5, 3.4), [*Binary Symmetric Channel (BSC)*])
+% Binary representation of bx
+\draw[fill=gray!5, draw=gray!60] (5.5, 4.3) rectangle (9.5, 5.3);
+\node at (5.9, 4.8) {$1$};
+\node at (6.3, 4.8) {$0$};
+\node at (6.7, 4.8) {$1$};
+\node at (7.1, 4.8) {$\cdots$};
+\node at (7.5, 4.8) {$0$};
+\node at (7.9, 4.8) {$1$};
+\node at (8.3, 4.8) {$0$};
+\node at (8.7, 4.8) {$1$};
+\node at (9.6, 4.8) {$\mathbf{b}_x \in \{0,1\}^L$};
 
-// Flèches BSC (croisées et directes)
-line((6.2, 3.0), (8.8, 2.6), stroke: (paint: red.darken(10%), thickness: 0.8pt))
-line((6.2, 2.6), (8.8, 3.0), stroke: (paint: red.darken(10%), thickness: 0.8pt))
-line((6.2, 3.0), (8.8, 3.0), stroke: (paint: black, thickness: 0.8pt))
-line((6.2, 2.6), (8.8, 2.6), stroke: (paint: black, thickness: 0.8pt))
-content((5.8, 3.0), [$0$])
-content((5.8, 2.6), [$1$])
-content((9.0, 3.0), [$0$])
-content((9.0, 2.6), [$1$])
-content((7.5, 3.1), [$P_b$])
-content((7.5, 2.5), [$P_b$])
+% === BSC CHANNEL (centre) ===
+\draw[fill=green!15, draw=green!60!black] (5.5, 2.0) rectangle (9.5, 3.8);
+\node at (7.5, 3.4) {\textbf{Binary Symmetric Channel (BSC)}};
 
-// === CHEMIN BAS : image distordue → fingerprint → by ===
-content((-0.5, 1.4), [Image distordue])
-content((-0.5, 1.0), [$upright(bold(y))$])
+% BSC crossing and direct arrows
+\draw[red!90!black, thin] (6.2, 3.0) -- (8.8, 2.6);
+\draw[red!90!black, thin] (6.2, 2.6) -- (8.8, 3.0);
+\draw[thin] (6.2, 3.0) -- (8.8, 3.0);
+\draw[thin] (6.2, 2.6) -- (8.8, 2.6);
 
-// y → Fingerprint bas
-line((0.5, 1.2), (1.8, 1.2), mark: (end: ">"))
-content((1.1, 1.5), [$upright(bold(y))$])
+\node at (5.8, 3.0) {$0$};
+\node at (5.8, 2.6) {$1$};
+\node at (9.0, 3.0) {$0$};
+\node at (9.0, 2.6) {$1$};
+\node at (7.5, 3.1) {$P_b$};
+\node at (7.5, 2.5) {$P_b$};
 
-// Fingerprint bas
-rect((1.8, 0.7), (3.3, 1.7), fill: green.lighten(60%), stroke: green.darken(20%))
-content((2.55, 1.2), [*Fingerprint*])
+% === CHEMIN BAS : image distordue -> fingerprint -> by ===
+\node at (-0.5, 1.4) {Image distordue};
+\node at (-0.5, 1.0) {$\mathbf{y}$};
 
-// Clé k bas
-content((2.55, 0.1), [Clé $k$ ↑])
+% y -> Fingerprint bas
+\draw[->] (0.5, 1.2) -- (1.8, 1.2);
+\node at (1.1, 1.5) {$\mathbf{y}$};
 
-// by : Fingerprint → représentation
-line((3.3, 1.2), (5.5, 1.2), mark: (end: ">"))
-content((4.4, 1.5), [$upright(bold(b))_y$])
+% Fingerprint bas
+\draw[fill=green!40, draw=green!80!black] (1.8, 0.7) rectangle (3.3, 1.7);
+\node at (2.55, 1.2) {\textbf{Fingerprint}};
 
-// Représentation binaire by
-rect((5.5, 0.7), (9.5, 1.7), fill: luma(95%), stroke: luma(60%))
-content((5.9, 1.2), [$1$])
-content((6.3, 1.2), text(fill: red)[$1$])
-content((6.7, 1.2), [$1$])
-content((7.1, 1.2), [$dots$])
-content((7.5, 1.2), [$0$])
-content((7.9, 1.2), text(fill: red)[$0$])
-content((8.3, 1.2), [$0$])
-content((8.7, 1.2), [$1$])
-content((9.6, 1.2), [$upright(bold(b))_y in {0,1}^L$])
+% Clé k bas
+\node at (2.55, 0.1) {Clé $k$ $\uparrow$};
 
-// Connexion BSC → by
-line((7.5, 2.0), (7.5, 1.7), mark: (end: ">"))
+% by: Fingerprint -> binary representation
+\draw[->] (3.3, 1.2) -- (5.5, 1.2);
+\node at (4.4, 1.5) {$\mathbf{b}_y$};
 
-// Connexion bx → BSC
-line((7.5, 4.3), (7.5, 3.8), mark: (end: ">"))
+% Binary representation of by (with bit errors in red)
+\draw[fill=gray!5, draw=gray!60] (5.5, 0.7) rectangle (9.5, 1.7);
+\node at (5.9, 1.2) {$1$};
+\node[text=red] at (6.3, 1.2) {$1$};
+\node at (6.7, 1.2) {$1$};
+\node at (7.1, 1.2) {$\cdots$};
+\node at (7.5, 1.2) {$0$};
+\node[text=red] at (7.9, 1.2) {$0$};
+\node at (8.3, 1.2) {$0$};
+\node at (8.7, 1.2) {$1$};
+\node at (9.6, 1.2) {$\mathbf{b}_y \in \{0,1\}^L$};
 
-// === Processing (gauche, flèche x→y) ===
-line((0.0, 4.5), (0.0, 1.5), mark: (end: ">"), stroke: (dash: "dashed"))
-content((-0.5, 3.0), [$p(upright(bold(y))|upright(bold(x)))$])
-})
+% Connection BSC -> by
+\draw[->] (7.5, 2.0) -- (7.5, 1.7);
+
+% Connection bx -> BSC
+\draw[->] (7.5, 4.3) -- (7.5, 3.8);
+
+% Processing arrow (dashed) x -> y
+\draw[->, dashed] (0.0, 4.5) -- (0.0, 1.5);
+\node at (-0.5, 3.0) {$p(\mathbf{y}|\mathbf{x})$};
+
+\end{tikzpicture}
 ```
 
 Le canal entre les deux empreintes est modélisé par un **Binary Symmetric Channel (BSC)** avec probabilité d'erreur $P_b$ :
@@ -327,54 +332,56 @@ $$P(\hat{b}_i \neq b_i) = P_b$$
 
 Une propriété fondamentale : le hash **ne doit pas permettre de reconstruire** l'image originale.
 
-```{.cetz}
-#cetz.canvas({
-  import cetz.draw: *
-// Image originale / requête
-rect((-0.5, 1.5), (0.5, 2.5), fill: luma(85%), stroke: luma(40%))
-content((0.0, 2.0), [img])
-content((0.0, 1.2), [Image $upright(bold(x))$])
+```{.tikz}
+\usetikzlibrary{arrows.meta}
+\begin{tikzpicture}[>=Latex, font=\small]
 
-// x → Fingerprint
-line((0.5, 2.0), (2.0, 2.0), mark: (end: ">"))
-content((1.25, 2.25), [$upright(bold(x))$])
+% Original image
+\draw[fill=gray!15, draw=gray!60] (-0.5, 1.5) rectangle (0.5, 2.5);
+\node at (0.0, 2.0) {img};
+\node at (0.0, 1.2) {Image $\mathbf{x}$};
 
-// Fingerprint
-rect((2.0, 1.5), (3.8, 2.5), fill: green.lighten(60%), stroke: green.darken(20%))
-content((2.9, 2.0), [*Fingerprint*])
+% x -> Fingerprint
+\draw[->] (0.5, 2.0) -- (2.0, 2.0);
+\node at (1.25, 2.25) {$\mathbf{x}$};
 
-// Clé k
-line((2.9, 1.0), (2.9, 1.5), mark: (end: ">"))
-content((2.9, 0.7), [Clé $k$])
+% Fingerprint
+\draw[fill=green!40, draw=green!80!black] (2.0, 1.5) rectangle (3.8, 2.5);
+\node at (2.9, 2.0) {\textbf{Fingerprint}};
 
-// bx : Fingerprint → Estimate
-line((3.8, 2.0), (5.5, 2.0), mark: (end: ">"))
-content((4.65, 2.3), [$upright(bold(b))_x$])
+% Key k
+\draw[->] (2.9, 1.0) -- (2.9, 1.5);
+\node at (2.9, 0.7) {Clé $k$};
 
-// Estimate (avec clé INCONNUE)
-rect((5.5, 1.5), (7.3, 2.5), fill: green.lighten(60%), stroke: green.darken(20%))
-content((6.4, 2.0), [*Estimate*])
+% bx -> Estimate
+\draw[->] (3.8, 2.0) -- (5.5, 2.0);
+\node at (4.65, 2.3) {$\mathbf{b}_x$};
 
-// Clé inconnue (en rouge/dashed)
-line((6.4, 1.0), (6.4, 1.5), mark: (end: ">"), stroke: (paint: red, dash: "dashed"))
-content((6.4, 0.7), text(fill: red)[Clé *inconnue*])
+% Estimate (with unknown key)
+\draw[fill=green!40, draw=green!80!black] (5.5, 1.5) rectangle (7.3, 2.5);
+\node at (6.4, 2.0) {\textbf{Estimate}};
 
-// x̂ : Estimate → image estimée (bruit)
-line((7.3, 2.0), (9.0, 2.0), mark: (end: ">"))
-content((8.15, 2.3), [$\hat{upright(bold(x))}$])
+% Unknown key (red dashed)
+\draw[->, dashed, draw=red] (6.4, 1.0) -- (6.4, 1.5);
+\node[text=red] at (6.4, 0.7) {Clé \textbf{inconnue}};
 
-// Image estimée (bruit)
-rect((9.0, 1.5), (10.0, 2.5), fill: luma(50%), stroke: luma(30%))
-content((9.5, 2.0), [≈ bruit])
-content((9.5, 1.2), [Image $\hat{upright(bold(x))}$])
+% x-hat -> noise image
+\draw[->] (7.3, 2.0) -- (9.0, 2.0);
+\node at (8.15, 2.3) {$\hat{\mathbf{x}}$};
 
-// Annotation "irréversible"
-line((5.5, 2.8), (3.8, 2.8), mark: (end: ">"), stroke: (paint: red.darken(10%), thickness: 1.2pt))
-content((4.65, 3.1), text(fill: red)[*Irréversible !*])
-})
+% Noise image
+\draw[fill=gray!50, draw=gray!70] (9.0, 1.5) rectangle (10.0, 2.5);
+\node at (9.5, 2.0) {$\approx$ bruit};
+\node at (9.5, 1.2) {Image $\hat{\mathbf{x}}$};
+
+% Irreversible annotation
+\draw[->, draw=red!90!black, line width=1.2pt] (5.5, 2.8) -- (3.8, 2.8);
+\node[text=red] at (4.65, 3.1) {\textbf{Irréversible !}};
+
+\end{tikzpicture}
 ```
 
-Même si un adversaire obtient l'empreinte $upright(bold(b))_x$, il ne peut pas retrouver $x$ sans la clé $k$.
+Même si un adversaire obtient l'empreinte $\mathbf{b}_x$, il ne peut pas retrouver $\mathbf{x}$ sans la clé $k$.
 
 ---
 
@@ -424,211 +431,217 @@ Même si un adversaire obtient l'empreinte $upright(bold(b))_x$, il ne peut pas 
 
 Pour un hash cryptographique $H$ :
 
-$$H(upright(bold(x))) = H(upright(bold(y))) \iff upright(bold(x)) = upright(bold(y))$$
+$$H(\mathbf{x}) = H(\mathbf{y}) \iff \mathbf{x} = \mathbf{y}$$
 
-Mais en multimédia, une image distordue $upright(bold(y)) = upright(bold(x)) + upright(bold(z))$ donne :
+Mais en multimédia, une image distordue $\mathbf{y} = \mathbf{x} + \mathbf{z}$ donne :
 
-$$H(upright(bold(x))) \neq H(upright(bold(y))) \quad \text{même si } ||upright(bold(y)) - upright(bold(x))||_2^2 \leq \varepsilon$$
+$$H(\mathbf{x}) \neq H(\mathbf{y}) \quad \text{même si } \|\mathbf{y} - \mathbf{x}\|_2^2 \leq \varepsilon$$
 
-```{.cetz}
-#cetz.canvas({
-  import cetz.draw: *
-// Image originale
-rect((0.0, 3.0), (1.2, 4.0), fill: luma(85%), stroke: luma(40%))
-content((0.6, 3.5), [img])
-content((0.6, 2.7), [Image $upright(bold(x))$])
+```{.tikz}
+\usetikzlibrary{arrows.meta}
+\begin{tikzpicture}[>=Latex, font=\small]
 
-// Processing (distorsion)
-rect((0.0, 1.0), (1.2, 2.0), fill: blue.lighten(70%), stroke: blue)
-content((0.6, 1.5), [Traitement])
+% Original image
+\draw[fill=gray!15, draw=gray!60] (0.0, 3.0) rectangle (1.2, 4.0);
+\node at (0.6, 3.5) {img};
+\node at (0.6, 2.7) {Image $\mathbf{x}$};
 
-// x → Hash haut
-line((1.2, 3.5), (3.0, 3.5), mark: (end: ">"))
-content((2.1, 3.75), [$upright(bold(x))$])
+% Processing (distortion)
+\draw[fill=blue!30, draw=blue] (0.0, 1.0) rectangle (1.2, 2.0);
+\node at (0.6, 1.5) {Traitement};
 
-// x → Processing
-line((0.6, 3.0), (0.6, 2.0), mark: (end: ">"), stroke: (dash: "dashed"))
+% x -> Hash top
+\draw[->] (1.2, 3.5) -- (3.0, 3.5);
+\node at (2.1, 3.75) {$\mathbf{x}$};
 
-// Clé k → Hash haut et bas
-content((4.2, 4.5), [Clé $k$])
-line((4.2, 4.3), (4.2, 3.8), mark: (end: ">"))
-line((4.2, 4.3), (4.2, 2.2), mark: (end: ">"), stroke: (dash: "dashed"))
+% x -> Processing (dashed)
+\draw[->, dashed] (0.6, 3.0) -- (0.6, 2.0);
 
-// Hash haut
-rect((3.0, 3.2), (5.4, 3.8), fill: blue.lighten(70%), stroke: blue)
-content((4.2, 3.5), [*Hash*])
+% Key k -> Hash top and bottom
+\node at (4.2, 4.5) {Clé $k$};
+\draw[->] (4.2, 4.3) -- (4.2, 3.8);
+\draw[->, dashed] (4.2, 4.3) -- (4.2, 2.2);
 
-// Processing → v → Hash bas
-line((1.2, 1.5), (3.0, 1.5), mark: (end: ">"))
-content((2.1, 1.75), [$upright(bold(v))$])
+% Hash top
+\draw[fill=blue!30, draw=blue] (3.0, 3.2) rectangle (5.4, 3.8);
+\node at (4.2, 3.5) {\textbf{Hash}};
 
-// Hash bas
-rect((3.0, 1.2), (5.4, 1.8), fill: blue.lighten(70%), stroke: blue)
-content((4.2, 1.5), [*Hash*])
+% Processing -> v -> Hash bottom
+\draw[->] (1.2, 1.5) -- (3.0, 1.5);
+\node at (2.1, 1.75) {$\mathbf{v}$};
 
-// Code haut
-rect((5.7, 3.2), (8.5, 3.8), fill: luma(92%), stroke: luma(50%))
-content((7.1, 3.5), text(size: 0.85em)[`AF 24 A0 7C 1E 2D`])
-line((5.4, 3.5), (5.7, 3.5), mark: (end: ">"))
+% Hash bottom
+\draw[fill=blue!30, draw=blue] (3.0, 1.2) rectangle (5.4, 1.8);
+\node at (4.2, 1.5) {\textbf{Hash}};
 
-// Code bas
-rect((5.7, 1.2), (8.5, 1.8), fill: luma(92%), stroke: luma(50%))
-content((7.1, 1.5), text(size: 0.85em)[`48 73 C1 B5 28 32`])
-line((5.4, 1.5), (5.7, 1.5), mark: (end: ">"))
+% Code top
+\draw[fill=gray!8, draw=gray!50] (5.7, 3.2) rectangle (8.5, 3.8);
+\node at (7.1, 3.5) {\texttt{AF 24 A0 7C 1E 2D}};
+\draw[->] (5.4, 3.5) -- (5.7, 3.5);
 
-// MISMATCH
-rect((8.8, 2.0), (10.5, 3.0), fill: red.lighten(60%), stroke: red)
-content((9.65, 2.5), text(fill: red.darken(30%))[*MISMATCH*])
-line((8.5, 3.5), (9.65, 3.0), mark: (end: ">"), stroke: red)
-line((8.5, 1.5), (9.65, 2.0), mark: (end: ">"), stroke: red)
+% Code bottom
+\draw[fill=gray!8, draw=gray!50] (5.7, 1.2) rectangle (8.5, 1.8);
+\node at (7.1, 1.5) {\texttt{48 73 C1 B5 28 32}};
+\draw[->] (5.4, 1.5) -- (5.7, 1.5);
 
-// Accolade / comparaison
-line((8.5, 3.5), (8.5, 1.5), stroke: (paint: luma(50%), thickness: 0.5pt))
-})
+% MISMATCH box
+\draw[fill=red!40, draw=red] (8.8, 2.0) rectangle (10.5, 3.0);
+\node[text=red!70!black] at (9.65, 2.5) {\textbf{MISMATCH}};
+\draw[->, draw=red] (8.5, 3.5) -- (9.65, 3.0);
+\draw[->, draw=red] (8.5, 1.5) -- (9.65, 2.0);
+
+% Comparison bar
+\draw[gray!50, thin] (8.5, 3.5) -- (8.5, 1.5);
+
+\end{tikzpicture}
 ```
 
-```{.cetz}
-#cetz.canvas({
-  import cetz.draw: *
-// Image originale x
-rect((0.0, 2.5), (1.2, 3.5), fill: luma(85%), stroke: luma(40%))
-content((0.6, 3.0), [img])
-content((0.6, 2.2), [$upright(bold(x))$])
+```{.tikz}
+\usetikzlibrary{arrows.meta}
+\begin{tikzpicture}[>=Latex, font=\small]
 
-// x → Canal public
-line((1.2, 3.0), (2.5, 3.0), mark: (end: ">"))
+% Original image x
+\draw[fill=gray!15, draw=gray!60] (0.0, 2.5) rectangle (1.2, 3.5);
+\node at (0.6, 3.0) {img};
+\node at (0.6, 2.2) {$\mathbf{x}$};
 
-// Canal public
-rect((2.5, 2.5), (4.5, 3.5), fill: blue.lighten(75%), stroke: blue)
-content((3.5, 3.0), [Canal public])
+% x -> Public channel
+\draw[->] (1.2, 3.0) -- (2.5, 3.0);
 
-// Canal public → v
-line((4.5, 3.0), (6.0, 3.0), mark: (end: ">"))
-content((5.25, 3.25), [$upright(bold(v))$])
+% Public channel
+\draw[fill=blue!25, draw=blue] (2.5, 2.5) rectangle (4.5, 3.5);
+\node at (3.5, 3.0) {Canal public};
 
-// v → Hash (avec clé k)
-rect((6.0, 2.5), (7.8, 3.5), fill: blue.lighten(70%), stroke: blue)
-content((6.9, 3.0), [*Hash*])
+% Public channel -> v
+\draw[->] (4.5, 3.0) -- (6.0, 3.0);
+\node at (5.25, 3.25) {$\mathbf{v}$};
 
-// Clé k → Hash
-content((6.9, 4.0), [Clé $k$])
-line((6.9, 3.8), (6.9, 3.5), mark: (end: ">"))
+% v -> Hash (with key k)
+\draw[fill=blue!30, draw=blue] (6.0, 2.5) rectangle (7.8, 3.5);
+\node at (6.9, 3.0) {\textbf{Hash}};
 
-// x → Hash (canal privé)
-line((0.6, 2.5), (0.6, 1.5), mark: (end: ">"))
+% Key k -> Hash
+\node at (6.9, 4.0) {Clé $k$};
+\draw[->] (6.9, 3.8) -- (6.9, 3.5);
 
-rect((0.0, 0.8), (1.8, 1.5), fill: blue.lighten(70%), stroke: blue)
-content((0.9, 1.15), [*Hash*])
+% x -> Hash (private channel)
+\draw[->] (0.6, 2.5) -- (0.6, 1.5);
+\draw[fill=blue!30, draw=blue] (0.0, 0.8) rectangle (1.8, 1.5);
+\node at (0.9, 1.15) {\textbf{Hash}};
 
-// Canal privé
-line((1.8, 1.15), (4.2, 1.15), mark: (end: ">"))
-rect((2.5, 0.6), (4.5, 1.5), fill: luma(88%), stroke: luma(50%))
-content((3.5, 1.1), [Canal privé])
+% Private channel
+\draw[->] (1.8, 1.15) -- (4.2, 1.15);
+\draw[fill=gray!12, draw=gray!50] (2.5, 0.6) rectangle (4.5, 1.5);
+\node at (3.5, 1.1) {Canal privé};
 
-// Code hash (envoyé via canal privé)
-line((4.5, 1.15), (8.5, 1.15), mark: (end: ">"))
-content((6.5, 0.85), [Code hash $H(upright(bold(x)))$])
+% Hash code via private channel
+\draw[->] (4.5, 1.15) -- (8.5, 1.15);
+\node at (6.5, 0.85) {Code hash $H(\mathbf{x})$};
 
-// Comparateur
-rect((8.5, 1.8), (10.2, 3.0), fill: purple.lighten(70%), stroke: purple)
-content((9.35, 2.6), [*Match ?*])
-content((9.35, 2.1), [$H(upright(bold(x))) = H(upright(bold(v)))$])
+% Comparator
+\draw[fill=violet!30, draw=violet] (8.5, 1.8) rectangle (10.2, 3.0);
+\node at (9.35, 2.6) {\textbf{Match ?}};
+\node at (9.35, 2.1) {$H(\mathbf{x}) = H(\mathbf{v})$};
 
-// Hash → Match
-line((7.8, 3.0), (8.5, 2.7), mark: (end: ">"))
-// Code → Match
-line((8.5, 1.15), (9.35, 1.8), mark: (end: ">"))
+% Hash -> Match
+\draw[->] (7.8, 3.0) -- (8.5, 2.7);
+% Code -> Match
+\draw[->] (8.5, 1.15) -- (9.35, 1.8);
 
-// Sorties Y/N
-line((10.2, 2.7), (11.2, 2.9), mark: (end: ">"))
-content((11.5, 2.9), text(fill: green.darken(30%))[*Y*])
-line((10.2, 2.1), (11.2, 1.9), mark: (end: ">"))
-content((11.5, 1.9), text(fill: red.darken(20%))[*N*])
-})
+% Y/N outputs
+\draw[->] (10.2, 2.7) -- (11.2, 2.9);
+\node[text=green!50!black] at (11.5, 2.9) {\textbf{Y}};
+\draw[->] (10.2, 2.1) -- (11.2, 1.9);
+\node[text=red!80!black] at (11.5, 1.9) {\textbf{N}};
+
+\end{tikzpicture}
 ```
 
 ## Comparaison : Hashs Cryptographiques vs Hashs Perceptuels
 
-```{.cetz}
-#cetz.canvas({
-  import cetz.draw: *
-// === PARTIE GAUCHE : Hash Cryptographique ===
-content((2.0, 6.0), [*Hash Cryptographique*])
+```{.tikz}
+\usetikzlibrary{arrows.meta}
+\begin{tikzpicture}[>=Latex, font=\small]
 
-// Vecteur image x (grand rectangle représentant le vecteur)
-rect((0.5, 4.0), (1.3, 5.8), fill: blue.lighten(80%), stroke: blue)
-content((0.9, 4.9), [$upright(bold(x))$])
-content((-0.1, 5.5), [|])
-content((-0.1, 4.3), [|])
-content((1.7, 4.9), [$N = H times W$])
+% === Left: Cryptographic Hash ===
+\node at (2.0, 6.0) {\textbf{Hash Cryptographique}};
 
-// Bruit z
-content((2.5, 5.5), [$upright(bold(z))$])
-line((2.2, 5.3), (2.7, 4.8), stroke: (paint: gray, thickness: 0.8pt))
+% Vector x (tall narrow rectangle)
+\draw[fill=blue!20, draw=blue] (0.5, 4.0) rectangle (1.3, 5.8);
+\node at (0.9, 4.9) {$\mathbf{x}$};
+\node at (-0.1, 5.5) {$|$};
+\node at (-0.1, 4.3) {$|$};
+\node at (1.7, 4.9) {$N = H \times W$};
 
-// y = x + z
-content((3.5, 5.5), [$upright(bold(y)) = upright(bold(x)) + upright(bold(z))$])
+% Noise z
+\node at (2.5, 5.5) {$\mathbf{z}$};
+\draw[gray, thin] (2.2, 5.3) -- (2.7, 4.8);
 
-// Cercle représentant la boule de bruit
-circle((3.0, 4.5), radius: 0.8, fill: luma(90%), stroke: (paint: luma(60%), dash: "dashed"))
-content((3.0, 4.5), [$upright(bold(x))$])
-line((3.0, 4.5), (3.6, 4.5), stroke: (paint: gray, thickness: 0.5pt))
-// Petit y proche de x
-circle((3.55, 4.35), radius: 0.06, fill: black)
-content((3.8, 4.2), [$upright(bold(y))$])
+% y = x + z
+\node at (3.5, 5.5) {$\mathbf{y} = \mathbf{x} + \mathbf{z}$};
 
-// Région de décision : point unique
-rect((0.5, 2.0), (3.5, 3.5), fill: luma(95%), stroke: luma(60%))
-content((2.0, 3.2), [Région de décision])
-content((2.0, 2.75), [$H(upright(bold(x))) = H(upright(bold(y)))$])
-content((2.0, 2.25), [ssi $upright(bold(x)) = upright(bold(y))$, i.e. $||upright(bold(y))-upright(bold(x))||_2^2 = 0$])
+% Circle noise ball
+\draw[fill=gray!10, draw=gray!60, dashed] (3.0, 4.5) circle (0.8);
+\node at (3.0, 4.5) {$\mathbf{x}$};
+\draw[gray, thin] (3.0, 4.5) -- (3.6, 4.5);
 
-// Point unique pour crypto
-circle((2.0, 1.3), radius: 0.08, fill: black)
-content((2.0, 0.9), [Point unique : $upright(bold(x)) = upright(bold(y))$])
+% Small y close to x
+\fill (3.55, 4.35) circle (0.06);
+\node at (3.8, 4.2) {$\mathbf{y}$};
 
-// === SEPARATEUR ===
-line((6.0, 0.5), (6.0, 6.5), stroke: (paint: luma(70%), dash: "dashed"))
+% Decision region: single point
+\draw[fill=gray!5, draw=gray!60] (0.5, 2.0) rectangle (3.5, 3.5);
+\node at (2.0, 3.2) {Région de décision};
+\node at (2.0, 2.75) {$H(\mathbf{x}) = H(\mathbf{y})$};
+\node[font=\scriptsize] at (2.0, 2.25) {ssi $\mathbf{x} = \mathbf{y}$, i.e.\ $\|\mathbf{y}-\mathbf{x}\|_2^2 = 0$};
 
-// === PARTIE DROITE : Hash Perceptuel ===
-content((9.5, 6.0), [*Hash Perceptuel*])
+% Single point for crypto
+\fill (2.0, 1.3) circle (0.08);
+\node at (2.0, 0.9) {Point unique : $\mathbf{x} = \mathbf{y}$};
 
-// Grande boule amorphe (région R0)
-circle((9.5, 3.5), radius: 2.2, fill: blue.lighten(88%), stroke: blue.lighten(40%))
-content((9.5, 5.4), [$cal(R)_0$])
+% === Separator ===
+\draw[dashed, gray!70] (6.0, 0.5) -- (6.0, 6.5);
 
-// Petite boule intérieure (région R1 autour de x)
-circle((9.5, 3.5), radius: 1.0, fill: blue.lighten(70%), stroke: blue.lighten(20%))
-content((10.2, 3.8), [$cal(R)_1$])
+% === Right: Perceptual Hash ===
+\node at (9.5, 6.0) {\textbf{Hash Perceptuel}};
 
-// Point x au centre
-circle((9.5, 3.5), radius: 0.08, fill: black)
-content((9.2, 3.5), [$upright(bold(x))$])
+% Large region R0
+\draw[fill=blue!12, draw=blue!60] (9.5, 3.5) circle (2.2);
+\node at (9.5, 5.4) {$\mathcal{R}_0$};
 
-// Rayon γL
-line((9.5, 3.5), (10.35, 3.0), stroke: (paint: blue, thickness: 0.8pt))
-content((10.0, 2.8), [$gamma L$])
+% Small inner region R1
+\draw[fill=blue!30, draw=blue!80] (9.5, 3.5) circle (1.0);
+\node at (10.2, 3.8) {$\mathcal{R}_1$};
 
-// Point y dans la boule
-circle((9.8, 2.9), radius: 0.08, fill: black)
-content((10.1, 2.65), [$upright(bold(y))$])
+% Point x at center
+\fill (9.5, 3.5) circle (0.08);
+\node at (9.2, 3.5) {$\mathbf{x}$};
 
-// Région de décision perceptuelle
-rect((7.0, 0.3), (12.0, 1.5), fill: luma(95%), stroke: luma(60%))
-content((9.5, 1.2), [Région de décision])
-content((9.5, 0.7), [$||upright(bold(y)) - upright(bold(x))||_2^2 <= gamma L$])
-})
+% Radius γL
+\draw[blue, thin] (9.5, 3.5) -- (10.35, 3.0);
+\node at (10.0, 2.8) {$\gamma L$};
+
+% Point y in ball
+\fill (9.8, 2.9) circle (0.08);
+\node at (10.1, 2.65) {$\mathbf{y}$};
+
+% Decision region for perceptual
+\draw[fill=gray!5, draw=gray!60] (7.0, 0.3) rectangle (12.0, 1.5);
+\node at (9.5, 1.2) {Région de décision};
+\node at (9.5, 0.7) {$\|\mathbf{y} - \mathbf{x}\|_2^2 \leq \gamma L$};
+
+\end{tikzpicture}
 ```
 
 | Propriété | Hash Cryptographique | Hash Perceptuel |
 |---|---|---|
-| Région de décision | $upright(bold(x)) = upright(bold(y))$ (point exact) | $||upright(bold(y)) - upright(bold(x))||_2^2 \leq \gamma L$ |
+| Région de décision | $\mathbf{x} = \mathbf{y}$ (point exact) | $\|\mathbf{y} - \mathbf{x}\|_2^2 \leq \gamma L$ |
 | Robustesse au bruit | ❌ Nulle | ✅ Robuste |
 | Sensibilité aux distorsions | Totale | Contrôlée par $\gamma$ |
 
-La région de décision perceptuelle forme une **boule** autour de $upright(bold(x))$ dans l'espace $\mathbb{R}^N$ où $N = H \times W$ :
+La région de décision perceptuelle forme une **boule** autour de $\mathbf{x}$ dans l'espace $\mathbb{R}^N$ où $N = H \times W$ :
 
-$$cal(R)_1 = \{upright(bold(y)) : ||upright(bold(y)) - upright(bold(x))||_2^2 \leq \gamma L\}$$
+$$\mathcal{R}_1 = \{\mathbf{y} : \|\mathbf{y} - \mathbf{x}\|_2^2 \leq \gamma L\}$$
 
 ## Pourquoi le Digital Watermarking et le Perceptual Hashing sont nécessaires
 
@@ -694,47 +707,46 @@ Les **Foundation Models** sont de grands réseaux de neurones entraînés sur de
 
 ## Idée principale de la Representation Learning
 
-```{.cetz}
-#cetz.canvas({
-  import cetz.draw: *
-// Image d'entrée
-rect((0.0, 1.5), (1.2, 2.5), fill: luma(85%), stroke: luma(40%))
-content((0.6, 2.0), [img])
-content((0.6, 1.2), [$upright(bold(x))$])
+```{.tikz}
+\usetikzlibrary{arrows.meta}
+\begin{tikzpicture}[>=Latex, font=\small]
 
-// Flèche x → encodeur
-line((1.2, 2.0), (2.2, 2.0), mark: (end: ">"))
+% Input image
+\draw[fill=gray!15, draw=gray!60] (0.0, 1.5) rectangle (1.2, 2.5);
+\node at (0.6, 2.0) {img};
+\node at (0.6, 1.2) {$\mathbf{x}$};
 
-// Encodeur (triangle)
-line((2.2, 2.7), (2.2, 1.3), stroke: black)
-line((2.2, 2.7), (4.2, 2.0), stroke: black)
-line((2.2, 1.3), (4.2, 2.0), stroke: black)
-// Remplir le triangle
-content((3.0, 2.0), [$f_{phi_x}$])
+% Arrow x -> encoder
+\draw[->] (1.2, 2.0) -- (2.2, 2.0);
 
-// Flèche encodeur → représentation
-line((4.2, 2.0), (5.5, 2.0), mark: (end: ">"))
+% Encoder (triangle)
+\draw (2.2, 2.7) -- (2.2, 1.3) -- (4.2, 2.0) -- cycle;
+\node at (3.0, 2.0) {$f_{\phi_x}$};
 
-// Représentation latente (grille)
-rect((5.5, 1.5), (6.5, 2.5), fill: luma(88%), stroke: luma(40%))
-line((5.83, 1.5), (5.83, 2.5), stroke: (paint: luma(50%), thickness: 0.5pt))
-line((6.17, 1.5), (6.17, 2.5), stroke: (paint: luma(50%), thickness: 0.5pt))
-line((5.5, 1.83), (6.5, 1.83), stroke: (paint: luma(50%), thickness: 0.5pt))
-line((5.5, 2.17), (6.5, 2.17), stroke: (paint: luma(50%), thickness: 0.5pt))
+% Arrow encoder -> representation
+\draw[->] (4.2, 2.0) -- (5.5, 2.0);
 
-// Token [CLS]
-rect((6.7, 1.7), (7.5, 2.3), fill: orange.lighten(70%), stroke: orange)
-content((7.1, 2.0), text(size: 0.75em)[\[CLS\]])
+% Latent representation (grid)
+\draw[fill=gray!12, draw=gray!60] (5.5, 1.5) rectangle (6.5, 2.5);
+\draw[gray!50, thin] (5.83, 1.5) -- (5.83, 2.5);
+\draw[gray!50, thin] (6.17, 1.5) -- (6.17, 2.5);
+\draw[gray!50, thin] (5.5, 1.83) -- (6.5, 1.83);
+\draw[gray!50, thin] (5.5, 2.17) -- (6.5, 2.17);
 
-// Labels
-content((6.0, 1.1), [Représentation latente $upright(bold(z))_x$])
-content((6.0, 3.1), text(fill: green.darken(20%))[*Embedder / Encoder*])
-})
+% [CLS] token
+\draw[fill=orange!30, draw=orange] (6.7, 1.7) rectangle (7.5, 2.3);
+\node[font=\scriptsize] at (7.1, 2.0) {[CLS]};
+
+% Labels
+\node at (6.0, 1.1) {Représentation latente $\mathbf{z}_x$};
+\node[text=green!60!black] at (6.0, 3.1) {\textbf{Embedder / Encoder}};
+
+\end{tikzpicture}
 ```
 
-L'encodeur $f_{\phi_x}$ mappe une entrée $upright(bold(x))$ vers un espace latent :
+L'encodeur $f_{\phi_x}$ mappe une entrée $\mathbf{x}$ vers un espace latent :
 
-$$upright(bold(z))_x = f_{\phi_x}(upright(bold(x)))$$
+$$\mathbf{z}_x = f_{\phi_x}(\mathbf{x})$$
 
 ---
 
@@ -765,9 +777,9 @@ Les foundation models sont largement utilisés dans des applications critiques :
 
 ### Cas 1 : Images perceptuellement similaires → hashs différents
 
-**Scénario :** $upright(bold(x))_0$ (original) et $upright(bold(x))_A$ (attaqué) sont proches visuellement, mais :
+**Scénario :** $\mathbf{x}_0$ (original) et $\mathbf{x}_A$ (attaqué) sont proches visuellement, mais :
 
-$$||upright(bold(x))_0 - upright(bold(x))_A||_2^2 \text{ petit} \quad \text{mais} \quad \cos(upright(bold(z))_{x_0}, upright(bold(z))_{x_A}) << 1$$
+$$\|\mathbf{x}_0 - \mathbf{x}_A\|_2^2 \text{ petit} \quad \text{mais} \quad \cos(\mathbf{z}_{x_0}, \mathbf{z}_{x_A}) \ll 1$$
 
 **Conséquence :** divergence significative dans les tâches de retrieval ou de reconnaissance
 
@@ -777,9 +789,9 @@ $$||upright(bold(x))_0 - upright(bold(x))_A||_2^2 \text{ petit} \quad \text{mais
 
 ### Cas 2 : Images perceptuellement dissimilaires → hashs similaires
 
-**Scénario :** $upright(bold(x))_0$ (original) et $upright(bold(x))_A$ (attaqué) sont visuellement très différents, mais :
+**Scénario :** $\mathbf{x}_0$ (original) et $\mathbf{x}_A$ (attaqué) sont visuellement très différents, mais :
 
-$$||upright(bold(x))_0 - upright(bold(x))_A||_2^2 \text{ grand} \quad \text{mais} \quad \cos(upright(bold(z))_{x_0}, upright(bold(z))_{x_A}) \approx 1$$
+$$\|\mathbf{x}_0 - \mathbf{x}_A\|_2^2 \text{ grand} \quad \text{mais} \quad \cos(\mathbf{z}_{x_0}, \mathbf{z}_{x_A}) \approx 1$$
 
 **Conséquence :** fausses correspondances ou résultats de retrieval erronés
 
@@ -788,85 +800,86 @@ $$||upright(bold(x))_0 - upright(bold(x))_A||_2^2 \text{ grand} \quad \text{mais
 - L'attaque exploite les vulnérabilités dans la représentation de l'espace latent du foundation model
 - Critique pour les tâches nécessitant une représentation sécurisée du contenu (biométrie, sécurité)
 
-```{.cetz}
-#cetz.canvas({
-  import cetz.draw: *
-// === CAS 1 (haut) ===
-content((4.5, 7.5), text(fill: red.darken(20%))[*Cas 1 : Images similaires → Hashs différents*])
+```{.tikz}
+\usetikzlibrary{arrows.meta}
+\begin{tikzpicture}[>=Latex, font=\small]
 
-// x0 original
-rect((0.2, 5.8), (1.4, 6.8), fill: luma(85%), stroke: luma(40%))
-content((0.8, 6.3), [img])
-content((0.8, 5.5), [$upright(bold(x))_0$])
+% === CAS 1 (haut) ===
+\node[text=red!70!black] at (4.5, 7.5) {\textbf{Cas 1 : Images similaires $\rightarrow$ Hashs différents}};
 
-// xA attaqué (visuellement proche)
-rect((1.9, 5.8), (3.1, 6.8), fill: luma(83%), stroke: red)
-content((2.5, 6.3), [img $+epsilon$])
-content((2.5, 5.5), [$upright(bold(x))_A$])
+% x0 original
+\draw[fill=gray!15, draw=gray!60] (0.2, 5.8) rectangle (1.4, 6.8);
+\node at (0.8, 6.3) {img};
+\node at (0.8, 5.5) {$\mathbf{x}_0$};
 
-// MSE ≈ 0
-content((1.75, 7.1), [$||upright(bold(x))_0 - upright(bold(x))_A||_2^2 approx 0$ ✓])
+% xA attacked (visually close)
+\draw[fill=gray!17, draw=red] (1.9, 5.8) rectangle (3.1, 6.8);
+\node at (2.5, 6.3) {img $+\varepsilon$};
+\node at (2.5, 5.5) {$\mathbf{x}_A$};
 
-// Encodeur haut
-rect((4.0, 5.8), (5.5, 6.8), fill: green.lighten(60%), stroke: green)
-content((4.75, 6.3), [Encoder $f_phi$])
-line((3.1, 6.3), (4.0, 6.3), mark: (end: ">"))
+% MSE ≈ 0
+\node at (1.75, 7.1) {$\|\mathbf{x}_0 - \mathbf{x}_A\|_2^2 \approx 0$ ✓};
 
-// Hashs résultants
-content((7.0, 7.1), [$upright(bold(z))_{x_0}$])
-content((7.0, 5.5), [$upright(bold(z))_{x_A}$])
-line((5.5, 6.5), (6.5, 6.9), mark: (end: ">"))
-line((5.5, 6.1), (6.5, 5.7), mark: (end: ">"))
+% Encoder top
+\draw[fill=green!40, draw=green] (4.0, 5.8) rectangle (5.5, 6.8);
+\node at (4.75, 6.3) {Encoder $f_\phi$};
+\draw[->] (3.1, 6.3) -- (4.0, 6.3);
 
-// Cosine similarity faible
-rect((7.2, 5.8), (9.8, 7.1), fill: red.lighten(75%), stroke: red)
-content((8.5, 6.7), [Similarité cosinus])
-content((8.5, 6.25), text(fill: red.darken(20%))[*faible* $<<1$])
-content((8.5, 5.95), [❌ Retrieval échoue])
+% Resulting hashes
+\node at (7.0, 7.1) {$\mathbf{z}_{x_0}$};
+\node at (7.0, 5.5) {$\mathbf{z}_{x_A}$};
+\draw[->] (5.5, 6.5) -- (6.5, 6.9);
+\draw[->] (5.5, 6.1) -- (6.5, 5.7);
 
-// === SEPARATEUR ===
-line((0.0, 5.0), (10.5, 5.0), stroke: (paint: luma(70%), dash: "dashed"))
+% Low cosine similarity
+\draw[fill=red!25, draw=red] (7.2, 5.8) rectangle (9.8, 7.1);
+\node at (8.5, 6.7) {Similarité cosinus};
+\node[text=red!70!black] at (8.5, 6.25) {\textbf{faible} $\ll 1$};
+\node at (8.5, 5.95) {❌ Retrieval échoue};
 
-// === CAS 2 (bas) ===
-content((4.5, 4.6), text(fill: red.darken(20%))[*Cas 2 : Images différentes → Hashs similaires*])
+% === Separator ===
+\draw[dashed, gray!70] (0.0, 5.0) -- (10.5, 5.0);
 
-// x0 original
-rect((0.2, 2.8), (1.4, 3.8), fill: luma(85%), stroke: luma(40%))
-content((0.8, 3.3), [img])
-content((0.8, 2.5), [$upright(bold(x))_0$])
+% === CAS 2 (bas) ===
+\node[text=red!70!black] at (4.5, 4.6) {\textbf{Cas 2 : Images différentes $\rightarrow$ Hashs similaires}};
 
-// xA attaqué (visuellement différent)
-rect((1.9, 2.8), (3.1, 3.8), fill: luma(40%), stroke: red)
-content((2.5, 3.3), [img']
-)
-content((2.5, 2.5), [$upright(bold(x))_A$])
+% x0 original
+\draw[fill=gray!15, draw=gray!60] (0.2, 2.8) rectangle (1.4, 3.8);
+\node at (0.8, 3.3) {img};
+\node at (0.8, 2.5) {$\mathbf{x}_0$};
 
-// MSE grand
-content((1.75, 4.1), [$||upright(bold(x))_0 - upright(bold(x))_A||_2^2 >> 0$ ✗])
+% xA attacked (visually different)
+\draw[fill=gray!60, draw=red] (1.9, 2.8) rectangle (3.1, 3.8);
+\node at (2.5, 3.3) {img'};
+\node at (2.5, 2.5) {$\mathbf{x}_A$};
 
-// Encodeur bas
-rect((4.0, 2.8), (5.5, 3.8), fill: green.lighten(60%), stroke: green)
-content((4.75, 3.3), [Encoder $f_phi$])
-line((3.1, 3.3), (4.0, 3.3), mark: (end: ">"))
+% MSE large
+\node at (1.75, 4.1) {$\|\mathbf{x}_0 - \mathbf{x}_A\|_2^2 \gg 0$ ✗};
 
-// Hashs résultants
-content((7.0, 4.1), [$upright(bold(z))_{x_0}$])
-content((7.0, 2.5), [$upright(bold(z))_{x_A}$])
-line((5.5, 3.5), (6.5, 3.9), mark: (end: ">"))
-line((5.5, 3.1), (6.5, 2.7), mark: (end: ">"))
+% Encoder bottom
+\draw[fill=green!40, draw=green] (4.0, 2.8) rectangle (5.5, 3.8);
+\node at (4.75, 3.3) {Encoder $f_\phi$};
+\draw[->] (3.1, 3.3) -- (4.0, 3.3);
 
-// Cosine similarity élevée
-rect((7.2, 2.8), (9.8, 4.1), fill: red.lighten(75%), stroke: red)
-content((8.5, 3.7), [Similarité cosinus])
-content((8.5, 3.25), text(fill: red.darken(20%))[*élevée* $approx 1$])
-content((8.5, 2.95), [❌ Fausse correspondance])
+% Resulting hashes
+\node at (7.0, 4.1) {$\mathbf{z}_{x_0}$};
+\node at (7.0, 2.5) {$\mathbf{z}_{x_A}$};
+\draw[->] (5.5, 3.5) -- (6.5, 3.9);
+\draw[->] (5.5, 3.1) -- (6.5, 2.7);
 
-// Légende
-rect((0.0, 0.0), (10.5, 1.8), fill: luma(97%), stroke: luma(60%))
-content((5.25, 1.5), [*Résumé des vulnérabilités adversariales*])
-content((5.25, 1.0), [Cas 1 : perturbation $epsilon$ imperceptible → hash complètement différent])
-content((5.25, 0.4), [Cas 2 : image très différente → même hash (collision forcée)])
-})
+% High cosine similarity
+\draw[fill=red!25, draw=red] (7.2, 2.8) rectangle (9.8, 4.1);
+\node at (8.5, 3.7) {Similarité cosinus};
+\node[text=red!70!black] at (8.5, 3.25) {\textbf{élevée} $\approx 1$};
+\node at (8.5, 2.95) {❌ Fausse correspondance};
+
+% Summary legend
+\draw[fill=gray!3, draw=gray!60] (0.0, 0.0) rectangle (10.5, 1.8);
+\node at (5.25, 1.5) {\textbf{Résumé des vulnérabilités adversariales}};
+\node[font=\scriptsize] at (5.25, 1.0) {Cas 1 : perturbation $\varepsilon$ imperceptible $\rightarrow$ hash complètement différent};
+\node[font=\scriptsize] at (5.25, 0.4) {Cas 2 : image très différente $\rightarrow$ même hash (collision forcée)};
+
+\end{tikzpicture}
 ```
 
 ---
