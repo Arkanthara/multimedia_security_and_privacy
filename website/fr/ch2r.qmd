@@ -1,151 +1,329 @@
----
-title: "Synthèse — Chapitre 2"
-format:
-  html:
-    toc-depth: 2
----
-
-::: {.callout-important title="📚 Fiche de révision rapide — Chapitre 2"}
-Cette fiche condense les notions essentielles du Chapitre 2. Elle couvre les représentations d'images, l'apprentissage auto-supervisé, les notations formelles du watermarking et du hachage, et la théorie de la détection.
-
-**Navigation :** [Vue d'ensemble →](ch2.qmd) | [Contenu détaillé →](ch2c.qmd)
-:::
+> **🎯 Cette fiche couvre :** Image → Transformées → Deep Learning / SSL → Tatouage → Détection statistique
 
 ---
 
-## Formules clés
+# 🖼️ Images & Notations de base
 
-| Concept | Formule | Unités / Remarques |
-|:--------|:--------|:-------------------|
-| Image | $\mathbf{x} \in \mathbb{R}^{H \times W \times C}$ | $x_{h,w,c} \in \{0,\ldots,255\}$ pour 8 bits |
-| MSE | $\frac{1}{N}\|\mathbf{x}-\mathbf{y}\|_2^2$ | $N = HWC$ |
-| PSNR | $10\log_{10}\!\left(\frac{255^2}{\text{MSE}}\right)$ | En dB ; $>40\,\text{dB}$ ≈ imperceptible |
-| Cosinus | $\frac{\mathbf{u}\cdot\mathbf{v}}{\|\mathbf{u}\|\|\mathbf{v}\|}$ | $\in[-1,1]$ |
-| Représentation SSL | $\mathbf{z}_x = f_\phi(\mathbf{x}) \in \mathbb{R}^d$ | $d \ll N$ |
-| DFT | $X_k = \sum_{n=0}^{N-1} x_n e^{-j2\pi kn/N}$ | — |
-| DCT-II | $X_k = \sum_{n=0}^{N-1} x_n \cos\!\left[\frac{\pi(2n+1)k}{2N}\right]$ | Base JPEG : blocs 8×8 |
-| Watermarking | $\mathbf{y} = \omega(\mathbf{x},k,m)$, $\hat{m}=g(\mathbf{v},k)$ | — |
-| Score détection | $S(\mathbf{v}) = \frac{1}{M}\mathbf{v}\cdot\mathbf{w}$ | Statistique de test |
-| Canal AWGN | $\mathbf{v} = \mathbf{s} + \mathbf{n}$, $\mathbf{n}\sim\mathcal{N}(\mathbf{0},\sigma^2\mathbf{I})$ | — |
-| $P_{FA}$ | $Q\!\left(\frac{\eta}{\sigma\|\mathbf{s}\|}\right)$ | Fausse alarme |
-| $P_D$ | $Q\!\left(\frac{\eta-\|\mathbf{s}\|^2}{\sigma\|\mathbf{s}\|}\right)$ | Puissance de détection |
-| Distance de Hamming | $d_H(\mathbf{b}_x,\mathbf{b}_y) = \|\mathbf{b}_x\oplus\mathbf{b}_y\|_1$ | Pour hachage perceptuel |
+## Dimensions & Pixel
 
----
+| Symbole | Définition |
+|---------|-----------|
+| $H \times W \times C$ | Dimensions d'une image |
+| $C=1$ | Niveaux de gris |
+| $C=3$ | RGB |
+| $x_i \in \{0,\ldots,255\}$ | Valeur d'un pixel (8 bits → $2^8 = 256$) |
+| $\mathbf{x} \in \mathbb{R}^{H \cdot W}$ | Image aplatie (grayscale) |
+| $\mathbf{x}_{\text{RGB}} \in \mathbb{R}^{3 \cdot H \cdot W}$ | Image aplatie (RGB) |
 
-## Partie 1 — Représentations d'images
+## Variables du cours
 
-**Image :** $\mathbf{x} \in \mathbb{R}^{H \times W \times C}$, pixels $\in \{0,\ldots,255\}$ (8 bits)
+| Variable | Rôle |
+|----------|------|
+| $\mathbf{x}$ | Image originale |
+| $\mathbf{y}$ | Image stégo (marquée) |
+| $\mathbf{w}$ | Watermark (tatouage) |
+| $\mathbf{k}$ | Clé secrète |
+| $\mathbf{m} \in \{0,1\}^L$ | Message $L$-bits |
 
-**Métriques :**
-
-- MSE : erreur quadratique moyenne pixel à pixel
-- PSNR $> 40\,\text{dB}$ : modification imperceptible
-- Cosinus : compare des vecteurs de représentation (pas des pixels)
-
-**Transformées :**
-
-| Transformée | Domaine | Usage principal |
-|:------------|:--------|:----------------|
-| DCT (8×8) | Fréquences | Compression JPEG, watermarking fréquentiel |
-| DFT | Fréquences complexes | Filtrage, analyse spectrale |
-| DWT | Temps-fréquence | Compression multi-résolution, watermarking |
-| PCA | Variance maximale | Réduction de dimension |
+> 🔑 **Démosaïquage** : Bayer pattern → RGB par interpolation. Format d'entrée standard du cours : **RGB $H \times W \times 3$**.
 
 ---
 
-## Partie 2 — Self-Supervised Learning
+# 📏 Métriques de Qualité
 
-**Représentation latente :** $\mathbf{z}_x = f_\phi(\mathbf{x}) \in \mathbb{R}^d$
+## Formules à retenir
 
-**Apprentissage contrastif :**
+$$\text{MSE}(\mathbf{x},\mathbf{y}) = \frac{1}{M}\|\mathbf{x}-\mathbf{y}\|_2^2$$
 
-- Ancre $\mathbf{x}$ + Positive $\mathbf{x}^+$ (même image, augmentations différentes) → rapprocher
-- Négatives $\mathbf{x}^-$ (autres images du batch) → éloigner
-- Température $\tau$ contrôle la sélectivité
+$$\text{PSNR} = 10\log_{10}\!\left(\frac{255^2}{\text{MSE}}\right) \quad \text{[dB]}$$
 
-**Perte NT-Xent :**
-$$\mathcal{L} = -\log \frac{\exp(\text{sim}(\mathbf{z}_x,\mathbf{z}_{x^+})/\tau)}{\sum_j \exp(\text{sim}(\mathbf{z}_x,\mathbf{z}_j)/\tau)}$$
+$$\text{WMSE}(\mathbf{x},\mathbf{y}) = \frac{1}{M}\sum_{i=1}^{M} w_i(x_i - y_i)^2$$
+
+$$\text{WPSNR} = 10\log_{10}\!\left(\frac{255^2}{\text{WMSE}}\right)$$
+
+## Valeurs typiques PSNR
+
+- $> 40$ dB → imperceptible ✅
+- $30$–$40$ dB → bonne qualité
+- $< 30$ dB → dégradation visible ❌
+
+## Similarité vectorielle
+
+$$\text{Produit scalaire : } \mathbf{x}^T\mathbf{y} = \sum_{i=1}^M x_i y_i$$
+
+$$\text{Cosine Similarity : } \cos(\theta) = \frac{\mathbf{x}^T\mathbf{y}}{\|\mathbf{x}\|\|\mathbf{y}\|}$$
+
+> ⚠️ **Piège** : cosine similarity ≠ distance euclidienne. La première est invariante à l'échelle, pas la seconde.
 
 ---
 
-## Partie 3 — Watermarking et Hachage
+# 🔄 Transformées d'Images
 
-### Watermarking
+## Schéma général
 
-```{.cetz}
-#cetz.canvas({
-  import cetz.draw: *
+$$\mathbf{z} = \mathcal{T}(\mathbf{x}), \qquad \mathbf{x} = \mathcal{T}^{-1}(\mathbf{z})$$
 
-  // x
-  content((0.0, 3.0), [$bold(upright(x))$])
-  line((0.5, 3.0), (1.5, 3.0), mark: (end: ">"))
+## Comparatif des transformées
 
-  // Embedder
-  rect((1.5, 2.3), (4.0, 3.7), fill: green.lighten(60%), stroke: green.darken(20%))
-  content((2.75, 3.0), [*Embedder* $omega$])
+| Transformée | Type | Inversible | Apprenante | Application |
+|-------------|------|:----------:|:----------:|-------------|
+| Bit-Plane | Orthogonale | ✓ | ✗ | LSB watermarking |
+| DFT | Orthogonale | ✓ | ✗ | Filtrage, forensique |
+| DCT | Orthogonale | ✓ | ✗ | JPEG, watermarking |
+| DWT | Orthogonale | ✓ | ✗ | JPEG 2000, débruitage |
+| PCA | Linéaire | ✓ | ✓ (linéaire) | Réduction dim. |
+| CNN/ViT | Non-linéaire | ✗ | ✓ (DL) | Embeddings robustes |
 
-  // m et k
-  content((2.75, 4.4), [$m, k$])
-  line((2.75, 4.1), (2.75, 3.7), mark: (end: ">"))
+## Propriété clé des transformées orthogonales
 
-  // y
-  line((4.0, 3.0), (5.5, 3.0), mark: (end: ">"))
-  content((4.75, 3.3), [$bold(upright(y))$])
+$$T^\top T = TT^\top = \mathbf{I} \quad \Rightarrow \quad \text{Conservation d'énergie + reconstruction parfaite}$$
 
-  // Canal
-  rect((5.5, 2.3), (7.5, 3.7), fill: blue.lighten(70%), stroke: blue.darken(20%))
-  content((6.5, 3.0), [*Canal* $cal(A)$])
+## Bit-Plane Decomposition
 
-  // v
-  line((7.5, 3.0), (9.0, 3.0), mark: (end: ">"))
-  content((8.25, 3.3), [$bold(upright(v))$])
+$$x = \underbrace{x_0 \cdot 2^0}_{\text{LSB}} + x_1 \cdot 2^1 + \cdots + \underbrace{x_7 \cdot 2^7}_{\text{MSB}}$$
 
-  // Extractor
-  rect((9.0, 2.3), (11.5, 3.7), fill: green.lighten(60%), stroke: green.darken(20%))
-  content((10.25, 3.0), [*Extracteur* $g$])
+- 8 images binaires par pixel
+- LSB : peu visible → **idéal pour cacher de l'info**
+- MSB : structure principale de l'image
 
-  // k côté droit
-  content((10.25, 4.4), [$k$])
-  line((10.25, 4.1), (10.25, 3.7), mark: (end: ">"))
+## DFT (Discrete Fourier Transform)
 
-  // m̂
-  line((11.5, 3.0), (12.2, 3.0), mark: (end: ">"))
-  content((12.5, 3.0), [$hat(m)$])
-})
+$$z[k] = \sum_{n=0}^{N-1} x[n] \cdot e^{-j2\pi kn/N}$$
+
+- Sortie complexe → **magnitude** + **phase** (tenseur $\times 2$)
+- ✅ Magnitude invariante par **translation**
+- ⚠️ Phase portant la **structure spatiale**
+
+## DCT — 3 modes d'application
+
+| Mode | Formule | Usage |
+|------|---------|-------|
+| Full-Frame | $\mathbf{z} = \text{DCT}(\mathbf{x}),\ \mathbf{x}\in\mathbb{R}^{H\times W}$ | Info globale |
+| Block-wise 8×8 | $\mathbf{z}_{i,j} = \text{DCT}(\mathbf{x}_{i,j}),\ \mathbf{x}_{i,j}\in\mathbb{R}^{8\times 8}$ | **JPEG** |
+| Tensorielle | $\mathbf{z}_{i,j} = \text{DCT}(\mathbf{x}^{(i,j)}),\ \mathbf{x}^{(i,j)}\in\mathbb{R}^{H/8\times W/8}$ | Tenseur fréq. |
+
+## DWT (Discrete Wavelet Transform)
+
+- Filtre **passe-bas** (approximation) + **passe-haut** (détails) récursifs
+- ✅ Localisé **en espace ET en fréquence** (avantage sur DCT)
+- Application : JPEG 2000, débruitage
+
+## PCA
+
+$$\mathbf{K_{xx}} = \mathbf{U}\Sigma\mathbf{U}^\top \quad \Rightarrow \quad \mathbf{z} = \mathbf{U}^\top\mathbf{x}$$
+
+- $\mathbf{U}$ : vecteurs propres de la covariance $\mathbf{K_{xx}}$
+- $\mathbf{U}^\top\mathbf{U} = \mathbf{I}$ → invertible
+- ✅ Décorrélation + compaction d'énergie
+- ❌ Échoue sur les **variétés non-linéaires**
+
+> ⚠️ **Piège PCA** : efficace seulement si les données sont approximativement gaussiennes.
+
+---
+
+# 🧠 Deep Learning & Self-Supervised Learning
+
+## Encodeur profond
+
+$$f_\phi(\mathbf{x}) = \sigma_K\!\left(\mathbf{W}_K \cdots \sigma_1(\mathbf{W}_1\mathbf{x}+\mathbf{b}_1) + \mathbf{b}_K\right)$$
+
+- $\mathbf{W}_i$ : poids — $\sigma_i$ : activation non-linéaire — $\mathbf{b}_i$ : biais
+- Sans $\sigma_i$ → **équivalent à PCA** (linéaire)
+
+## Foundation Model
+
+$$\mathbf{x} \xrightarrow{f_{\phi_x}} \mathbf{z}_x \quad \text{(représentation latente / embedding)}$$
+
+- CNN → features spatiales (sliding window)
+- ViT → patches projetés en tokens → `[CLS]` = embedding global
+
+## Paradigmes d'apprentissage
+
+### Self-Supervised Learning (SSL)
+
+- **1 modalité**, pas de labels
+- Deux vues augmentées de $\mathbf{x}_0$ → maximiser similarité
+
+$$\mathbf{y}_1 = f_\phi(\text{aug}(\mathbf{x}_0)),\quad \mathbf{y}_2 = f_\phi(\text{aug}(\mathbf{x}_0))$$
+
+### Weakly Supervised Learning (WSL)
+
+- **2 modalités** (image + texte), alignement faible
+- $\mathbf{y}_x = f_\phi(\mathbf{x}_0)$, $\mathbf{y}_z = f_\phi(\mathbf{z})$ → aligner dans l'espace latent
+
+## Architectures SSL — Comparatif rapide
+
+| Architecture | Principe | ⚠️ Mode Collapse | Complexité | Exemples |
+|-------------|---------|:---------------:|:----------:|---------|
+| **AE / Denoising-AE** | Reconstruit $\mathbf{x}$ depuis embedding | ✗ | Élevée | MAE |
+| **Joint Embedding** | Similitude entre 2 embeddings | ✅ Possible | Faible | SimCLR, BYOL, DINO |
+| **Joint Emb.-Prediction** | Prédit embedding d'une vue | ✅ Possible | Moyenne | I-JEPA |
+| **Hybride** | AE + Joint Embedding | ✗ | Moyenne | CAE, BEiT |
+| **WSL multimodal** | Image-texte alignment | ✅ Possible | Faible | CLIP, BLIP |
+
+> 🔑 **Mode collapse** = le réseau apprend à tout mapper sur le même vecteur → représentation inutile.
+
+---
+
+# 💧 Tatouage Numérique *(Digital Watermarking)*
+
+## Formules d'intégration
+
+$$\text{Zero-bit : } \mathbf{y} = \phi(\mathbf{x}, \mathbf{k})$$
+
+$$\text{Multi-bit : } \mathbf{y} = \phi(\mathbf{x}, \mathbf{k}, \mathbf{m}), \quad \mathbf{m} \in \{0,1\}^L$$
+
+- **Zero-bit** : présence/absence de marque
+- **Multi-bit** : $L$ bits d'information cachés
+
+> 🔑 **Compromis fondamental** : tatouage fort = meilleure détection **mais** PSNR plus faible (image dégradée).
+
+---
+
+# 🎯 Détection de Signal dans le Bruit
+
+## Hypothèses du test
+
+$$H_0 : \mathbf{y} = \mathbf{x} \quad \text{(pas de tatouage)}$$
+
+$$H_1 : \mathbf{y} = \mathbf{x} + \mathbf{w} \quad \text{(tatouage présent)}$$
+
+## Score de détection (à retenir !)
+
+$$\boxed{S(\mathbf{y}) = \frac{1}{M}\,\mathbf{y}^\top\mathbf{w}}$$
+
+> **Intuition** : corrélation normalisée entre l'image observée et le tatouage connu.
+
+## Distributions du score
+
+Hypothèses : $\mathbf{x} \sim \mathcal{N}(\mathbf{0},\,\sigma_x^2\mathbf{I}_M)$, $\|\mathbf{w}\|_2^2 = E_w$
+
+| Hypothèse | Moyenne | Variance |
+|-----------|---------|---------|
+| $H_0$ | $\mu_0 = 0$ | $\sigma_0^2 = \dfrac{\|\mathbf{w}\|_2^2\,\sigma_x^2}{M^2}$ |
+| $H_1$ | $\mu_1 = \dfrac{\|\mathbf{w}\|_2^2}{M}$ | $\sigma_1^2 = \dfrac{\|\mathbf{w}\|_2^2\,\sigma_x^2}{M^2}$ |
+
+> ⚠️ **Clé** : même variance sous $H_0$ et $H_1$. Les distributions ne diffèrent que par leur **moyenne**.
+
+## Dérivation éclair des moments
+
+**Moyenne sous $H_0$** : $\mathbb{E}[\mathbf{x}]=\mathbf{0} \Rightarrow \mu_0 = 0$ ✓
+
+**Moyenne sous $H_1$** : $\mathbb{E}[(\mathbf{x}+\mathbf{w})^\top\mathbf{w}] = 0 + \|\mathbf{w}\|_2^2 \Rightarrow \mu_1 = \|\mathbf{w}\|_2^2/M$ ✓
+
+**Variance** (identique) : $\mathbf{w}^\top\mathbf{x} \sim \mathcal{N}(0,\,\|\mathbf{w}\|_2^2\sigma_x^2) \Rightarrow \sigma^2 = \|\mathbf{w}\|_2^2\sigma_x^2/M^2$ ✓
+
+## Fonction Q
+
+$$Q(x) = \frac{1}{\sqrt{2\pi}}\int_x^{+\infty} e^{-t^2/2}\,dt \quad \leftarrow \text{queue droite gaussienne standard}$$
+
+```python
+from scipy.stats import norm
+Q = lambda x: 1 - norm.cdf(x)
 ```
 
-**Symboles :**
+## Probabilités d'erreur
 
-- $\mathbf{x}$ : image originale, $\mathbf{y}$ : image tatouée, $\mathbf{v}$ : image reçue
-- $k$ : clé secrète, $m$ : message, $\hat{m}$ : message extrait
-- $S(\mathbf{v}) = \frac{1}{M}\mathbf{v}\cdot\mathbf{w}$ : score de détection (zero-bit)
+$$\boxed{P_{\text{FA}}(\gamma) = Q\!\left(\frac{\gamma}{\sigma_0}\right)}$$
 
-### Hachage perceptuel
+$$\boxed{P_D(\gamma) = Q\!\left(\frac{\gamma - \mu_1}{\sigma_1}\right)}$$
 
-- $\mathbf{b}_x = h(\mathbf{x}, k) \in \{0,1\}^L$
-- Canal BSC : $P(\hat{b}_i \neq b_i) = P_b$
-- Décision de similarité : $d_H(\mathbf{b}_x, \mathbf{b}_y) \leq \tau_H$
+$$\boxed{P_{\text{miss}}(\gamma) = 1 - P_D(\gamma)}$$
+
+## Courbe ROC
+
+- Trace $P_D$ vs $P_{\text{FA}}$ en faisant varier $\gamma$
+- **Idéal** : coin supérieur gauche ($P_D=1$, $P_{\text{FA}}=0$)
+- **Diagonale** = décision aléatoire (pire cas)
+- **AUC** $\in [0.5,\,1]$ → mesure globale de performance
+
+## Stratégies de choix du seuil $\gamma$
+
+### Neyman-Pearson
+
+- Contrainte : $P_{\text{FA}} \leq \alpha$ fixé
+- Objectif : **minimiser $P_{\text{miss}}$**
+- Règle : $\Lambda(\mathbf{y}) = p(\mathbf{y}|H_1)/p(\mathbf{y}|H_0) \gtrless \gamma$
+
+### Bayésienne
+
+$$P_{\text{erreur}} = P_{\text{FA}} \cdot P(H_0) + P_{\text{miss}} \cdot P(H_1)$$
+
+- Cas symétrique ($P(H_0)=P(H_1)=0.5$) :
+
+$$\gamma_{\text{opt}} = \frac{\mu_0 + \mu_1}{2} = \frac{\|\mathbf{w}\|_2^2}{2M}$$
+
+| Stratégie | Contrainte | Objectif |
+|-----------|-----------|---------|
+| Neyman-Pearson | $P_{\text{FA}} = \alpha$ fixé | Min $P_{\text{miss}}$ |
+| Bayésienne | Priors $P(H_0)$, $P(H_1)$ | Min $P_{\text{erreur}}$ |
 
 ---
 
-## Partie 4 — Détection de signaux
+# ⚠️ Pièges Classiques
 
-**Test d'hypothèses :**
+- **PCA sur données non-gaussiennes** → mauvaise représentation → utiliser DL
+- **Mode collapse** en Joint Embedding → utiliser BYOL (EMA), BarlowTwins, VICReg
+- **PSNR élevé ≠ qualité perceptuelle** → WPSNR plus réaliste
+- **Cosine similarity ≠ distance** → ne pas confondre dans les formules
+- **$\sigma_0^2 = \sigma_1^2$** → les deux gaussiennes ont la **même variance** (vérifier dans les calculs)
+- **DFT → magnitude invariante** par translation, **pas la phase**
+- **Block DCT 8×8 ≠ Full-frame DCT** → localisations différentes
 
-| Hypothèse | Modèle | Signification |
-|:----------|:-------|:-------------|
-| $H_0$ | $\mathbf{v} \sim \mathcal{N}(\mathbf{0}, \sigma^2\mathbf{I})$ | Pas de watermark |
-| $H_1$ | $\mathbf{v} \sim \mathcal{N}(\mathbf{s}, \sigma^2\mathbf{I})$ | Watermark présent |
+---
 
-**Statistique de test NP :** $T(\mathbf{v}) = \mathbf{v}^\top \mathbf{s} \underset{H_0}{\overset{H_1}{\gtrless}} \eta$
+# ✅ Checklist de Révision
 
-**Erreurs :**
+## Notations & Images
 
-- $P_{FA}$ : fausse alarme (déclarer $H_1$ alors que $H_0$)
-- $P_\text{miss}$ : manquement (déclarer $H_0$ alors que $H_1$)
-- $P_D = 1 - P_\text{miss}$ : puissance de détection
+- [ ] Je connais la notation $H \times W \times C$ et ce que représente chaque dimension
+- [ ] Je sais calculer MSE et PSNR à partir d'une formule
+- [ ] Je distingue cosine similarity et distance euclidienne
 
-**Courbe ROC :** représente $P_D$ en fonction de $P_{FA}$. AUC = 1 → détecteur parfait ; AUC = 0.5 → aléatoire.
+## Transformées
 
-**BSC :** $P(\hat{b}_i \neq b_i) = P_b$. La distance de Hamming suit une loi binomiale $\mathcal{B}(L, P_b)$ sous $H_1$.
+- [ ] Je connais la propriété d'orthonormalité $T^\top T = \mathbf{I}$
+- [ ] Je sais distinguer les 3 modes de DCT
+- [ ] Je connais l'avantage de DWT sur DCT (localisation spatiale)
+- [ ] Je connais les étapes de PCA et sa limitation principale
+
+## Deep Learning / SSL
+
+- [ ] Je peux écrire la formule d'un encodeur DL $f_\phi$
+- [ ] Je distingue SSL (1 modalité) et WSL (2 modalités)
+- [ ] Je connais les 3 paradigmes d'entraînement (AE, Joint Emb., Joint Emb.-Pred.)
+- [ ] Je sais ce qu'est le mode collapse et comment l'éviter
+
+## Tatouage & Détection
+
+- [ ] Je connais $\mathbf{y} = \phi(\mathbf{x},\mathbf{k})$ et $\mathbf{y} = \phi(\mathbf{x},\mathbf{k},\mathbf{m})$
+- [ ] Je peux écrire le score $S(\mathbf{y})$ de mémoire
+- [ ] Je sais calculer $\mu_0$, $\mu_1$, $\sigma_0^2$, $\sigma_1^2$
+- [ ] Je connais les formules de $P_{\text{FA}}$, $P_D$, $P_{\text{miss}}$
+- [ ] Je distingue stratégie Neyman-Pearson et Bayésienne
+
+---
+
+# ❓ Questions Type Examen
+
+**Q1.** Quelle est la distribution du score $S(\mathbf{y})$ sous $H_0$ ? Donner moyenne et variance.
+
+**Q2.** Calculer le seuil optimal $\gamma_{\text{opt}}$ selon la stratégie bayésienne avec $P(H_0)=P(H_1)=0.5$.
+
+**Q3.** Expliquer la différence entre les 3 modes d'application de la DCT. Quel mode est utilisé dans JPEG ?
+
+**Q4.** Pourquoi la PCA est-elle insuffisante pour des données sur une variété non-linéaire ?
+
+**Q5.** Qu'est-ce que le mode collapse en Self-Supervised Learning ? Donner deux méthodes permettant de l'éviter.
+
+**Q6.** En watermarking zero-bit, que cherche-t-on à détecter ? Écrire le modèle et le score de détection.
+
+**Q7.** Qu'est-ce que la courbe ROC ? Que représente la diagonale ?
+
+**Q8.** Quelle est la différence entre DWT et DCT en termes de localisation de l'information ?
+
+---
+
+> 📌 **Mini-résumé final :**
+> Image ($H \times W \times C$) → Transformée $\mathcal{T}$ (ortho ou DL) → Espace latent $\mathbf{z}$
+> → Embedding robuste via SSL/WSL → Tatouage $\mathbf{y} = \mathbf{x}+\mathbf{w}$ → Score $S = \mathbf{y}^\top\mathbf{w}/M$ → Décision via seuil $\gamma$

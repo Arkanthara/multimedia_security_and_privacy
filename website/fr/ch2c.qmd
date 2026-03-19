@@ -1,403 +1,1161 @@
----
-title: "Chapitre 2 : Notations et Concepts Fondamentaux — Contenu détaillé"
----
-
-*Cours de S. Voloshynovskiy — Université de Genève*
-
----
-
-# Partie 1 : Représentations d'images
-
-## Notations de base
-
-### Représentation tensorielle
-
-Une image numérique est modélisée comme un tenseur à trois dimensions :
-$$\mathbf{x} \in \mathbb{R}^{H \times W \times C}$$
-
-- $H$ : nombre de lignes (hauteur en pixels)
-- $W$ : nombre de colonnes (largeur en pixels)
-- $C$ : nombre de canaux spectraux
-
-Pour une image **RGB** en 8 bits : $C = 3$, $x_{h,w,c} \in \{0, 1, \ldots, 255\}$.
-
-Pour simplifier les calculs, on vectorise souvent l'image :
-$$\mathbf{x} \in \mathbb{R}^N, \quad N = H \times W \times C$$
+> **Objectifs du cours**
+>
+> Ce cours pose les fondations mathématiques et conceptuelles nécessaires
+> pour aborder les quatre grands thèmes du cours MMSEC :
+>
+> - **Tatouage numérique** *(Digital Watermarking)* : intégrer et détecter
+>   des marques robustes dans un contenu.
+> - **Hachage perceptuel** *(Perceptual Hashing)* : générer des représentations
+>   compactes et robustes.
+> - **Robustesse adversariale** *(Adversarial Robustness)* : analyser et se
+>   défendre contre des attaques adversariales.
+> - **Protection de la vie privée** *(Privacy Protection)* : assurer la
+>   confidentialité des données et la conformité réglementaire.
 
 ---
 
-## Métriques de qualité
+# Notations de base et représentation des images
 
-### MSE (Mean Squared Error)
+## Structure d'une image numérique
 
-$$\text{MSE}(\mathbf{x}, \mathbf{y}) = \frac{1}{HWC} \sum_{h=1}^{H} \sum_{w=1}^{W} \sum_{c=1}^{C} (x_{h,w,c} - y_{h,w,c})^2 = \frac{1}{N} \|\mathbf{x} - \mathbf{y}\|_2^2$$
+### Définition et dimensions
 
-### PSNR (Peak Signal-to-Noise Ratio)
+Une image numérique est un tableau de valeurs numériques organisées en
+**hauteur**, **largeur** et **canaux de couleur**.
 
-$$\text{PSNR}(\mathbf{x}, \mathbf{y}) = 10 \log_{10}\!\left(\frac{P_\text{max}^2}{\text{MSE}(\mathbf{x}, \mathbf{y})}\right) \quad [\text{dB}]$$
+On note les dimensions d'une image :
 
-avec $P_\text{max} = 255$ pour des images 8 bits. Un PSNR $> 40\,\text{dB}$ est imperceptible.
+$$H \times W \times C$$
 
-### Similarité cosinus
+où :
 
-$$\text{cos}(\mathbf{u}, \mathbf{v}) = \frac{\mathbf{u} \cdot \mathbf{v}}{\|\mathbf{u}\|_2 \|\mathbf{v}\|_2} = \frac{\sum_i u_i v_i}{\sqrt{\sum_i u_i^2} \cdot \sqrt{\sum_i v_i^2}} \in [-1, 1]$$
+- $H$ : hauteur de l'image (en pixels)
+- $W$ : largeur de l'image (en pixels)
+- $C$ : nombre de canaux de couleur
 
-**Cas particulier :** pour des vecteurs normalisés $\|\mathbf{u}\| = \|\mathbf{v}\| = 1$, la similarité cosinus est égale au produit scalaire.
+  - $C = 1$ pour une image en niveaux de gris *(grayscale)*
+  - $C = 3$ pour une image couleur RGB (Rouge, Vert, Bleu)
+
+Chaque pixel $x_i$ appartient à l'ensemble discret $\mathcal{X}$ défini par :
+
+$$\mathcal{X} = \{0, 1, \ldots, 255\}$$
+
+> **Pourquoi 256 valeurs ?**
+>
+> Chaque pixel est codé sur **8 bits**, ce qui donne $2^8 = 256$ valeurs
+> possibles, allant de $0$ (noir/absence) à $255$ (blanc/maximum).
+
+La **taille totale** d'une image en niveaux de gris est donc :
+
+$$\text{Taille totale} = (H \times W) \times 256$$
+
+Et pour une image RGB :
+
+$$\text{Taille totale} = (H \times W) \times 3 \times 256$$
+
+### Notations symboliques importantes
+
+Voici les principales variables utilisées tout au long du cours :
+
+| Symbole | Signification |
+|---------|--------------|
+| $\mathbf{x}$ | Image originale |
+| $\mathbf{y}$ | Image *stégo* (contenant un tatouage) |
+| $\mathbf{w}$ | Tatouage *(watermark)* |
+| $\mathbf{k}$ | Clé secrète utilisée pour l'intégration ou le décodage |
+| $\mathbf{m}$ | Message multi-bit ($\mathbf{m} \in \{0,1\}^L$, $L$ = longueur du message) |
 
 ---
 
-## Transformées fréquentielles
+## Représentation vectorielle des images
 
-### DCT (Discrete Cosine Transform)
+### Aplatissement d'une image *(Flattening)*
 
-Pour un signal 1D de longueur $N$, la DCT-II est définie par :
-$$X_k = \sum_{n=0}^{N-1} x_n \cos\!\left[\frac{\pi}{N}\left(n + \frac{1}{2}\right)k\right], \quad k = 0, \ldots, N-1$$
+Pour les opérations mathématiques (multiplication matricielle, produit
+scalaire…), on **aplatit** l'image en un vecteur colonne.
 
-**Trois approches pour les images :**
+Pour une image en niveaux de gris :
 
-1. **Full-frame DCT** : appliquée à l'image entière $H \times W$
-2. **Block-wise DCT (8×8)** : standard JPEG — image découpée en blocs $8 \times 8$ pixels
-3. **Tensor DCT** : appliquée séparément sur chaque dimension du tenseur
+$$\mathbf{x} \in \mathbb{R}^{H \cdot W}$$
 
-```{.cetz}
-#cetz.canvas({
-  import cetz.draw: *
+où $M = H \cdot W$ représente le nombre total de pixels.
 
-  // Image originale
-  rect((0.0, 3.0), (2.5, 5.5), fill: luma(85%), stroke: luma(40%))
-  content((1.25, 4.25), [*Image*])
-  content((1.25, 3.7), [$H times W$])
+Pour une image RGB :
 
-  // Flèche vers DCT full-frame
-  line((2.5, 5.0), (4.0, 5.0), mark: (end: ">"))
-  content((3.25, 5.3), [full])
-  rect((4.0, 4.5), (6.5, 5.5), fill: blue.lighten(70%), stroke: blue.darken(20%))
-  content((5.25, 5.0), [*DCT*])
+$$\mathbf{x}_{\text{RGB}} \in \mathbb{R}^{3 \cdot H \cdot W}$$
 
-  // Flèche vers DCT 8x8
-  line((2.5, 4.25), (4.0, 4.25), mark: (end: ">"))
-  content((3.25, 4.55), [8×8])
-  rect((4.0, 3.75), (6.5, 4.75), fill: blue.lighten(70%), stroke: blue.darken(20%))
-  content((5.25, 4.25), [*DCT blocs*])
+> **Note pratique (Python)**
+>
+> En Python (NumPy, PyTorch…), la notation en gras $\mathbf{x}$ n'existe
+> pas directement. C'est le **contexte** qui précise la dimension de la
+> variable (scalaire, vecteur, matrice ou tenseur).
 
-  // Flèche vers DCT tensor
-  line((2.5, 3.5), (4.0, 3.5), mark: (end: ">"))
-  content((3.25, 3.8), [tensor])
-  rect((4.0, 3.0), (6.5, 4.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
-  content((5.25, 3.5), [*DCT tensor*])
+---
 
-  // Coefficients communs
-  rect((7.0, 3.0), (10.0, 5.5), fill: orange.lighten(70%), stroke: orange.darken(20%))
-  content((8.5, 4.5), [*Coefficients*])
-  content((8.5, 4.0), [*fréquentiels*])
-  content((8.5, 3.5), [$bold(upright(X)) in bb(R)^(H times W)$])
+## Sources et acquisition des images modernes
 
-  line((6.5, 5.0), (7.0, 4.5), mark: (end: ">"))
-  line((6.5, 4.25), (7.0, 4.25), mark: (end: ">"))
-  line((6.5, 3.5), (7.0, 4.0), mark: (end: ">"))
-})
+### Résolutions typiques
+
+Les images modernes proviennent principalement de **capteurs mobiles** :
+
+- Smartphones courants : **12–24 mégapixels (MP)**
+- Certains modèles Samsung : jusqu'à **108 MP**
+
+### Du capteur à l'image RGB : le démosaïquage
+
+Les capteurs d'image n'enregistrent pas directement des images RGB. Ils
+utilisent une **matrice de Bayer** (mosaïque de filtres colorés) qui ne
+capte qu'une couleur par photosite.
+
+Le processus de **démosaïquage** *(demosaicing)* consiste à :
+
+1. Lire la valeur brute de chaque photosite (rouge, vert ou bleu selon sa
+   position dans la matrice de Bayer).
+2. **Interpoler** les couleurs manquantes pour chaque pixel en utilisant
+   les valeurs voisines.
+3. Produire une image RGB complète de dimensions $H \times W \times 3$.
+
+> **Règle** : à l'entrée de tous les algorithmes de ce cours, on suppose
+> que l'image est une **image RGB de taille $H \times W \times 3$**.
+
+---
+
+## Métriques de qualité perceptuelle
+
+Lorsqu'on modifie une image (compression, tatouage, bruit…), il est
+essentiel de **mesurer la dégradation** introduite. On utilise pour cela
+des métriques mathématiques.
+
+### Mean Squared Error (MSE)
+
+La **Mean Squared Error** mesure l'erreur quadratique moyenne entre
+l'image originale $\mathbf{x}$ et l'image modifiée $\mathbf{y}$ :
+
+$$\text{MSE}(\mathbf{x}, \mathbf{y}) = \frac{1}{M} \|\mathbf{x} - \mathbf{y}\|_2^2$$
+
+où $M = H \times W$ est le nombre de pixels.
+
+> **Interprétation** : plus le MSE est faible, plus les deux images sont
+> similaires. Un MSE de $0$ signifie que les images sont identiques.
+
+### Peak Signal-to-Noise Ratio (PSNR)
+
+Le **PSNR** exprime le rapport entre la valeur maximale du signal et
+l'erreur introduite, en **décibels (dB)** :
+
+$$\text{PSNR} = 10 \cdot \log_{10}\!\left(\frac{\text{MAX}^2}{\text{MSE}(\mathbf{x}, \mathbf{y})}\right)$$
+
+où $\text{MAX} = 255$ pour une image 8 bits.
+
+> **Valeurs typiques** :
+>
+> - PSNR > 40 dB : très bonne qualité (dégradation imperceptible)
+> - 30–40 dB : bonne qualité
+> - < 30 dB : dégradation visible
+
+### Métriques pondérées : WMSE et WPSNR
+
+Le **Weighted MSE** (WMSE) introduit des **poids $w_i$** pour tenir
+compte du fait que certaines zones d'une image sont plus sensibles que
+d'autres à la dégradation (par exemple, les zones texturées masquent
+mieux le bruit) :
+
+$$\text{WMSE}(\mathbf{x}, \mathbf{y}) = \frac{1}{M} \sum_{i=1}^{M} w_i \cdot (x_i - y_i)^2$$
+
+Le **Weighted PSNR** (WPSNR) en découle directement :
+
+$$\text{WPSNR} = 10 \cdot \log_{10}\!\left(\frac{\text{MAX}^2}{\text{WMSE}(\mathbf{x}, \mathbf{y})}\right)$$
+
+> La fonction de pondération $w_i$ sera définie plus précisément dans les
+> chapitres suivants, notamment dans le contexte du tatouage numérique.
+
+---
+
+## Métriques de similarité vectorielle
+
+Au-delà de la qualité d'image, on a souvent besoin de mesurer la
+**proximité entre deux vecteurs** (par exemple, deux embeddings issus
+d'un réseau de neurones).
+
+### Produit scalaire *(Inner Product)*
+
+Le **produit scalaire** entre deux vecteurs $\mathbf{x}$ et $\mathbf{y}$
+est :
+
+$$\mathbf{x}^T \mathbf{y} = \sum_{i=1}^{M} x_i y_i$$
+
+C'est une mesure de **projection** : il est élevé quand les deux vecteurs
+pointent dans la même direction.
+
+### Similarité cosinus *(Cosine Similarity)*
+
+La **similarité cosinus** normalise le produit scalaire par les normes
+des deux vecteurs, ce qui la rend **invariante à l'échelle** :
+
+$$\cos(\theta) = \frac{\mathbf{x}^T \mathbf{y}}{\|\mathbf{x}\| \, \|\mathbf{y}\|}$$
+
+où $\theta$ est l'angle entre les deux vecteurs.
+
+- $\cos(\theta) = 1$ : vecteurs identiques (angle nul)
+- $\cos(\theta) = 0$ : vecteurs orthogonaux (aucune corrélation)
+- $\cos(\theta) = -1$ : vecteurs opposés
+
+La **distance euclidienne** entre deux vecteurs est quant à elle
+$\|\mathbf{x} - \mathbf{y}\|_2$.
+
+> **Analogie géométrique** : imaginons deux vecteurs dans un plan 2D.
+> Le produit scalaire mesure à quel point ils "pointent dans le même
+> sens", tandis que la distance euclidienne mesure la longueur du segment
+> qui les relie.
+
+---
+
+## Représentations dans les domaines transformés
+
+Un point fondamental de ce cours est qu'on ne travaille pas toujours
+**directement sur les pixels**. On peut transformer l'image dans un autre
+**domaine**, mieux adapté au traitement souhaité.
+
+### Vue d'ensemble des transformations
+
+Quatre grandes familles de transformations sont utilisées :
+
+1. **Décomposition en plans de bits** *(Bit-Plane Decomposition)* :
+   représentation binaire des pixels.
+2. **Transformées orthogonales** : DFT, DCT, DWT — transformées
+   mathématiques classiques.
+3. **Transformées apprenables linéaires** : PCA — dérivées des données.
+4. **Transformées ML/DL** : réseaux de neurones profonds — invariantes aux
+   transformations géométriques et de traitement.
+
+La notation générale d'une transformation est :
+
+$$\mathbf{z} = \mathcal{T}(\mathbf{x}), \qquad \mathbf{x} = \mathcal{T}^{-1}(\mathbf{z})$$
+
+---
+
+### Décomposition en plans de bits *(Bit-Plane Decomposition)*
+
+#### Principe
+
+Chaque pixel d'une image 8 bits peut être **décomposé en 8 bits**
+individuels. Un pixel $x$ s'écrit :
+
+$$x = x_0 \cdot 2^0 + x_1 \cdot 2^1 + x_2 \cdot 2^2 + \ldots + x_7 \cdot 2^7$$
+
+où $x_i \in \{0, 1\}$ est le $i$-ème bit du pixel.
+
+Cette décomposition produit **8 images binaires** (un plan par bit),
+allant du **LSB** *(Least Significant Bit, bit 0)* au **MSB**
+*(Most Significant Bit, bit 7)*.
+
+#### Représentation tensorielle
+
+La décomposition s'écrit schématiquement :
+
+$$\mathbf{x} \xrightarrow{\mathcal{T}} \mathbf{z} \quad (\text{tenseur } H \times W \times 8)$$
+
+On peut reconstruire l'image originale par la transformation inverse
+$\mathcal{T}^{-1}$.
+
+#### Applications
+
+- **Compression** : les bits de faible poids contribuent peu à la qualité
+  visuelle et peuvent être supprimés.
+- **Tatouage** : modifier les LSBs pour cacher une information (tatouage
+  spatial dans les LSBs).
+- **Analyse** : visualiser la structure spatiale à différents niveaux de
+  précision.
+
+---
+
+### Transformées orthogonales
+
+#### Propriétés générales
+
+Une transformée orthogonale $\mathcal{T}$ est définie par une matrice $T$
+vérifiant la propriété **d'orthonormalité** :
+
+$$T^\top T = T T^\top = \mathbf{I}$$
+
+Cette propriété garantit :
+
+- **Inversibilité parfaite** : on peut reconstruire exactement l'image
+  d'origine.
+- **Conservation de l'énergie** *(Parseval's theorem)* : l'énergie totale
+  est préservée lors de la transformation.
+
+---
+
+#### Discrete Fourier Transform (DFT)
+
+La **DFT** décompose un signal en ses **composantes fréquentielles
+complexes**.
+
+**Formule** (1D) :
+
+$$z[k] = \sum_{n=0}^{N-1} x[n] \cdot e^{-j2\pi kn/N}, \quad k = 0, \ldots, N-1$$
+
+**Transformée inverse** :
+
+$$x[n] = \frac{1}{N} \sum_{k=0}^{N-1} z[k] \cdot e^{j2\pi kn/N}$$
+
+**Propriétés clés** :
+
+- **Linéarité** : $\mathcal{T}(ax + by) = a\mathcal{T}(x) + b\mathcal{T}(y)$
+- **Conservation de l'énergie** : $\sum_n |x[n]|^2 = \frac{1}{N}\sum_k |z[k]|^2$
+- **Périodicité** : la DFT est périodique de période $N$
+- **Invariance par translation** : le **spectre de magnitude**
+  $|z[k]|$ est invariant par translation spatiale
+
+**Représentation 2D** : pour une image, la DFT 2D produit deux
+composantes :
+
+- Le **spectre de magnitude** (information sur les fréquences présentes)
+- Le **spectre de phase** (information sur la localisation spatiale)
+
+Ces deux composantes forment un **tenseur** $\mathbf{z}$ de taille
+$H \times W \times 2$.
+
+**Applications** :
+
+- Analyse fréquentielle d'un signal
+- Filtrage et débruitage
+- Détection de motifs périodiques
+
+---
+
+#### Discrete Cosine Transform (DCT)
+
+La **DCT** est similaire à la DFT mais travaille avec des **cosinus réels**
+(pas de partie complexe), ce qui la rend particulièrement adaptée à la
+**compression**.
+
+**Formule** (1D) :
+
+$$z[k] = \alpha_k \sum_{n=0}^{N-1} x[n] \cdot \cos\!\left(\frac{\pi}{N}(n+0.5)k\right)$$
+
+**Transformée inverse** :
+
+$$x[n] = \sum_{k=0}^{N-1} \alpha_k z[k] \cdot \cos\!\left(\frac{\pi}{N}(n+0.5)k\right)$$
+
+avec le facteur de normalisation :
+
+$$\alpha_k = \begin{cases} \sqrt{\frac{1}{N}} & \text{si } k = 0 \\ \sqrt{\frac{2}{N}} & \text{sinon} \end{cases}$$
+
+##### Trois façons d'appliquer la DCT à une image
+
+**1. DCT globale *(Full-Frame DCT)***
+
+La DCT est appliquée à **toute l'image** en une seule fois :
+
+$$\mathbf{z} = \text{DCT}(\mathbf{x}), \quad \mathbf{x} \in \mathbb{R}^{H \times W}$$
+
+*Avantage* : information fréquentielle globale.
+*Inconvénient* : coût calcul élevé pour les grandes images.
+
+**2. DCT par blocs *(Block-Wise DCT, ex. 8×8)***
+
+L'image est découpée en **blocs non-chevauchants de taille 8×8**, et la
+DCT est appliquée indépendamment à chaque bloc :
+
+$$\mathbf{z}_{i,j} = \text{DCT}(\mathbf{x}_{i,j}), \quad \mathbf{x}_{i,j} \in \mathbb{R}^{8 \times 8}$$
+
+*Utilisé dans* : **JPEG** et **MPEG**. Information fréquentielle locale.
+
+**3. DCT tensorielle *(Sampling-Based DCT)***
+
+L'image est sous-échantillonnée tous les 8 pixels pour créer 64 images
+de taille $H/8 \times W/8$, puis la DCT est appliquée à chacune :
+
+$$\mathbf{z}_{i,j} = \text{DCT}(\mathbf{x}^{(i,j)}), \quad \mathbf{x}^{(i,j)} \in \mathbb{R}^{H/8 \times W/8}$$
+
+*Résultat* : un **tenseur** $\mathbf{z}$ qui capture le contenu fréquentiel
+des images sous-échantillonnées.
+
+**Applications de la DCT** :
+
+- Compression JPEG et MPEG
+- Forensique multimédia
+- Tatouage et recherche par contenu
+
+---
+
+#### Discrete Wavelet Transform (DWT)
+
+La **DWT** décompose un signal en appliquant récursivement des
+**filtres passe-bas** (partie lisse) et **passe-haut** (détails) :
+
+$$\mathbf{z} = \mathcal{T}(\mathbf{x})$$
+
+où $\mathcal{T}$ applique alternativement un filtre passe-bas (mise à
+l'échelle) et un filtre passe-haut (ondelettes).
+
+**Propriétés clés** :
+
+- **Analyse multi-résolution** : capture les détails à différentes échelles
+- **Conservation de l'énergie** : le signal est parfaitement préservé
+- **Support compact** *(Compact Support)* : information localisée à la
+  fois en temps/espace ET en fréquence
+- **Réversibilité** : reconstruction parfaite via la DWT inverse
+
+> **Avantage sur la DCT** : contrairement à la DCT qui donne une
+> information purement fréquentielle (sans localisation spatiale), la DWT
+> indique **où** et **à quelle fréquence** les structures apparaissent.
+
+**Applications de la DWT** :
+
+- Compression JPEG 2000
+- Débruitage de signaux et d'audio
+- Extraction de caractéristiques pour la reconnaissance de formes
+
+---
+
+### Transformées apprenables linéaires : PCA
+
+#### Motivation
+
+Les transformées orthogonales classiques (DFT, DCT) sont **définies
+mathématiquement a priori**. L'**Analyse en Composantes Principales**
+*(Principal Component Analysis, PCA)* est différente : la transformée
+est **apprise à partir des données**.
+
+#### Définition
+
+Comme les transformées précédentes, la PCA suit le schéma général :
+
+$$\mathbf{z} = \mathcal{T}(\mathbf{x}), \quad \mathbf{x} = \mathcal{T}^{-1}(\mathbf{z})$$
+
+mais ici $\mathcal{T}$ est **linéaire** et **dérivée des données**.
+
+#### Algorithme PCA en 5 étapes
+
+**Étape 1 — Collecte des données** : rassembler $N$ échantillons
+$\mathbf{x}_1, \mathbf{x}_2, \ldots, \mathbf{x}_N$.
+
+**Étape 2 — Calcul de la moyenne** :
+
+$$\bar{\mathbf{x}} = \frac{1}{N} \sum_{i=1}^{N} \mathbf{x}_i$$
+
+**Étape 3 — Centrage des données** :
+
+$$\mathbf{x}'_i = \mathbf{x}_i - \bar{\mathbf{x}}$$
+
+**Étape 4 — Calcul de la matrice de covariance** :
+
+$$\mathbf{K}_{\mathbf{xx}} = \frac{1}{N} \sum_{i=1}^{N} \mathbf{x}'_i {\mathbf{x}'_i}^\top$$
+
+**Étape 5 — Décomposition en valeurs propres** :
+
+$$\mathbf{K}_{\mathbf{xx}} = \mathbf{U} \mathbf{\Sigma} \mathbf{U}^\top$$
+
+où $\mathbf{U}$ contient les **vecteurs propres** (directions principales)
+et $\mathbf{\Sigma}$ est une matrice diagonale de **valeurs propres**.
+
+#### Transformation et reconstruction
+
+La **projection** dans l'espace PCA s'écrit :
+
+$$\mathbf{z} = \mathbf{U}^\top \mathbf{x} \qquad [\text{i.e. } \mathcal{T}(\mathbf{x}) = \mathbf{U}^\top \mathbf{x}]$$
+
+La **reconstruction** :
+
+$$\mathbf{x} = \mathbf{U} \mathbf{z} \qquad [\text{i.e. } \mathcal{T}^{-1}(\mathbf{z}) = \mathbf{U}\mathbf{z}]$$
+
+La matrice $\mathbf{U}$ vérifie la propriété d'orthonormalité :
+
+$$\mathbf{U}^\top \mathbf{U} = \mathbf{U}\mathbf{U}^\top = \mathbf{I}$$
+
+#### Usages et limites de la PCA
+
+**Usages** :
+
+- **Décorrélation des données** : les composantes principales sont
+  statistiquement indépendantes.
+- **Compaction** : l'énergie se concentre sur les premières composantes.
+- **Réduction de dimension** : on peut projeter les données dans un
+  sous-espace de dimension réduite $K < M$ en ne gardant que les $K$
+  premiers vecteurs propres.
+
+**Limitations** :
+
+> ⚠️ La PCA suppose que les données suivent approximativement une
+> **distribution gaussienne multidimensionnelle**. Si les données
+> résident sur une **variété non-linéaire** (manifold non-linéaire),
+> la PCA ne peut pas capturer leur structure réelle.
+>
+> Dans ce cas, on fait appel aux **transformées profondes** (deep learning).
+
+---
+
+### Transformées apprenables non-linéaires : ML/DL
+
+#### Au-delà de la PCA
+
+Les techniques de **deep learning** apprennent des transformées
+**non-linéaires** capables de capturer des structures bien plus complexes
+que la PCA.
+
+Ces transformées sont conçues pour produire un **espace latent** qui est :
+
+- **Représentatif** : capture les caractéristiques sémantiques des données.
+- **Robuste** : résistant au bruit et aux variations.
+- **Invariant** : stable face aux transformations géométriques (rotation,
+  zoom…) et de traitement (compression, bruit…).
+
+**Différences clés avec la PCA** :
+
+- **Pas d'inverse analytique** : contrairement aux transformées orthogonales,
+  on ne peut pas reconstruire parfaitement l'image depuis l'espace latent
+  (en général).
+- **Décodeur apprenable** : la reconstruction nécessite un décodeur
+  entraîné, qui fait partie du modèle.
+
+**Exemples de modèles** :
+
+- **CNN** *(Convolutional Neural Networks)* : extraction de caractéristiques
+  spatiales.
+- **Self-Supervised Learning (SSL)** : représentations invariantes sans
+  labels.
+- **Foundation Models** : modèles pré-entraînés sur de grands corpus,
+  réutilisables pour de nombreuses tâches.
+
+**Applications** :
+
+- Recherche d'image par contenu
+- Tatouage numérique robuste
+- Hachage perceptuel
+- Sécurité multimédia robuste
+
+---
+
+# Fondements du Deep Learning : Self-Supervised Learning pour l'extraction de caractéristiques
+
+## Foundation Models et représentations latentes
+
+### Le concept de Foundation Model
+
+Un **Foundation Model** est un grand modèle de deep learning pré-entraîné
+sur d'immenses quantités de données, puis réutilisé pour de nombreuses
+tâches en aval *(downstream tasks)*.
+
+Du point de vue des transformées, un Foundation Model joue le rôle
+d'un **encodeur/plongeur** *(embedder/encoder)* :
+
+$$\mathbf{x} \xrightarrow{f_{\phi_x}} \mathbf{z}_x$$
+
+où :
+
+- $\mathbf{x}$ : image d'entrée
+- $f_{\phi_x}$ : encodeur paramétré par $\phi_x$ (poids du réseau)
+- $\mathbf{z}_x$ : **représentation latente** *(latent representation)*,
+  aussi appelée *embedding*
+
+La représentation $\mathbf{z}_x$ peut être un **tenseur** (features maps
+spatiales) ou un **vecteur** (token `[CLS]` pour les Transformers).
+
+> **Analogie avec les transformées classiques** : tout comme la DCT
+> transforme $\mathbf{x}$ en coefficients fréquentiels $\mathbf{z}$,
+> l'encodeur transforme $\mathbf{x}$ en une représentation abstraite
+> $\mathbf{z}_x$ dans un espace latent appris.
+
+---
+
+## Composantes d'un encodeur de réseau de neurones profond
+
+### Structure générale
+
+Un encodeur de réseau de neurones profond est une fonction composée de $K$
+couches :
+
+$$f_\phi(\mathbf{x}) = \sigma_K\!\left(\mathbf{W}_K \ldots \left(\sigma_1(\mathbf{W}_1 \mathbf{x} + \mathbf{b}_1)\right) + \mathbf{b}_K\right)$$
+
+avec $\phi = \{\mathbf{W}_1, \ldots, \mathbf{W}_K;\, \mathbf{b}_1, \ldots, \mathbf{b}_K\}$ l'ensemble des paramètres apprenables.
+
+Les composantes de chaque couche sont :
+
+- $\mathbf{W}_i$ : **matrice de poids** — transformation linéaire
+- $\sigma_i$ : **fonction d'activation non-linéaire** (ReLU, sigmoid, GELU…)
+- $\mathbf{b}_i$ : **biais** — décalage de l'activation
+
+#### Pourquoi les non-linéarités sont indispensables ?
+
+Sans les fonctions d'activation $\sigma_i$, la composition de couches
+linéaires resterait une **transformation linéaire** (comme PCA). Les
+non-linéarités permettent d'apprendre des structures arbitrairement
+complexes, notamment sur des variétés non-linéaires.
+
+---
+
+### Réseaux de neurones convolutifs *(CNN)*
+
+Un CNN applique un **filtre glissant** *(sliding window)* sur l'image :
+
+1. Un filtre $\mathbf{W}_{\text{filter}}$ de petite taille (typiquement
+   $3\times3$ ou $5\times5$) se déplace sur l'image.
+2. À chaque position, il effectue une **multiplication élément par
+   élément** et une **somme** entre le filtre et le patch local.
+3. Le résultat est stocké dans une **carte de features** *(feature map)*.
+
+**Propriété clé** : les poids du filtre sont **partagés** sur toute
+l'image *(weight sharing)*, ce qui :
+
+- Réduit drastiquement le nombre de paramètres
+- Confère une **invariance par translation** au détecteur
+
+---
+
+### Transformers et découpage en patches *(Image Patching)*
+
+Les architectures Transformer pour la vision (ViT — Vision Transformer)
+fonctionnent différemment des CNN :
+
+1. L'image est divisée en **patches non-chevauchants** (ex. $16\times16$
+   pixels).
+2. Chaque patch est **projeté linéairement** pour former un **token**.
+3. La séquence de tokens est traitée par le mécanisme d'**attention**
+   *(self-attention)*.
+
+> **Résultat** : un token spécial `[CLS]` (classification token) agrège
+> l'information globale de l'image, et peut être utilisé comme
+> représentation globale $\mathbf{z}_x$ de l'image.
+
+---
+
+## Paradigmes d'apprentissage des représentations
+
+### Self-Supervised Learning (SSL)
+
+#### Principe
+
+Le **Self-Supervised Learning** apprend des représentations à partir
+d'une **seule modalité** (ex. images), **sans labels humains**.
+
+L'idée clé : créer des **paires d'apprentissage** en appliquant des
+**augmentations** à une même image $\mathbf{x}_0$.
+
+**Processus** :
+
+1. Partir d'une image $\mathbf{x}_0$.
+2. Appliquer deux transformations aléatoires (recadrage, rotation,
+   changement de couleur…) pour obtenir deux vues augmentées.
+3. Encoder chaque vue :
+
+$$\mathbf{y}_1 = f_\phi(\text{augment}(\mathbf{x}_0)), \qquad \mathbf{y}_2 = f_\phi(\text{augment}(\mathbf{x}_0))$$
+
+4. **Maximiser la similarité** entre $\mathbf{y}_1$ et $\mathbf{y}_2$
+   (elles proviennent de la même image).
+
+**Avantages** :
+
+- Pas de labels nécessaires
+- Les augmentations jouent le rôle de pseudo-labels
+- Produit un espace latent **robuste** et **représentatif**
+
+---
+
+### Weakly Supervised Learning (WSL)
+
+#### Principe
+
+Le **WSL** apprend des représentations à partir de **deux modalités**
+faiblement alignées (ex. image + texte).
+
+**Exemple** : paires image-légende $(x_0, z)$ tirées de la distribution
+jointe $p(\mathbf{x}_0, \mathbf{z})$ (ex. images Instagram avec leurs
+légendes).
+
+**Processus** :
+
+1. Encoder l'image : $\mathbf{y}_x = f_\phi(\mathbf{x}_0)$
+2. Encoder le texte : $\mathbf{y}_z = f_\phi(\mathbf{z})$
+3. **Aligner** $\mathbf{y}_x$ et $\mathbf{y}_z$ dans l'espace latent en
+   maximisant la similarité des paires correspondantes.
+
+**Applications** :
+
+- Génération automatique de légendes *(image captioning)*
+- Recherche cross-modale (retrouver une image à partir d'un texte)
+
+---
+
+## Architectures d'entraînement des Foundation Models
+
+Les Foundation Models peuvent être entraînés selon trois paradigmes
+principaux, chacun avec des compromis distincts.
+
+### Embedding-Reconstruction (AE — Autoencoders)
+
+**Principe** : l'encodeur $f_{\psi_x}$ encode l'image masquée/bruitée
+$\mathbf{x}_+$, et un décodeur $g_{\theta_x}$ reconstruit l'image
+originale $\mathbf{x}$ :
+
+$$\hat{\mathbf{x}}_+ = g_{\theta_x}(f_{\psi_x}(\mathbf{x}_+))$$
+
+**Perte d'entraînement** :
+
+$$\mathcal{L}_x(\mathbf{x}, \hat{\mathbf{x}}_+)$$
+
+**Avantages** :
+
+- Pas d'effondrement de mode *(mode collapse)*
+
+**Inconvénients** :
+
+- Complexité calculatoire élevée
+- Pas de bonne fonction de perte dans l'espace des pixels
+
+**Exemples** : Denoising Autoencoder, MAE *(Masked Autoencoder)*
+
+---
+
+### Joint Embedding
+
+**Principe** : deux vues de la même image sont encodées, et la
+**similarité entre leurs représentations** est maximisée :
+
+$$\mathcal{L}_y(\tilde{\mathbf{y}}_x, \tilde{\mathbf{y}}_{x_+})$$
+
+**Avantages** :
+
+- Faible complexité calculatoire
+- Bonnes fonctions de perte dans l'espace latent
+
+**Inconvénients** :
+
+- Risque d'**effondrement de mode** (le réseau apprend à tout mapper sur
+  un même vecteur)
+
+**Exemples** : SimCLR, BYOL, SwAV, MSN, DINO, VICReg, BarlowTwins
+
+---
+
+### Joint Embedding-Prediction
+
+**Principe** : une variante du joint embedding où un **prédicteur**
+$p_{\eta_x}$ essaie de prédire la représentation d'une vue à partir de
+l'autre :
+
+$$\mathcal{L}_y(\tilde{\mathbf{y}}_x, \hat{\mathbf{y}}_{x_+})$$
+
+où $\hat{\mathbf{y}}_{x_+} = p_{\eta_x}(\tilde{\mathbf{y}}_{x_+})$.
+
+**Avantages** :
+
+- Complexité relativement faible
+- Bonnes fonctions de perte dans l'espace latent
+
+**Exemples** : I-JEPA, World Model
+
+---
+
+### Architectures hybrides
+
+Les architectures hybrides combinent la reconstruction dans l'espace
+des pixels ET la similarité dans l'espace latent :
+
+**Exemples** : CAN, CAE, CMAE, BEiT
+
+---
+
+### Foundation Models multimodaux (WSL)
+
+Pour les architectures **multimodales** (image + texte) :
+
+**Principe** : encodeur image $f_{\phi_x}$ et encodeur texte $f_{\psi_z}$
+sont entraînés conjointement pour aligner les représentations de paires
+image-texte :
+
+$$\mathcal{L}_y(\tilde{\mathbf{y}}_x, \tilde{\mathbf{y}}_z)$$
+
+**Exemples** : CLIP, GLIP, BLIP, SigLIP, CoCa, ALIGN
+
+---
+
+# Notations pour le tatouage numérique et le hachage perceptuel
+
+## Tatouage numérique *(Digital Watermarking)*
+
+Le **tatouage numérique** consiste à intégrer une information (la
+marque ou le message) dans une image, de manière **imperceptible** et
+**robuste** aux attaques.
+
+### Tatouage zéro-bit *(Zero-bit Watermarking)*
+
+Le tatouage zéro-bit vérifie simplement si une marque est **présente ou
+absente** dans l'image. La fonction d'intégration est :
+
+$$\mathbf{y} = \phi(\mathbf{x}, \mathbf{k})$$
+
+où :
+
+- $\mathbf{x}$ : image originale
+- $\mathbf{k}$ : clé secrète
+- $\mathbf{y}$ : image stégo (marquée)
+
+### Tatouage multi-bit *(Multi-bit Watermarking)*
+
+Le tatouage multi-bit intègre un **message** $\mathbf{m} \in \{0,1\}^L$
+(chaîne de $L$ bits) :
+
+$$\mathbf{y} = \phi(\mathbf{x}, \mathbf{k}, \mathbf{m})$$
+
+> L'image stégo $\mathbf{y}$ contient le message $\mathbf{m}$ de façon
+> cachée. Un détecteur peut, à partir de $\mathbf{y}$ et de $\mathbf{k}$,
+> **décoder** le message $\mathbf{m}$ ou simplement **détecter** la
+> présence de la marque.
+
+---
+
+# Fondements de la détection de signal dans le bruit
+
+Ce chapitre pose les bases mathématiques de la **détection de tatouage**,
+modélisée comme un problème de **test d'hypothèses statistiques**.
+
+## Formulation du problème de détection
+
+### Les deux hypothèses
+
+Dans le problème de détection de tatouage, on cherche à déterminer si
+une image observée $\mathbf{y}$ contient ou non une marque $\mathbf{w}$ :
+
+- $H_0$ : **pas de tatouage** — $\mathbf{y} = \mathbf{x}$
+- $H_1$ : **tatouage présent** — $\mathbf{y} = \mathbf{x} + \mathbf{w}$
+
+### Hypothèses du modèle
+
+Pour dériver les statistiques du détecteur, on suppose :
+
+- $\mathbf{x}$ est un vecteur gaussien de moyenne nulle avec matrice de
+  covariance $\sigma_x^2 \mathbf{I}_M$ (pixels i.i.d.)
+- $\mathbf{w}$ est un tatouage **connu** avec $\|\mathbf{w}\|_2^2 = E_w$
+  (énergie fixée)
+- $\mathbf{y}$ est le vecteur observé
+
+---
+
+## Définition du score de détection
+
+### Rapport de vraisemblance *(Likelihood Ratio)*
+
+Le **détecteur optimal** (au sens de Neyman-Pearson) compare le rapport
+de vraisemblance à un seuil :
+
+$$\Lambda(\mathbf{y}) = \frac{p(\mathbf{y}|H_1)}{p(\mathbf{y}|H_0)} \underset{H_0}{\overset{H_1}{\gtrless}} \gamma$$
+
+En substituant les densités gaussiennes :
+
+$$p(\mathbf{y}|H_0) = \frac{1}{(2\pi\sigma_x^2)^{M/2}} \exp\!\left(-\frac{\mathbf{y}^\top \mathbf{y}}{2\sigma_x^2}\right)$$
+
+$$p(\mathbf{y}|H_1) = \frac{1}{(2\pi\sigma_x^2)^{M/2}} \exp\!\left(-\frac{(\mathbf{y}-\mathbf{w})^\top(\mathbf{y}-\mathbf{w})}{2\sigma_x^2}\right)$$
+
+Le **log-rapport de vraisemblance** simplifié donne :
+
+$$\ln \Lambda(\mathbf{y}) = \frac{2\mathbf{y}^\top \mathbf{w} - \mathbf{w}^\top \mathbf{w}}{2\sigma_x^2}$$
+
+### Score normalisé
+
+Le terme dominant est le **produit scalaire** entre l'image observée et le
+tatouage. On définit le **score de détection** :
+
+$$\boxed{S(\mathbf{y}) = \frac{1}{M} \mathbf{y}^\top \mathbf{w}}$$
+
+> **Interprétation intuitive** : le score mesure la **corrélation
+> normalisée** entre l'image observée $\mathbf{y}$ et le tatouage
+> $\mathbf{w}$. Si $\mathbf{y}$ contient $\mathbf{w}$, cette corrélation
+> sera naturellement plus élevée que si $\mathbf{y}$ est une image
+> non-marquée.
+
+---
+
+## Distributions du score sous les deux hypothèses
+
+### Distribution sous $H_0$ (pas de tatouage)
+
+Sous $H_0$, $\mathbf{y} = \mathbf{x}$, donc :
+
+$$S(\mathbf{y}) = \frac{1}{M} \mathbf{x}^\top \mathbf{w}$$
+
+**Calcul de la moyenne** :
+
+Puisque $\mathbf{x}$ est de moyenne nulle ($\mathbb{E}[\mathbf{x}] = 0$) :
+
+$$\mu_0 = \mathbb{E}[S(\mathbf{y})|H_0] = \frac{1}{M}\mathbf{w}^\top \mathbb{E}[\mathbf{x}] = 0$$
+
+**Calcul de la variance** :
+
+$\mathbf{w}^\top \mathbf{x}$ est une combinaison linéaire de variables
+gaussiennes, donc $\mathbf{w}^\top \mathbf{x} \sim \mathcal{N}(0,\, \|\mathbf{w}\|_2^2 \sigma_x^2)$, d'où :
+
+$$\sigma_0^2 = \text{Var}(S(\mathbf{y})|H_0) = \frac{\|\mathbf{w}\|_2^2 \sigma_x^2}{M^2}$$
+
+$$\Rightarrow \quad S(\mathbf{y}) \sim \mathcal{N}\!\left(0,\; \frac{\|\mathbf{w}\|_2^2 \sigma_x^2}{M^2}\right) \quad \text{sous } H_0$$
+
+---
+
+### Distribution sous $H_1$ (tatouage présent)
+
+Sous $H_1$, $\mathbf{y} = \mathbf{x} + \mathbf{w}$, donc :
+
+$$S(\mathbf{y}) = \frac{1}{M}(\mathbf{x} + \mathbf{w})^\top \mathbf{w}$$
+
+**Calcul de la moyenne** :
+
+$$\mu_1 = \mathbb{E}[S(\mathbf{y})|H_1] = \frac{1}{M}\!\left(\underbrace{\mathbb{E}[\mathbf{x}^\top \mathbf{w}]}_{=0} + \mathbb{E}[\mathbf{w}^\top \mathbf{w}]\right) = \frac{\|\mathbf{w}\|_2^2}{M}$$
+
+**Calcul de la variance** :
+
+Le terme stochastique reste $\frac{1}{M}\mathbf{x}^\top \mathbf{w}$
+(identique au cas $H_0$) :
+
+$$\sigma_1^2 = \text{Var}(S(\mathbf{y})|H_1) = \frac{\|\mathbf{w}\|_2^2 \sigma_x^2}{M^2}$$
+
+$$\Rightarrow \quad S(\mathbf{y}) \sim \mathcal{N}\!\left(\frac{\|\mathbf{w}\|_2^2}{M},\; \frac{\|\mathbf{w}\|_2^2 \sigma_x^2}{M^2}\right) \quad \text{sous } H_1$$
+
+---
+
+### Résumé des distributions
+
+| Hypothèse | Moyenne $\mu$ | Variance $\sigma^2$ |
+|-----------|--------------|---------------------|
+| $H_0$ (pas de tatouage) | $\mu_0 = 0$ | $\sigma_0^2 = \dfrac{\|\mathbf{w}\|_2^2 \sigma_x^2}{M^2}$ |
+| $H_1$ (tatouage présent) | $\mu_1 = \dfrac{\|\mathbf{w}\|_2^2}{M}$ | $\sigma_1^2 = \dfrac{\|\mathbf{w}\|_2^2 \sigma_x^2}{M^2}$ |
+
+> **Observation clé** : les deux distributions sont gaussiennes et
+> partagent la **même variance**. Elles ne diffèrent que par leur
+> **moyenne**. Plus $\|\mathbf{w}\|_2^2/M$ est grand (tatouage fort),
+> plus les deux distributions sont séparées et plus la détection est
+> fiable.
+
+---
+
+## Probabilités d'erreur et décision
+
+### La fonction Q
+
+La **fonction Q** est la probabilité de la queue droite d'une gaussienne
+standard :
+
+$$Q(x) = \frac{1}{\sqrt{2\pi}} \int_x^{+\infty} e^{-t^2/2}\, dt$$
+
+Elle représente la probabilité qu'une variable gaussienne standard
+$\mathcal{N}(0,1)$ dépasse la valeur $x$.
+
+**En Python (scipy)** :
+
+```python
+from scipy.stats import norm
+Q_value = 1 - norm.cdf(x)  # Calcule Q(x)
 ```
 
-### DFT (Discrete Fourier Transform)
+---
 
-$$X_k = \sum_{n=0}^{N-1} x_n \, e^{-j2\pi kn/N}, \quad k = 0, \ldots, N-1$$
+### Probabilités de décision
 
-**Propriétés importantes :**
+On décide $H_1$ si $S(\mathbf{y}) \geq \gamma$ (seuil de décision) et
+$H_0$ sinon. Cela définit trois probabilités :
 
-- **Linéarité :** $\mathcal{F}\{ax + by\} = a\mathcal{F}\{x\} + b\mathcal{F}\{y\}$
-- **Théorème de Parseval :** $\sum_n |x_n|^2 = \frac{1}{N}\sum_k |X_k|^2$
-- **Convolution :** convolution spatiale ↔ multiplication fréquentielle
+**Probabilité de Fausse Acceptation** *(PFA — False Acceptance Rate)* :
 
-### DWT (Discrete Wavelet Transform)
+$$P_{\text{FA}}(\gamma) = \Pr(S(\mathbf{y}) \geq \gamma \,|\, H_0) = Q\!\left(\frac{\gamma - \mu_0}{\sigma_0}\right) = Q\!\left(\frac{\gamma}{\sqrt{\|\mathbf{w}\|_2^2 \sigma_x^2 / M^2}}\right)$$
 
-La DWT décompose un signal en sous-bandes à différentes résolutions :
-$$x = \sum_k \langle x, \psi_{j,k} \rangle \psi_{j,k} + \sum_k \langle x, \phi_{J,k} \rangle \phi_{J,k}$$
+> C'est la probabilité de déclarer qu'un tatouage est présent alors que
+> l'image est **non-marquée**.
 
-où $\psi_{j,k}$ sont les ondelettes mères et $\phi_{J,k}$ les fonctions d'échelle.
+**Probabilité de Détection Correcte** *(PD — Probability of Detection)* :
 
-**Structure multi-résolution** (pour une image 2D) :
+$$P_D(\gamma) = \Pr(S(\mathbf{y}) \geq \gamma \,|\, H_1) = Q\!\left(\frac{\gamma - \mu_1}{\sigma_1}\right) = Q\!\left(\frac{\gamma - \|\mathbf{w}\|_2^2/M}{\sqrt{\|\mathbf{w}\|_2^2 \sigma_x^2 / M^2}}\right)$$
 
-```{.cetz}
-#cetz.canvas({
-  import cetz.draw: *
+> C'est la probabilité de détecter correctement un tatouage **présent**.
 
-  // Niveau original
-  rect((0.0, 0.0), (8.0, 8.0), fill: luma(90%), stroke: luma(40%))
-  content((4.0, 7.5), [Image originale $N times N$])
+**Probabilité de Manque** *(Pmiss — Probability of Miss)* :
 
-  // Niveau 1 : 4 sous-bandes
-  rect((0.0, 4.0), (4.0, 8.0), fill: green.lighten(70%), stroke: green.darken(20%))
-  content((2.0, 6.0), [*LL₁*])
-  content((2.0, 5.5), [Approx.])
+$$P_{\text{miss}}(\gamma) = 1 - P_D(\gamma)$$
 
-  rect((4.0, 4.0), (8.0, 8.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
-  content((6.0, 6.0), [*LH₁*])
-  content((6.0, 5.5), [Horiz.])
-
-  rect((0.0, 0.0), (4.0, 4.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
-  content((2.0, 2.0), [*HL₁*])
-  content((2.0, 1.5), [Vertical])
-
-  rect((4.0, 0.0), (8.0, 4.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
-  content((6.0, 2.0), [*HH₁*])
-  content((6.0, 1.5), [Diag.])
-
-  // Niveau 2 dans LL1
-  rect((0.0, 6.0), (2.0, 8.0), fill: green.lighten(40%), stroke: green.darken(30%))
-  content((1.0, 7.0), [*LL₂*])
-  rect((2.0, 6.0), (4.0, 8.0), fill: blue.lighten(50%), stroke: blue.darken(30%))
-  content((3.0, 7.0), [*LH₂*])
-  rect((0.0, 4.0), (2.0, 6.0), fill: blue.lighten(50%), stroke: blue.darken(30%))
-  content((1.0, 5.0), [*HL₂*])
-  rect((2.0, 4.0), (4.0, 6.0), fill: blue.lighten(50%), stroke: blue.darken(30%))
-  content((3.0, 5.0), [*HH₂*])
-})
-```
-
-### ACP / PCA
-
-L'**Analyse en Composantes Principales** projette les données sur les directions de variance maximale.
-
-**Étapes :**
-
-1. Calculer la matrice de covariance : $\mathbf{C} = \frac{1}{n}\sum_{i=1}^n (\mathbf{x}_i - \bar{\mathbf{x}})(\mathbf{x}_i - \bar{\mathbf{x}})^\top$
-2. Décomposition spectrale : $\mathbf{C} = \mathbf{V} \mathbf{\Lambda} \mathbf{V}^\top$
-3. Projection : $\mathbf{z} = \mathbf{V}_d^\top (\mathbf{x} - \bar{\mathbf{x}}) \in \mathbb{R}^d$
+> C'est la probabilité de **rater** un tatouage pourtant présent.
 
 ---
 
-# Partie 2 : Self-Supervised Learning pour l'extraction de représentations
+### Résumé des formules d'erreur
 
-## Concept des modèles de fondation
+Posons $\sigma = \sqrt{\|\mathbf{w}\|_2^2 \sigma_x^2 / M^2}$ pour alléger
+la notation.
 
-Un **modèle de fondation** est un grand modèle pré-entraîné sur des données non étiquetées à très grande échelle, puis adapté à diverses tâches en aval.
+$$\boxed{P_{\text{FA}}(\gamma) = Q\!\left(\frac{\gamma}{\sigma}\right)}$$
 
-**Exemples :** CLIP, DINO, ResNet pré-entraîné par SimCLR, BERT, GPT.
+$$\boxed{P_D(\gamma) = Q\!\left(\frac{\gamma - \|\mathbf{w}\|_2^2/M}{\sigma}\right)}$$
 
-La représentation latente :
-$$\mathbf{z}_x = f_\phi(\mathbf{x}), \quad \mathbf{z}_x \in \mathbb{R}^d$$
-
-encode des caractéristiques sémantiques sans supervision explicite.
+$$\boxed{P_{\text{miss}}(\gamma) = 1 - P_D(\gamma)}$$
 
 ---
 
-## Apprentissage contrastif — SimCLR
+## Courbe ROC *(Receiver Operating Characteristic)*
 
-### Pipeline
+La **courbe ROC** est un outil graphique fondamental en théorie de la
+détection. Elle trace $P_D(\gamma)$ en fonction de $P_{\text{FA}}(\gamma)$
+lorsqu'on fait varier le seuil $\gamma$.
 
-```{.cetz}
-#cetz.canvas({
-  import cetz.draw: *
+**Interprétation** :
 
-  // Image ancre x
-  rect((0.0, 5.5), (1.8, 7.0), fill: luma(80%), stroke: luma(40%))
-  content((0.9, 6.25), [$bold(upright(x))$])
-  content((0.9, 5.8), [Ancre])
+- On veut **maximiser** $P_D$ (détecter le plus de vrais tatouages)
+- Tout en **minimisant** $P_{\text{FA}}$ (éviter les fausses alarmes)
 
-  // Augmentation positive x+
-  rect((0.0, 3.5), (1.8, 5.0), fill: green.lighten(70%), stroke: green.darken(20%))
-  content((0.9, 4.25), [$bold(upright(x))^+$])
-  content((0.9, 3.8), [Positive])
+**Points remarquables** :
 
-  // Augmentation negative x-
-  rect((0.0, 1.5), (1.8, 3.0), fill: red.lighten(70%), stroke: red.darken(20%))
-  content((0.9, 2.25), [$bold(upright(x))^-$])
-  content((0.9, 1.8), [Négative])
+- **Point idéal** : $P_D = 1$ et $P_{\text{FA}} = 0$ (coin supérieur
+  gauche) — détection parfaite
+- **Diagonale** : correspond à un **test aléatoire** (décision au hasard)
+  — cas le plus défavorable
+- **AUC** *(Area Under Curve)* : aire sous la courbe ROC, comprise entre
+  0.5 (aléatoire) et 1.0 (parfait)
 
-  // Encodeur f_phi (ancre)
-  rect((3.0, 5.5), (5.5, 7.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
-  content((4.25, 6.35), [*Encodeur*])
-  content((4.25, 5.9), [$f_phi$])
-
-  // Encodeur partagé (positive)
-  rect((3.0, 3.5), (5.5, 5.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
-  content((4.25, 4.35), [*Encodeur*])
-  content((4.25, 3.9), [$f_phi$ (partagé)])
-
-  // Encodeur partagé (negative)
-  rect((3.0, 1.5), (5.5, 3.0), fill: blue.lighten(70%), stroke: blue.darken(20%))
-  content((4.25, 2.35), [*Encodeur*])
-  content((4.25, 1.9), [$f_phi$ (partagé)])
-
-  // Représentations latentes
-  rect((7.0, 5.5), (9.5, 7.0), fill: orange.lighten(70%), stroke: orange.darken(20%))
-  content((8.25, 6.35), [$bold(upright(z))_x$])
-  content((8.25, 5.9), [Ancre])
-
-  rect((7.0, 3.5), (9.5, 5.0), fill: green.lighten(70%), stroke: green.darken(20%))
-  content((8.25, 4.35), [$bold(upright(z))_(x^+)$])
-  content((8.25, 3.9), [Positive])
-
-  rect((7.0, 1.5), (9.5, 3.0), fill: red.lighten(70%), stroke: red.darken(20%))
-  content((8.25, 2.35), [$bold(upright(z))_(x^-)$])
-  content((8.25, 1.9), [Négative])
-
-  // Flèches
-  line((1.8, 6.25), (3.0, 6.25), mark: (end: ">"))
-  line((1.8, 4.25), (3.0, 4.25), mark: (end: ">"))
-  line((1.8, 2.25), (3.0, 2.25), mark: (end: ">"))
-  line((5.5, 6.25), (7.0, 6.25), mark: (end: ">"))
-  line((5.5, 4.25), (7.0, 4.25), mark: (end: ">"))
-  line((5.5, 2.25), (7.0, 2.25), mark: (end: ">"))
-
-  // Perte contrastive
-  rect((7.0, 0.0), (9.5, 1.2), fill: yellow.lighten(70%), stroke: yellow.darken(20%))
-  content((8.25, 0.6), [*Perte*])
-  line((8.25, 1.5), (8.25, 1.2), mark: (end: ">"))
-
-  // Flèche d'optimisation
-  line((8.25, 0.0), (4.25, 0.0), stroke: (paint: blue.darken(20%), dash: "dashed"))
-  line((4.25, 0.0), (4.25, 1.5), mark: (end: ">"), stroke: (paint: blue.darken(20%), dash: "dashed"))
-  content((6.0, -0.3), [Rétropropagation])
-})
-```
-
-### Fonction de perte NT-Xent
-
-$$\mathcal{L}_\text{NT-Xent} = -\log \frac{\exp\!\left(\text{sim}(\mathbf{z}_x, \mathbf{z}_{x^+})/\tau\right)}{\sum_{j=1}^{2N} \mathbf{1}_{[j \neq x]} \exp\!\left(\text{sim}(\mathbf{z}_x, \mathbf{z}_j)/\tau\right)}$$
-
-où $\text{sim}(\mathbf{u}, \mathbf{v}) = \mathbf{u}^\top \mathbf{v} / (\|\mathbf{u}\| \|\mathbf{v}\|)$ et $\tau > 0$ est la température.
-
-**Intuition :**
-
-- **Maximiser** la similarité entre vues d'une même image (ancre et positive)
-- **Minimiser** la similarité avec toutes les autres images du batch (négatives)
+> **Lien avec le seuil $\gamma$** : pour un $\gamma$ très élevé, on
+> refuse presque tout ($P_D$ faible, $P_{\text{FA}}$ très faible). Pour
+> un $\gamma$ très faible, on accepte presque tout ($P_D$ élevée,
+> $P_{\text{FA}}$ élevée). La courbe ROC trace ce compromis.
 
 ---
 
-# Partie 3 : Notations pour le watermarking et le hachage perceptuel
+## Stratégies de sélection du seuil $\gamma$
 
-## Watermarking numérique
+Il existe deux grandes stratégies pour choisir le seuil de décision
+optimal.
 
-### Formalisation
+### Stratégie de Neyman-Pearson
 
-Le système de watermarking est défini par :
+**Objectif** : étant donné une contrainte fixée sur la probabilité de
+fausse acceptation $P_{\text{FA}} \leq \alpha$ (niveau de test),
+**minimiser la probabilité de manque** $P_{\text{miss}}$.
 
-$$\mathbf{y} = \omega(\mathbf{x},\, k,\, m), \qquad \hat{m} = g(\mathbf{v},\, k)$$
+**Règle de décision** :
 
-| Symbole | Type | Description |
-|:--------|:-----|:------------|
-| $\mathbf{x}$ | $\mathbb{R}^N$ | Image originale (vecteur) |
-| $k$ | — | Clé secrète symétrique |
-| $m$ | $\{0,1\}^M$ | Message à dissimuler ($M$ bits) |
-| $\mathbf{y}$ | $\mathbb{R}^N$ | Image tatouée |
-| $\mathbf{v} = \mathcal{A}(\mathbf{y})$ | $\mathbb{R}^N$ | Image reçue après attaque $\mathcal{A}$ |
-| $\hat{m}$ | $\{0,1\}^M$ | Message extrait |
+$$\Lambda(\mathbf{x}) = \frac{p(\mathbf{x}|H_1)}{p(\mathbf{x}|H_0)} \underset{H_0}{\overset{H_1}{\gtrless}} \gamma$$
 
-### Contrainte de distorsion
+**Procédure** :
 
-L'embedding doit être imperceptible :
-$$D(\mathbf{x}, \mathbf{y}) \leq \varepsilon$$
+1. Fixer le niveau de fausse alarme désiré $\alpha$ :
 
-avec $D$ une métrique de distorsion (MSE, SSIM, etc.).
+   $$P_{\text{FA}}(\gamma) = \int_{\Lambda(\mathbf{x})>\gamma} p(\mathbf{x}|H_0)\, d\mathbf{x} = \alpha$$
 
-### Score de détection
+2. Calculer le seuil $\gamma$ correspondant :
 
-Pour le watermarking **zero-bit** :
-$$S(\mathbf{v}) = \frac{1}{M} \mathbf{v} \cdot \mathbf{w}, \qquad \text{décision :} \quad S(\mathbf{v}) \underset{H_0}{\overset{H_1}{\gtrless}} \tau$$
+   $$\gamma = Q^{-1}(\alpha) \cdot \sigma_0$$
 
----
+3. Ce $\gamma$ **minimise automatiquement** $P_{\text{miss}}$ (théorème
+   de Neyman-Pearson).
 
-## Hachage perceptuel
-
-### Formalisation
-
-$$\mathbf{b}_x = h(\mathbf{x},\, k), \quad \mathbf{b}_x \in \{0,1\}^L$$
-
-### Distance de Hamming
-
-$$d_H(\mathbf{b}_x, \mathbf{b}_y) = \sum_{i=1}^{L} \mathbf{1}[b_{x,i} \neq b_{y,i}] = \|\mathbf{b}_x \oplus \mathbf{b}_y\|_1$$
-
-### Modèle de canal BSC
-
-Les empreintes de deux versions de la même image sont liées par :
-$$P(\hat{b}_i \neq b_i) = P_b \quad \Longleftrightarrow \quad \mathbf{b}_y = \mathbf{b}_x \oplus \mathbf{e}$$
-
-où $\mathbf{e} \in \{0,1\}^L$ est un vecteur d'erreur dont chaque bit est indépendant avec probabilité $P_b$.
+> **Usage pratique** : en sécurité multimédia, on fixe souvent
+> $P_{\text{FA}} = 10^{-3}$ ou $10^{-6}$ selon le niveau de sécurité
+> requis, et on calcule le seuil correspondant.
 
 ---
 
-# Partie 4 : Fondements de la détection de signaux
+### Stratégie bayésienne
 
-## Modèle de canal AWGN
+**Objectif** : minimiser la **probabilité d'erreur moyenne** pondérée
+par les probabilités *a priori* des deux hypothèses :
 
-Le modèle de canal gaussien additif (AWGN) s'écrit :
-$$\mathbf{v} = \mathbf{s} + \mathbf{n}, \quad \mathbf{n} \sim \mathcal{N}(\mathbf{0}, \sigma^2 \mathbf{I}_N)$$
+$$P_{\text{erreur}}(\gamma) = P_{\text{FA}}(\gamma) \cdot P(H_0) + P_{\text{miss}}(\gamma) \cdot P(H_1)$$
 
-où $\mathbf{s}$ est le signal transmis, $\sigma^2$ est la variance du bruit, et $\mathbf{I}_N$ est la matrice identité de taille $N = H \times W \times C$.
+**Cas symétrique** ($P(H_0) = P(H_1) = 0.5$) :
 
-Le rapport signal-sur-bruit (SNR) est :
-$$\text{SNR} = \frac{\mathbb{E}[\|\mathbf{s}\|^2]}{N\sigma^2}$$
+$$P_{\text{erreur}}(\gamma) = \frac{1}{2}\!\left(P_{\text{FA}}(\gamma) + P_{\text{miss}}(\gamma)\right)$$
 
----
+**Seuil optimal** : pour des distributions gaussiennes $\mathcal{N}(\mu_0, \sigma^2)$
+sous $H_0$ et $\mathcal{N}(\mu_1, \sigma^2)$ sous $H_1$ avec variances
+égales, le seuil de Bayes est simplement le **milieu des deux moyennes** :
 
-## Test d'hypothèses
+$$\boxed{\gamma_{\text{opt}} = \frac{\mu_0 + \mu_1}{2}}$$
 
-### Formulation
+Pour nos notations spécifiques :
 
-- $H_0$ : pas de watermark — $\mathbf{v} \sim p_0(\mathbf{v}) = \mathcal{N}(\mathbf{0}, \sigma^2\mathbf{I})$
-- $H_1$ : watermark présent — $\mathbf{v} \sim p_1(\mathbf{v}) = \mathcal{N}(\mathbf{s}, \sigma^2\mathbf{I})$
+$$\gamma_{\text{opt}} = \frac{0 + \|\mathbf{w}\|_2^2/M}{2} = \frac{\|\mathbf{w}\|_2^2}{2M}$$
 
-### Détecteur de Neyman-Pearson
+**Comparaison des stratégies** :
 
-Le rapport de vraisemblance est :
-$$\Lambda(\mathbf{v}) = \frac{p_1(\mathbf{v})}{p_0(\mathbf{v})} = \exp\!\left(\frac{\mathbf{v}^\top \mathbf{s}}{\sigma^2} - \frac{\|\mathbf{s}\|^2}{2\sigma^2}\right)$$
-
-La règle de décision se réduit à :
-$$T(\mathbf{v}) = \mathbf{v}^\top \mathbf{s} \underset{H_0}{\overset{H_1}{\gtrless}} \eta$$
-
-### Performances
-
-Sous $H_0$ : $T(\mathbf{v}) \sim \mathcal{N}(0, \sigma^2 \|\mathbf{s}\|^2)$
-
-Sous $H_1$ : $T(\mathbf{v}) \sim \mathcal{N}(\|\mathbf{s}\|^2, \sigma^2 \|\mathbf{s}\|^2)$
-
-Probabilité de fausse alarme :
-$$P_{FA} = P(T > \eta \mid H_0) = Q\!\left(\frac{\eta}{\sigma\|\mathbf{s}\|}\right)$$
-
-Probabilité de détection :
-$$P_D = P(T > \eta \mid H_1) = Q\!\left(\frac{\eta - \|\mathbf{s}\|^2}{\sigma\|\mathbf{s}\|}\right)$$
-
-où $Q(x) = \frac{1}{\sqrt{2\pi}}\int_x^\infty e^{-t^2/2}\,dt$ est la fonction Q de Gauss.
+| Stratégie | Contrainte | Objectif |
+|-----------|-----------|---------|
+| Neyman-Pearson | $P_{\text{FA}} \leq \alpha$ fixé | Minimiser $P_{\text{miss}}$ |
+| Bayésienne | Probabilités *a priori* connues | Minimiser $P_{\text{erreur}}$ moyen |
 
 ---
 
-## Courbe ROC
+## Impact des paramètres sur la détection
 
-```{.cetz}
-#cetz.canvas({
-  import cetz.draw: *
+Pour comprendre ce qui influence les performances de détection, réécrivons
+le score normalisé :
 
-  // Axes
-  line((0.5, 0.5), (8.5, 0.5), mark: (end: ">"))
-  line((0.5, 0.5), (0.5, 7.0), mark: (end: ">"))
-  content((4.5, 0.0), [$P_(F A)$])
-  content((0.0, 3.75), [$P_D$])
+$$\frac{\mu_1 - \mu_0}{\sigma_0} = \frac{\|\mathbf{w}\|_2^2/M}{\sqrt{\|\mathbf{w}\|_2^2 \sigma_x^2/M^2}} = \frac{\|\mathbf{w}\|_2}{\sigma_x \sqrt{M}} \cdot \sqrt{\frac{\|\mathbf{w}\|_2^2}{M}}$$
 
-  // Diagonale aléatoire
-  line((0.5, 0.5), (8.0, 6.5), stroke: (paint: luma(60%), dash: "dashed"))
-  content((7.5, 5.5), [aléatoire])
+Ce rapport signal-sur-bruit (SNR) de détection augmente quand :
 
-  // Courbe ROC idéale (coin supérieur gauche)
-  line((0.5, 0.5), (0.5, 6.5), stroke: (paint: green.darken(20%)))
-  line((0.5, 6.5), (8.0, 6.5), stroke: (paint: green.darken(20%)))
-  content((3.0, 7.0), [idéal])
+- $\|\mathbf{w}\|_2^2$ (énergie du tatouage) **augmente** — mais au prix
+  d'une plus grande distorsion visuelle
+- $\sigma_x^2$ (variance de l'image hôte) **diminue** — images plus
+  uniformes
+- $M$ (nombre de pixels) **augmente** — images plus grandes, loi des
+  grands nombres
 
-  // Courbe ROC réaliste (arc)
-  line((0.5, 0.5), (1.5, 3.5), stroke: (paint: blue.darken(20%)))
-  line((1.5, 3.5), (3.0, 5.0), stroke: (paint: blue.darken(20%)))
-  line((3.0, 5.0), (5.0, 6.0), stroke: (paint: blue.darken(20%)))
-  line((5.0, 6.0), (8.0, 6.5), stroke: (paint: blue.darken(20%)))
-  content((5.5, 5.2), [*ROC réelle*])
+> **Compromis fondamental** : la détection est d'autant plus fiable que
+> le tatouage est fort, mais un tatouage fort est aussi plus visible
+> (dégradation de $\text{PSNR}$). C'est le compromis robustesse/
+> imperceptibilité central du tatouage numérique.
 
-  // Annotations axes
-  content((8.5, 0.2), [$1.0$])
-  content((0.2, 6.7), [$1.0$])
-  content((0.5, 0.2), [$0$])
+---
 
-  // AUC label
-  content((2.5, 2.0), [*AUC*])
-})
-```
+# Synthèse et récapitulatif
 
-L'**aire sous la courbe ROC (AUC)** quantifie les performances globales du détecteur : AUC = 1 correspond à un détecteur parfait, AUC = 0.5 à un détecteur aléatoire.
+## Tableau récapitulatif des notations
+
+| Symbole | Signification | Domaine |
+|---------|--------------|---------|
+| $\mathbf{x} \in \mathbb{R}^{H \times W \times C}$ | Image originale | Image |
+| $\mathbf{y}$ | Image stégo (marquée) | Tatouage |
+| $\mathbf{w}$ | Tatouage *(watermark)* | Tatouage |
+| $\mathbf{k}$ | Clé secrète | Tatouage |
+| $\mathbf{m} \in \{0,1\}^L$ | Message multi-bit | Tatouage |
+| $\mathbf{z} = \mathcal{T}(\mathbf{x})$ | Image transformée | Transforms |
+| $f_\phi(\mathbf{x})$ | Encodeur DL | Deep Learning |
+| $\tilde{\mathbf{y}}_x$ | Représentation latente | Deep Learning |
+| $S(\mathbf{y}) = \frac{1}{M}\mathbf{y}^\top\mathbf{w}$ | Score de détection | Détection |
+| $\gamma$ | Seuil de décision | Détection |
+| $P_{\text{FA}}(\gamma)$ | Probabilité de fausse acceptation | Détection |
+| $P_D(\gamma)$ | Probabilité de détection correcte | Détection |
+
+## Récapitulatif des métriques de qualité
+
+| Métrique | Formule | Usage |
+|---------|---------|------|
+| MSE | $\frac{1}{M}\|\mathbf{x}-\mathbf{y}\|_2^2$ | Erreur quadratique moyenne |
+| PSNR | $10\log_{10}(255^2/\text{MSE})$ | Qualité image (dB) |
+| WMSE | $\frac{1}{M}\sum_i w_i(x_i-y_i)^2$ | MSE perceptuellement pondérée |
+| WPSNR | $10\log_{10}(255^2/\text{WMSE})$ | PSNR pondéré |
+
+## Récapitulatif des transformées
+
+| Transformée | Type | Inversible | Apprenante |
+|-------------|------|-----------|-----------|
+| Bit-Plane | Orthogonale | ✓ | ✗ |
+| DFT | Orthogonale | ✓ | ✗ |
+| DCT | Orthogonale | ✓ | ✗ |
+| DWT | Orthogonale | ✓ | ✗ |
+| PCA | Linéaire apprenante | ✓ | ✓ (linéaire) |
+| CNN/ViT/... | Non-linéaire apprenante | ✗ (en général) | ✓ (non-linéaire) |
+
+---
+
+> **À retenir pour la prochaine séance**
+>
+> Les notations et concepts introduits ici constituent le
+> **socle commun** de tout le cours. Assurez-vous de bien maîtriser :
+>
+> - La représentation $H \times W \times C$ d'une image et sa
+>   vectorisation
+> - Les métriques MSE, PSNR et leurs variantes pondérées
+> - Le schéma général des transformées $\mathbf{z} = \mathcal{T}(\mathbf{x})$
+>   et les propriétés des transformées orthogonales
+> - L'architecture d'un encodeur deep $f_\phi$ et les paradigmes SSL/WSL
+> - La formulation du test d'hypothèses, le score $S(\mathbf{y})$, et les
+>   probabilités $P_{\text{FA}}$, $P_D$, $P_{\text{miss}}$
+>
+> **Prochain cours** : techniques de tatouage numérique.

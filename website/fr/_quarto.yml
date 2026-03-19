@@ -33,7 +33,6 @@ website:
             contents:
               - text: "Détails"
                 href: ch2c.qmd
-              - ch2.qmd
               - text: "Synthèse"
                 href: ch2r.qmd
           - section: "Chapitre 3 : Digital Watermarking"
