@@ -1,74 +1,939 @@
 ---
-title: "Chapitre 3 : Digital Watermarking"
+title: "Tatouage Numérique (Digital Watermarking)"
 ---
 
-## Vue d'ensemble
+## Introduction générale
 
-Le tatouage numérique (*digital watermarking*) consiste à intégrer une information invisible — un message ou une signature — directement dans un contenu multimédia (image, vidéo, audio) de façon à ce qu'elle persiste malgré des modifications. Les applications vont de la protection du droit d'auteur à la surveillance des diffusions, en passant par la communication secrète (stéganographie) et la détection de falsifications. Le pipeline fondamental repose sur un trio : un **incorporateur** (embedder), un canal potentiellement hostile, et un **décodeur** qui récupère le message ou vérifie la présence du tatouage à partir de la clé secrète.
+Le tatouage numérique (Digital Watermarking) consiste à dissimuler une information dans un contenu multimédia — image, vidéo, audio — de manière imperceptible, tout en conservant cette information récupérable même après des dégradations. Ce cours (Lecture 3 du module MMSEC, Slava Voloshynovskiy, 2025) présente les fondements théoriques et pratiques de cette discipline, depuis les applications jusqu'aux attaques adversariales.
 
-**Navigation :**
+## Principales applications {#sec-applications}
 
-- 📖 [Contenu détaillé du chapitre (ch3c)](ch3c.qmd)
-- 📝 [Fiche de révision rapide (ch3r)](ch3r.qmd)
+### Vue d'ensemble
+
+Le tatouage numérique sert à des fins variées, regroupées en trois familles principales.
+
+**Tatouage robuste (Robust Watermarking) :**
+
+- Protection des droits d'auteur (Copyright Protection).
+- Distinction entre contenu réel et synthétique.
+- Surveillance de la diffusion audiovisuelle (Broadcast Monitoring), traçabilité et suivi.
+
+**Stéganographie (Steganography) :**
+
+- Communication secrète sans révéler l'existence même d'un message caché.
+
+**Détection d'altération (Tamper Detection) :**
+
+- Vérification de l'intégrité d'un contenu numérique.
+- Authentification d'images numériques.
+
+::: {.callout-note title="À retenir"}
+Ces trois familles partagent un principe commun : la dissimulation de données dans un contenu multimédia. Elles diffèrent par leur objectif principal — robustesse, non-détectabilité statistique ou détectabilité des modifications.
+:::
+
+### Exigences et compromis
+
+Chaque technique impose des priorités différentes :
+
+- Le tatouage robuste privilégie l'**invisibilité perceptuelle** et la **robustesse** aux transformations.
+- La stéganographie maximise la **non-détectabilité statistique**.
+- La détection d'altération vise la **détectabilité fine** de toute modification.
+
+La connaissance de l'attaquant varie : il peut connaître ou ignorer la méthode d'insertion et la gestion des clés.
+
+::: {.callout-tip title="Intuition"}
+Imaginez un tatoueur qui grave un signe imperceptible dans un tableau. Selon l'objectif, ce signe doit soit résister au nettoyage agressif du tableau (robustesse), soit être indétectable même par un expert (stéganographie), soit se révéler à la moindre retouche (détection d'altération).
+:::
+
+### Le quadrilatère des compromis
+
+Le tatouage numérique navigue entre quatre propriétés concurrentes :
+
+- **Robustesse** : résistance aux attaques et dégradations.
+- **Visibilité** (faible souhaitée) : imperceptibilité du marquage.
+- **Capacité** : quantité d'information dissimulée.
+- **Sécurité** : résistance aux attaquants informés.
+
+Améliorer l'une de ces propriétés se fait souvent au détriment d'une autre. C'est le cœur des choix de conception en tatouage numérique.
 
 ---
 
-## Synthèse du chapitre {#synthese}
+## Fondements du tatouage robuste {#sec-fondements}
 
-::: {.callout-note title="Trade-offs fondamentaux"}
-Tout système de tatouage numérique doit jongler entre quatre propriétés antagonistes :
+### Présentation
 
-- **Robustesse** : le tatouage survit aux compressions, recadrages, attaques géométriques.
-- **Imperceptibilité** : la qualité visuelle de l'image tatouée reste élevée (PSNR $> 40$ dB).
-- **Capacité** : nombre de bits $L$ pouvant être incorporés.
-- **Sécurité** : résistance à un adversaire connaissant l'algorithme mais pas la clé.
+Cette section établit les bases théoriques du tatouage robuste en domaine pixel, sans masquage perceptuel ni distorsion géométrique. Les hypothèses simplificatrices initiales sont :
 
-**Modèle d'intégration additif (zero-bit) :**
-$$\mathbf{y} = \mathbf{x} + \varepsilon\mathbf{w}, \quad \mathbf{w} = \text{Gen}(k), \quad \|\mathbf{w}\| = 1$$
+- Insertion directe dans le domaine pixel (pas de transformation).
+- Dégradations limitées : compression JPEG, ajout de bruit, changements d'intensité.
+- Pas de distorsions géométriques (ni rotation, ni recadrage, ni cisaillement).
 
-**Score de détection :**
-$$S(\mathbf{v}) = \frac{1}{M}\mathbf{v}\cdot\mathbf{w}$$
+### Deux problèmes fondamentaux
 
-**Test d'hypothèses :**
+#### Tatouage zéro-bit (Zero-Bit Watermarking) — Problème de détection
 
-- $H_0$ : $\mathbf{v} = \mathbf{x}$ (pas de tatouage) → $\mathbb{E}[S] = 0$
-- $H_1$ : $\mathbf{v} = \mathbf{x} + \varepsilon\mathbf{w}$ (tatouage présent) → $\mathbb{E}[S] = \varepsilon$
+Le problème consiste à déterminer si une image est tatouée ou non, à partir d'une clé secrète.
 
-**Tatouage L-bit :** $\hat{m} = g(\mathbf{v}, k)$, $m \in \{0,1\}^L$
+- Fonction d'encodage : $y = \omega(x, k)$, où $k$ est la clé secrète.
+- Détecteur : $g_{\text{0-bit}}(v, k) \rightarrow \{0, 1\}$, où $v$ est la version dégradée de $y$.
+
+::: {.callout-tip title="Intuition"}
+C'est un test d'hypothèse binaire : « cette image porte-t-elle la marque correspondant à la clé $k$ ? »
 :::
 
-::: {.callout-note title="Applications principales"}
-| Application | Type | Principe |
-|:-----------|:-----|:---------|
-| Protection du droit d'auteur | Zero-bit / L-bit | Identifier l'œuvre ou son propriétaire |
-| Surveillance des diffusions | L-bit | Tracer la distribution du contenu |
-| Stéganographie | L-bit | Canal de communication secret dans l'image |
-| Détection de falsification | Fragile | Watermark fragile localisé par région |
-| Fingerprinting | L-bit | Identifier l'acquéreur (traçabilité) |
+#### Tatouage L-bit (L-Bit Watermarking) — Problème de décodage
+
+Le problème consiste à insérer et récupérer $L$ bits secrets.
+
+- Fonction d'encodage : $y = \omega(x, k, m)$, où $m$ est le message secret.
+- Décodeur : $\hat{m} = g_{L\text{-bit}}(v, k)$.
+
+::: {.callout-note title="À retenir"}
+Le tatouage zéro-bit répond à « est-ce marqué ? » ; le tatouage L-bit répond à « quel message est caché ? ». Les deux problèmes partagent le même modèle d'insertion, mais diffèrent dans la fonction de détection/décodage.
 :::
 
-::: {.callout-note title="Domaines d'intégration"}
-| Domaine | Transformée | Robustesse | Notes |
-|:--------|:-----------|:---------|:------|
-| Pixel | Aucune | Faible | Simple, sensible aux attaques géométriques |
-| DCT | Discrète en cosinus | Bonne | Compatible JPEG, coefficients moyennes fréquences |
-| DWT | Ondelettes discrètes | Très bonne | Multi-résolution, masquage perceptuel |
-| Deep features | CNN/ViT | Excellente | Optimisation end-to-end, très robuste |
+### Métriques de distorsion
+
+#### Distorsion due à l'insertion
+
+La distorsion entre l'image originale $x$ et l'image tatouée $y$ est mesurée par l'erreur quadratique moyenne normalisée :
+
+$$D_{xy} = \frac{1}{M} \|x - y\|_2^2, \quad M = H \times W \times C$$
+
+#### Rapport signal sur bruit de crête (PSNR)
+
+$$\text{PSNR} = 10 \log_{10}\left(\frac{255^2}{D_{xy}}\right)$$
+
+Un PSNR élevé (> 30 dB typiquement) indique une bonne qualité perceptuelle — l'image tatouée est visuellement indiscernable de l'originale.
+
+::: {.callout-tip title="Intuition"}
+Le PSNR est exprimé en décibels. Plus il est élevé, meilleure est la qualité perçue. Pour le tatouage, un PSNR de 30 à 40 dB est généralement acceptable, garantissant une invisibilité de la marque.
+:::
+
+#### Distorsion due aux attaques
+
+La distorsion entre l'image tatouée $y$ et l'image observée $v$ (après attaque) :
+
+$$D_{yv} = \frac{1}{M} \|y - v\|_2^2$$
+
+Cette métrique est applicable lorsqu'il n'y a pas de distorsion géométrique.
+
+### Modèle général du tatouage numérique
+
+Le processus complet comprend trois étapes :
+
+1. **Encodage et insertion de la marque** : génération et intégration du tatouage dans l'image.
+2. **Dégradation par le canal** : bruits, compression, modifications.
+3. **Détection ou décodage** : extraction ou détection de la marque depuis l'image reçue.
+
+### Modèle d'insertion du tatouage
+
+$$y = \omega(x, k) = x + \varepsilon w, \quad w = \text{Gen}(k)$$
+
+- $y$ : image tatouée (stégo-image).
+- $\varepsilon$ : force du tatouage (on suppose $\varepsilon = 1$ par simplicité).
+- $w$ : tatouage généré à partir de la clé secrète $k$, de même dimension que l'image.
+
+::: {.callout-important title="Point clé"}
+Puisque la clé $k$ est connue du détecteur, le tatouage $w$ est déterministe. L'image originale $x$ est traitée comme un signal aléatoire — le « bruit hôte » — du point de vue du détecteur.
+:::
+
+### Formulation du test d'hypothèse
+
+#### Hypothèses originales
+
+Le problème de détection se formule comme un test entre deux hypothèses :
+
+- **$H_0$ (pas de marque)** : $v = x$ (pas de tatouage), ou $v = x + w' + z$ (mauvaise clé ou marque incorrecte).
+- **$H_1$ (marque présente)** : $v = x + w + z$, où $w$ est généré depuis la clé $k$.
+
+#### Hypothèses simplifiées
+
+En agrégeant l'image originale $x_0$ et le bruit de distorsion $z$ dans un vecteur aléatoire $x = x_0 + z$ :
+
+- **$H_0$** : $v = x$, avec $x \sim \mathcal{N}(\mu_x, K_{xx})$.
+- **$H_1$** : $v = x + w$, où $w$ est déterministe.
+
+Cette simplification est justifiée car $x_0$ et $z$ sont tous deux aléatoires et peuvent être fusionnés.
+
+::: {.callout-tip title="Intuition"}
+On réduit un problème composite à un test simple : « l'observation $v$ contient-elle la marque $w$ en plus du bruit $x$ ? » La marque joue le rôle du signal, l'image originale celui du bruit.
+:::
+
+### Score de détection
+
+Le score de détection est défini par le produit scalaire normalisé entre l'observation et la marque :
+
+$$S(v) = \frac{1}{M} v^\top w, \quad M = H \cdot W \cdot C$$
+
+Ce score mesure la **corrélation** entre le signal observé et la marque attendue. La normalisation par $M$ rend le score indépendant de la taille de l'image.
+
+### Test du produit scalaire et similarité cosinus
+
+La **similarité cosinus** mesure l'alignement directionnel entre $y$ et $w$ :
+
+$$\cos \theta = \frac{y^\top w}{\|y\|_2 \|w\|_2}$$
+
+Le score de détection s'exprime alors :
+
+$$S(y) = y^\top w = \cos \theta \cdot \|y\|_2 \|w\|_2$$
+
+La **région de décision** est définie par :
+
+$$\mathcal{D} = \left\{ y \in \mathbb{R}^M : |y^\top w| > \|y\|_2 \|w\|_2 \cos \theta \right\}$$
+
+Une décision positive est prise si le produit scalaire dépasse le seuil défini par le cosinus de l'angle $\theta$.
+
+### Statistiques sous $H_0$ et $H_1$
+
+Sous $H_0$ :
+
+$$\mu_0 = \frac{1}{M} \mu_x^\top w, \quad \sigma_0^2 = \frac{\sigma_x^2 \|w\|_2^2}{M^2}$$
+
+Sous $H_1$ :
+
+$$\mu_1 = \frac{1}{M} \mu_x^\top w + \frac{1}{M}\|w\|_2^2, \quad \sigma_1^2 = \frac{\sigma_x^2 \|w\|_2^2}{M^2}$$
+
+::: {.callout-important title="Point clé"}
+Les variances sous $H_0$ et $H_1$ sont **identiques**. La seule différence entre les deux hypothèses réside dans leur moyenne. Cela signifie que la séparabilité (SNR de détection) est entièrement déterminée par $\|w\|_2^2$ et $\sigma_x^2$.
+:::
+
+### Probabilités d'erreur
+
+La **probabilité de fausse acceptation** (PFA) :
+
+$$P_{FA}(\lambda) = Q\left(\frac{\lambda - \mu_0}{\sigma_0}\right)$$
+
+La **probabilité de détection correcte** (PD) :
+
+$$P_D(\lambda) = Q\left(\frac{\lambda - \mu_1}{\sigma_1}\right)$$
+
+La **probabilité de manquer la marque** :
+
+$$P_{\text{miss}}(\lambda) = 1 - P_D(\lambda)$$
+
+Où $Q(\cdot)$ est la fonction Q complémentaire de la loi normale.
+
+::: {.callout-tip title="Intuition"}
+Le réglage du seuil $\lambda$ permet de contrôler l'arbitrage entre fausses alarmes et détections manquées. C'est le compromis classique de la théorie de la détection — la courbe ROC (Receiver Operating Characteristic).
 :::
 
 ---
 
-## Introduction au tatouage numérique
+## Tatouage L-bit : formulation du décodage {#sec-lbit}
 
-Le tatouage numérique vise à rendre un contenu **auto-authentifiable** en y dissimulant une information qui accompagnera l'œuvre tout au long de sa vie numérique. Contrairement à la signature électronique, le tatouage est lié au signal lui-même et non à ses métadonnées.
+### Modèle de décodage
 
-Pipeline général :
-$$\mathbf{y} = \omega(\mathbf{x}, k, m), \qquad \hat{m} = g(\mathbf{v}, k)$$
+Pour le tatouage multi-bits, on insère $L$ bits dans l'image. Chaque bit $m_n \in \{-1, +1\}$ est associé à une séquence porteuse orthogonale $w_n$.
 
-où $\mathbf{v} = \mathcal{A}(\mathbf{y})$ désigne l'image reçue après le canal / les attaques $\mathcal{A}$.
+Le modèle de décodage par corrélation produit, pour chaque bit :
 
-La force d'intégration $\varepsilon$ contrôle directement le compromis robustesse–imperceptibilité :
+$$\hat{m}_n = \text{sign}(y^\top w_n)$$
 
-$$D_{xy} = \frac{1}{M}\|\mathbf{x}-\mathbf{y}\|^2 = \frac{\varepsilon^2}{M}\|\mathbf{w}\|^2 = \varepsilon^2 \quad (\text{si } \|\mathbf{w}\|^2 = M)$$
+::: {.callout-note title="À retenir"}
+Le tatouage L-bit est une généralisation directe du tatouage zéro-bit : au lieu de détecter la présence d'une seule marque, on décode $L$ décisions binaires indépendantes, une par bit du message.
+:::
 
-$$\text{PSNR} = 10\log_{10}\!\left(\frac{255^2}{\varepsilon^2}\right) \text{ [dB]}$$
+### Taux d'erreur bit (BER)
+
+La probabilité d'erreur sur un bit est liée au SNR de détection. Plus la force d'insertion $\varepsilon$ est élevée, plus le SNR est grand et plus le BER est faible — mais au prix d'une distorsion perceptuelle accrue.
+
+---
+
+## Types de masquage perceptuel {#sec-perceptual}
+
+### Motivation
+
+L'insertion d'un tatouage modifie inévitablement l'image. Le **masquage perceptuel** (Perceptual Masking) tire parti des limitations du système visuel humain (HVS - Human Visual System) pour concentrer la marque là où l'œil est le moins sensible.
+
+::: {.callout-tip title="Intuition"}
+L'œil humain tolère davantage de perturbations dans les zones texturées (bruit, détails fins) que dans les zones lisses (fond uni, ciel). Le masquage perceptuel exploite cette asymétrie.
+:::
+
+### Masquage basé sur la variance locale
+
+Dans les zones à forte variance (textures, contours), le système visuel humain est moins sensible aux modifications. On peut donc y insérer une marque plus forte sans dégradation perceptible.
+
+La **variance locale** $\sigma^2(x)$ au pixel $(i, j)$ est calculée sur une fenêtre $W \times W$ :
+
+$$\sigma^2(x) = \frac{1}{W^2} \sum_{i,j} x_{i,j}^2 - \left(\frac{1}{W^2} \sum_{i,j} x_{i,j}\right)^2$$
+
+En Python :
+
+```python
+def compute_local_variance(image, window_size):
+    kernel = np.ones((window_size, window_size), np.float32) / (window_size ** 2)
+    mean_image = cv2.filter2D(image, -1, kernel)
+    variance_image = cv2.filter2D(image ** 2, -1, kernel) - mean_image ** 2
+    return variance_image
+```
+
+### Fonction de visibilité du bruit (NVF)
+
+La **Fonction de Visibilité du Bruit** (NVF — Noise Visibility Function) quantifie la sensibilité locale du système visuel :
+
+$$\text{NVF}(x) = \frac{1}{1 + D \cdot \frac{\sigma^2(x)}{\sigma^2_{\max}}}$$
+
+- $D$ est un paramètre de contrôle (typiquement $D = 150$).
+- $\sigma^2_{\max}$ est la variance maximale sur l'image.
+- NVF est proche de 1 dans les zones lisses (très sensibles) et proche de 0 dans les zones texturées (peu sensibles).
+
+```python
+local_variance = compute_local_variance(image, WINDOW_SIZE)
+max_variance = np.max(local_variance)
+nvf = 1 / (1 + D * local_variance / max_variance)
+```
+
+::: {.callout-tip title="Intuition"}
+Une NVF proche de 1 signifie « cette zone est lisse, le HVS verra la moindre perturbation ». Une NVF proche de 0 signifie « cette zone est texturée, on peut y cacher davantage de signal ».
+:::
+
+### MSE et MSE pondéré (Weighted MSE)
+
+**Erreur quadratique moyenne (MSE) :**
+
+$$\text{MSE} = \frac{1}{H \cdot W} \sum_{i=1}^{H} \sum_{j=1}^{W} (x_{i,j} - y_{i,j})^2$$
+
+**MSE pondéré (Weighted MSE) :**
+
+$$\text{Weighted MSE} = \frac{1}{H \cdot W} \sum_{i=1}^{H} \sum_{j=1}^{W} \text{NVF}_{i,j} \cdot (x_{i,j} - y_{i,j})^2$$
+
+Le MSE pondéré pénalise davantage les erreurs dans les zones lisses (NVF élevé), ce qui correspond mieux à la perception humaine.
+
+```python
+def compute_mse(original, stego):
+    mse = np.mean((original - stego) ** 2)
+    return mse
+
+def compute_weighted_mse(original, stego, nvf):
+    weighted_mse = np.mean(nvf * (original - stego) ** 2)
+    return weighted_mse
+```
+
+### PSNR et WPSNR
+
+Le **PSNR pondéré** (WPSNR — Weighted Peak Signal-to-Noise Ratio) :
+
+$$\text{WPSNR} = 10 \log_{10}\left(\frac{255^2}{\text{Weighted MSE}}\right)$$
+
+```python
+def compute_psnr(original, stego):
+    mse = compute_mse(original, stego)
+    return 10 * np.log10((255 ** 2) / mse)
+
+def compute_wpsnr(original, stego, nvf):
+    weighted_mse = compute_weighted_mse(original, stego, nvf)
+    return 10 * np.log10((255 ** 2) / weighted_mse)
+```
+
+### Insertion simple vs. insertion pondérée
+
+**Stégo-image simple** (insertion globale uniforme) :
+
+$$y_{\text{simple}} = \text{clip}(x + w \cdot S_{\text{simple}}, 0, 1)$$
+
+**Stégo-image pondérée** (insertion adaptative perceptuellement) :
+
+$$y_{\text{weighted}} = \text{clip}\left(x + (1 - \text{NVF}) \cdot w \cdot S_{\text{weighted}} + \text{NVF} \cdot w \cdot S_{1,\text{weighted}}, 0, 1\right)$$
+
+Où $S_{\text{simple}}$, $S_{\text{weighted}}$, $S_{1,\text{weighted}}$ sont les forces d'insertion dans différentes zones.
+
+```python
+stego_simple = np.clip(image + watermark * S_SIMPLE_SCALED, 0, 1)
+
+masked_watermark = (1 - nvf) * watermark * S_WEIGHTED_SCALED + nvf * watermark * S1_WEIGHTED_SCALED
+stego_weighted = np.clip(image + masked_watermark, 0, 1)
+```
+
+### Filtre de Wiener pour la prédiction du tatouage
+
+Le **filtre de Wiener** (Wiener Filter) permet d'estimer la composante « non-image » (le tatouage prédit) à partir d'une image tatouée, en exploitant les statistiques locales :
+
+$$\hat{x}_{i,j} = \mu_{i,j} + \frac{\sigma^2_{i,j}}{\sigma^2_{i,j} + \sigma^2_{\text{noise}}} (x_{i,j} - \mu_{i,j})$$
+
+Le **tatouage prédit** depuis l'image $x$ est :
+
+$$\hat{w}_x = x - \hat{x}$$
+
+```python
+def apply_wiener_filter(image, window_size, noise_var):
+    local_mean, local_variance = compute_local_stats(image, window_size)
+    wiener = local_mean + (local_variance / (local_variance + noise_var)) * (image - local_mean)
+    return wiener
+
+w_pred_x = image - apply_wiener_filter(image, WINDOW_SIZE, compute_noise_variance(watermark))
+```
+
+::: {.callout-tip title="Intuition"}
+Le filtre de Wiener « lisse » l'image en conservant sa structure locale. La différence entre l'image originale et sa version lissée révèle les composantes à haute fréquence — dont fait partie le tatouage inséré.
+:::
+
+### Produit scalaire et similarité cosinus
+
+Pour évaluer la robustesse, on mesure la corrélation entre le tatouage prédit et le tatouage original :
+
+$$\langle a, b \rangle = \sum_{i=1}^{H} \sum_{j=1}^{W} a_{i,j} \cdot b_{i,j}$$
+
+$$\cos(\theta) = \frac{\langle a, b \rangle}{\|a\| \cdot \|b\|}$$
+
+```python
+def compute_metrics(a, b):
+    inner_product = np.dot(a.flatten(), b.flatten())
+    cosine_sim = np.dot(a.flatten(), b.flatten()) / (np.linalg.norm(a) * np.linalg.norm(b))
+    return inner_product, cosine_sim
+```
+
+### Conclusions sur le masquage perceptuel
+
+Les résultats expérimentaux confirment plusieurs points importants :
+
+- Le **PSNR est légèrement plus faible** pour l'insertion pondérée (31,79 dB) que pour la simple (33,65 dB) : les distorsions MSE sont plus importantes.
+- Le **WPSNR est plus élevé** pour l'insertion pondérée (35,88 dB vs. 35,28 dB) : la qualité perceptuelle est meilleure, car les distorsions sont concentrées là où l'œil est moins sensible.
+- **La robustesse est supérieure** : les métriques de similarité cosinus pour l'insertion pondérée surpassent nettement celles de l'insertion simple.
+- La **similarité cosinus du tatouage prédit** ($\hat{w}$ vs $w$) atteint ~0,74 pour l'insertion pondérée, contre ~0,73 pour la simple — une amélioration significative.
+
+::: {.callout-important title="Insight fondamental"}
+Le masquage perceptuel par la NVF améliore simultanément l'imperceptibilité (WPSNR plus élevé) et la robustesse (meilleure corrélation détecteur), au prix d'un MSE légèrement accru. C'est un excellent compromis pour les applications pratiques.
+:::
+
+---
+
+## Types de domaines d'insertion {#sec-domains}
+
+### Vue d'ensemble
+
+Le tatouage peut être inséré dans différents domaines de représentation de l'image. On distingue cinq grandes catégories.
+
+**Domaine pixel (direct) :**
+Pas de transformation appliquée ; le tatouage est inséré directement dans les valeurs de pixels.
+
+**Transformées fixes, non-apprenables :**
+Transformées mathématiques classiques (DCT, DFT, DWT).
+
+**Transformées apprenables linéaires :**
+Analyse en Composantes Principales (ACP / PCA).
+
+**Transformées apprenables non-linéaires :**
+Autoencodeurs — encodeur-décodeur entraîné sur des distorsions.
+
+**Modèles de fondation apprenables :**
+Espace latent de modèles pré-entraînés (vision foundation models).
+
+### Transformées fixes et non-apprenables
+
+#### Propriétés générales
+
+Les transformées DCT, DFT et DWT sont des transformées **orthogonales** très utilisées dans les algorithmes de compression. Elles offrent une décomposition fréquentielle qui permet d'étendre les techniques de masquage perceptuel au-delà du domaine spatial.
+
+::: {.callout-important title="Limitation critique"}
+Ces transformées sont **sensibles aux distorsions affines** (rotation, recadrage, changement d'échelle). Cela limite leur robustesse pour les applications pratiques soumises à des transformations géométriques.
+:::
+
+**Exceptions notables :**
+
+- **Magnitude de Fourier** : invariante aux translations.
+- **Transformée de Fourier-Mellin** : invariante à la rotation et à la translation, mais n'est pas générale pour les transformations affines complexes.
+
+#### Avantage des domaines compressés
+
+En insérant le tatouage dans les coefficients DCT ou DWT (utilisés par JPEG, JPEG 2000, HEIC), on bénéficie de la connaissance du processus de compression :
+
+- Meilleure intégration avec le pipeline de compression standard.
+- Permettent d'abaisser significativement le PSNR sans dégradation perceptuelle visible.
+
+#### Exemple : insertion dans le domaine DWT avec NVF
+
+Des résultats expérimentaux montrent que l'insertion dans le domaine DWT avec adaptation perceptuelle (NVF) permet d'obtenir :
+
+- Image tatouée avec PSNR 24,6 dB et **wPSNR 26,4 dB** (sans adaptation perceptuelle).
+- Image tatouée avec PSNR 24,6 dB et **wPSNR 29,3 dB** (avec bruit perceptuellement adapté).
+
+À PSNR égal, l'adaptation perceptuelle améliore considérablement le wPSNR — confirmant l'intérêt du masquage dans le domaine fréquentiel.
+
+### Domaine PCA (Transformée apprenante linéaire)
+
+L'Analyse en Composantes Principales (PCA — Principal Component Analysis) est une transformée apprenante mais linéaire. Elle offre une compaction d'énergie et une réduction de dimensionnalité.
+
+**Limitation :** Comme DCT/DFT/DWT, la PCA est linéaire et donc incapable d'assurer la robustesse face aux transformations complexes ou aux distorsions géométriques.
+
+### Autoencodeurs (Transformée apprenante non-linéaire)
+
+Un autoencodeur consiste en un couple encodeur-décodeur appris :
+
+- **Encodeur** : $z = \text{Enc}_\theta(x)$ — compresse l'image dans un espace latent.
+- **Décodeur** : $y = \text{Dec}_\theta(z_w)$ — reconstruit l'image depuis la représentation latente tatouée.
+- **Module de tatouage** (WM) : modifie $z$ pour y intégrer le message $m$.
+
+L'entraînement se fait avec deux fonctions de perte :
+
+$$\mathcal{L} = \mathcal{L}_x(x, y) + \mathcal{L}_m(m, \hat{m})$$
+
+- $\mathcal{L}_x$ : perte de fidélité image (PSNR/SSIM).
+- $\mathcal{L}_m$ : perte de décodage du message.
+
+**Avantages :**
+
+- Robuste au bruit et aux distorsions géométriques légères.
+- Adaptable à différentes applications.
+
+**Limitation :**
+Requiert un effort d'entraînement significatif et un réglage fin pour une robustesse optimale.
+
+::: {.callout-tip title="Intuition"}
+L'autoencodeur apprend à encoder l'image dans un espace où il est facile d'insérer le tatouage et difficile de l'effacer, même après des distorsions. C'est une forme d'apprentissage de la robustesse par l'exemple.
+:::
+
+Référence : [HiDDeN – Zhu et al., arXiv:1807.09937](https://arxiv.org/pdf/1807.09937.pdf)
+
+### Modèles de fondation (Foundation Models)
+
+Les modèles de fondation pré-entraînés sur de larges jeux de données (vision transformers, CLIP, DINO, etc.) offrent des espaces latents très riches et robustes.
+
+**Approche :**
+
+- Utiliser un modèle de fondation $f_\theta$ comme encodeur : $z = f_\theta(x)$.
+- Insérer le tatouage dans l'espace latent $z$ via un solveur d'optimisation.
+- La reconstruction $y$ est obtenue via un décodeur entraîné.
+
+**Avantages :**
+
+- Haute robustesse aux distorsions communes.
+- Réutilisation de modèles pré-entraînés sans ré-entraînement complet.
+
+**Limitations :**
+
+- Les solveurs d'optimisation pour l'insertion sont coûteux en calcul.
+- **Vulnérabilité aux attaques adversariales** : la manipulation de l'espace latent peut compromettre l'extraction du tatouage.
+
+Référence : [arXiv:2112.09581](https://arxiv.org/pdf/2112.09581.pdf)
+
+---
+
+## Types de synchronisation géométrique {#sec-sync}
+
+### Motivation
+
+Les distorsions géométriques (rotation, redimensionnement, recadrage, cisaillement) désynchronisent l'extracteur de tatouage. La **synchronisation géométrique** (Geometrical Synchronization) est le mécanisme qui permet de retrouver l'alignement correct avant extraction.
+
+On distingue quatre approches principales :
+
+1. Tatouage dans un domaine invariant (artisanal).
+2. Synchronisation par points de repère (feature-based).
+3. Auto-synchronisation par structure répétitive.
+4. Modèles de fondation pour représentations invariantes.
+
+### Domaines invariants artisanaux — Transformée de Fourier-Mellin
+
+#### Invariance à la translation par la magnitude de Fourier
+
+La **magnitude de la transformée de Fourier** d'une image est invariante aux translations spatiales. Si l'image $x_{i,j}$ subit une translation $(\Delta i, \Delta j)$, seule la **phase** est modifiée, pas la magnitude :
+
+$$|F'_{u,v}| = |F_{u,v}|$$
+
+**Application :** En insérant le tatouage dans la magnitude de Fourier, on obtient une robustesse automatique aux translations.
+
+#### Transformée de Fourier-Mellin (FMT) pour RST
+
+La **Transformée de Fourier-Mellin** (FMT — Fourier-Mellin Transform) convertit la rotation et le changement d'échelle en translations dans le système de coordonnées log-polaires, permettant une invariance RST (Rotation, Scaling, Translation).
+
+**Étapes :**
+
+1. Appliquer la transformée de Fourier 2D à l'image $x_{i,j}$ → $F_{u,v}$.
+2. Convertir en coordonnées log-polaires : $(u, v) \rightarrow (\log\sqrt{u^2+v^2},\ \arctan(v/u))$.
+3. Appliquer une transformée de Fourier 1D le long de l'axe angulaire.
+
+**Propriétés d'invariance :**
+
+- Un facteur d'échelle $s$ dans le domaine spatial correspond à une translation dans le domaine log-polaire.
+- Une rotation d'angle $\theta$ produit un décalage cyclique le long de l'axe angulaire.
+
+**Limitations pratiques :**
+
+- Invariance limitée : ne couvre pas le recadrage, le cisaillement ou les perspectives complexes.
+- Reconstruction de l'image après transformation inverse : dégradation significative de la qualité.
+- Sensibilité au bruit localisé et aux distorsions.
+
+::: {.callout-note title="À retenir"}
+La FMT offre un cadre théorique élégant mais son applicabilité pratique est limitée par la dégradation de l'image et la sensibilité au bruit. Elle sert surtout de référence théorique.
+:::
+
+### Synchronisation par points de repère (Feature-Based Synchronization)
+
+#### Principe
+
+Ces méthodes détectent des **points-clés** (keypoints) caractéristiques dans l'image originale et dans l'image distordue, puis utilisent leurs correspondances pour estimer et inverser la transformation géométrique.
+
+**Algorithmes de détection de points :**
+
+- **SIFT** (Scale-Invariant Feature Transform).
+- **ORB** (Oriented FAST and Rotated BRIEF).
+
+**Pipeline :**
+
+1. Détecter les points $\{p_k\}_{k=1}^K$ dans les deux images.
+2. Calculer les descripteurs locaux autour de chaque point.
+3. Apparier les descripteurs avec **FLANN** (Fast Library for Approximate Nearest Neighbors).
+4. Estimer la transformation affine $T$ avec **RANSAC** (Random Sample Consensus).
+5. Appliquer la transformation inverse $T^{-1}$ pour re-synchroniser.
+
+#### Transformation affine
+
+Un point $p_k = (i, j)^\top$ subit la transformation affine $T$ :
+
+$$T(i,j) = \begin{pmatrix} a & b \\ c & d \end{pmatrix} \begin{pmatrix} i \\ j \end{pmatrix} + \begin{pmatrix} t_1 \\ t_2 \end{pmatrix}$$
+
+Les paramètres $(a, b, c, d, t_1, t_2)$ sont estimés par RANSAC à partir des correspondances de points.
+
+#### Algorithme RANSAC
+
+RANSAC fonctionne par itérations :
+
+1. Tirer aléatoirement un sous-ensemble de points appariés.
+2. Calculer la transformation affine pour ce sous-ensemble.
+3. Compter les « inliers » — points dont la distance transformée est en dessous d'un seuil.
+4. Répéter jusqu'à trouver la transformation avec le maximum d'inliers.
+
+**Avantages :**
+
+- Robuste aux transformations géométriques complexes.
+- Efficace sous diverses distorsions réelles.
+
+**Limitations :**
+
+- Coûteux en calcul.
+- Requiert suffisamment de points distinctifs pour une synchronisation précise.
+- **Nécessite la connaissance de l'image de référence** — non scalable pour de grandes bases d'images.
+
+### Auto-synchronisation (Self-Synchronization)
+
+#### Principe
+
+L'auto-synchronisation exploite la **structure répétitive** du tatouage et ses propriétés d'autocorrélation pour retrouver la synchronisation sans image de référence.
+
+**Étapes :**
+
+1. Générer un bloc de tatouage $w_{\text{block}}$ de taille $B \times B$, le suréchantillonner et le replier sur toute l'image.
+2. Insérer le tatouage répétitif : $y = x + \varepsilon w$.
+3. Prédire le tatouage par filtrage de Wiener : $\hat{w}_{\text{pred}} = y - \text{Wiener}(y)$.
+4. Calculer l'autocorrélation de $\hat{w}_{\text{pred}}$ : $\text{ACF}(w) = \mathcal{F}^{-1}(\mathcal{F}(w) \cdot \overline{\mathcal{F}(w)})$.
+5. Détecter les pics dans l'ACF — leur position révèle la grille du tatouage.
+
+**Génération du tatouage répétitif :**
+
+```python
+BLOCK_SIZE = 16
+UPSAMPLE_FACTOR = 2
+EMBEDDING_STRENGTH = 4.5
+
+def generate_block_watermark(block_size, seed):
+    np.random.seed(seed)
+    return np.random.choice([-1, 1], (block_size, block_size))
+
+def upsample_block(block, upsample_factor):
+    return cv2.resize(block, (block.shape[1] * upsample_factor,
+                               block.shape[0] * upsample_factor),
+                      interpolation=cv2.INTER_NEAREST)
+
+def tile_watermark(block, image_shape):
+    tiled_rows = (image_shape[0] + block.shape[0] - 1) // block.shape[0]
+    tiled_cols = (image_shape[1] + block.shape[1] - 1) // block.shape[1]
+    return np.tile(block, (tiled_rows, tiled_cols))[:image_shape[0], :image_shape[1]]
+```
+
+**Calcul de l'autocorrélation (ACF) :**
+
+$$\text{ACF}(x) = \mathcal{F}^{-1}\left(\mathcal{F}(x) \cdot \overline{\mathcal{F}(x)}\right)$$
+
+```python
+def autocorrelation_fft(image):
+    f = np.fft.fft2(image)
+    f_conj = np.conj(f)
+    return np.fft.fftshift(np.real(np.fft.ifft2(f * f_conj)))
+```
+
+**Suppression des non-maxima (NMS) :**
+
+```python
+def non_maximum_suppression(image, size=31):
+    max_filtered = maximum_filter(image, size=size)
+    nms_result = (image == max_filtered) * image
+    return nms_result
+```
+
+#### Robustesse aux attaques
+
+L'ACF est calculée après différentes attaques :
+
+- **Attaque par bruit** : $y_{\text{attack}} = \text{clip}(y + z, 0, 255)$ avec $z \sim \mathcal{N}(0, 30^2)$.
+- **Sous-échantillonnage** : redimensionner $y$ à la moitié de sa résolution.
+- **Rotation** : rotation de 45° via transformation affine.
+
+Le tatouage prédit reste corrélé avec le tatouage original même après ces attaques, grâce à la structure répétitive.
+
+#### Limitations de l'auto-synchronisation
+
+::: {.callout-important title="Limitations importantes"}
+- **Fuite de sécurité** : un attaquant peut estimer la période du tatouage par filtrage de Wiener, régénérer et supprimer la marque.
+- **Contrainte de taille** : une répétition minimale de $2 \times 2$ blocs nécessite une image d'au moins $64 \times 64$ pixels.
+- **Visibilité perceptuelle** : les motifs répétitifs peuvent être détectés par le système visuel humain, réduisant la discrétion.
+:::
+
+### Modèles de fondation pour représentations invariantes
+
+Les modèles pré-entraînés comme CLIP ou DINO exhibent une invariance naturelle à de nombreuses transformations géométriques dans leur espace latent.
+
+**Approche :** Extraire les caractéristiques de l'image tatouée via le modèle de fondation, puis comparer les représentations latentes pour détecter et décoder le tatouage — sans synchronisation géométrique explicite.
+
+**Avantages :** Robustesse à diverses transformations réelles sans synchronisation explicite.
+
+**Limitations :** Complexité calculatoire élevée. Vulnérabilité aux attaques adversariales sur l'espace latent.
+
+---
+
+## Types de fonctions de modulation {#sec-modulation}
+
+### Vue d'ensemble
+
+La formulation générale de l'insertion est :
+
+$$y = \omega(x, m, k)$$
+
+Différentes fonctions $\omega$ correspondent à différentes techniques de modulation.
+
+### Tatouage additif (Additive Watermarking / Spectrum Modulation)
+
+**Modèle d'insertion :**
+
+$$y = x + \varepsilon w, \quad w = \sum_{n=1}^{L} m_n w_n$$
+
+- $w_n \sim \mathcal{N}(0, \sigma_w^2 I_M)$ : séquences porteuses orthogonales.
+- $m_n \in \{-1, +1\}$ : bits du message.
+
+**Détection :**
+
+$$\hat{m}_n = \text{sign}(y^\top w_n)$$
+
+**Problème principal :** L'image hôte $x$ crée une **interférence** avec variance $\sigma_x^2$, dégradant la précision de détection.
+
+**Solutions :** Correction d'erreur ou redondance (répétition) pour améliorer la robustesse.
+
+### Modulation par Index de Quantification binaire (QIM — Quantization Index Modulation)
+
+**Modèle d'insertion :**
+
+Pour chaque pixel $x_i$, on choisit le quantificateur $Q_{m_i}$ correspondant au bit $m_i$ à insérer :
+
+$$y_i = Q_{m_i}(x_i)$$
+
+**Détection :**
+
+Le bit détecté est déterminé en comparant la valeur reçue aux centroïdes des deux quantificateurs :
+
+$$\hat{m}_i = \begin{cases} 0 & \text{si } y_i \text{ plus proche de } Q_0 \\ 1 & \text{si } y_i \text{ plus proche de } Q_1 \end{cases}$$
+
+**Exemple avec pas de quantification $\Delta = 2$ :**
+
+- $Q_0 = \{0, 2, 4, 6, 8, \ldots\}$ (centroïdes : cercles).
+- $Q_1 = \{1, 3, 5, 7, 9, \ldots\}$ (centroïdes : croix).
+
+**Propriétés :**
+
+- Robuste au bruit additif (tant que la distorsion reste inférieure à $\Delta/2$).
+- Sensible aux opérations de changement d'échelle et aux attaques volumétriques.
+
+::: {.callout-tip title="Intuition"}
+Le QIM « force » la valeur de chaque pixel à se coller au centroïde du bon quantificateur. L'extraction se fait en regardant simplement « de quel côté » la valeur reçue se trouve.
+:::
+
+### Quantification vectorielle (VQ) et quantification par produit (PQ)
+
+**Quantification vectorielle (VQ) :**
+
+Le vecteur d'entrée est mappé au centroïde le plus proche dans un dictionnaire (codebook) prédéfini. Efficace mais coûteux en calcul pour les grands vecteurs.
+
+**Quantification par produit (PQ — Product Quantization) :**
+
+Le vecteur est divisé en $B$ blocs, chacun quantifié indépendamment avec $C_K$ centroïdes :
+
+$$c = [c_{K_1}, c_{K_2}, \ldots, c_{K_B}]$$
+
+La PQ réduit la complexité tout en maintenant la robustesse, ce qui la rend adaptée au tatouage dans les domaines transformés et au hachage perceptuel.
+
+### Analyse comparative
+
+| Méthode | Robustesse | Sensibilité | Complexité |
+|---------|-----------|-------------|------------|
+| Additif (Spread Spectrum) | Moderate | Bruit hôte | Faible |
+| QIM binaire | Bonne (bruit) | Mise à l'échelle | Faible |
+| VQ | Bonne | Coût calcul | Élevée |
+| PQ | Bonne | Compromis | Modérée |
+
+---
+
+## Gestion des clés {#sec-keys}
+
+### Importance et composantes
+
+La gestion des clés (Key Management) est un élément fondamental de la sécurité du tatouage numérique. Elle comprend trois aspects :
+
+**Génération des clés :**
+La clé $k$ détermine de manière déterministe le tatouage $w = \text{Gen}(k)$. Une bonne génération assure l'imprévisibilité de la marque pour un attaquant ne connaissant pas $k$.
+
+**Distribution des clés :**
+Dans un système multi-utilisateurs (traçabilité), chaque utilisateur possède une clé distincte. La distribution sécurisée des clés est critique pour maintenir l'intégrité du système.
+
+**Stockage sécurisé des clés :**
+Une clé compromise permet à l'attaquant de régénérer la marque et de la supprimer ou copier. Le stockage sécurisé est donc aussi important que la génération.
+
+::: {.callout-important title="Point de sécurité"}
+La sécurité d'un système de tatouage repose entièrement sur le secret de la clé. Si la clé est connue de l'attaquant, il peut supprimer ou copier le tatouage avec une efficacité bien supérieure aux attaques aveugles.
+:::
+
+---
+
+## Robustesse et sécurité adversariale {#sec-security}
+
+### Distinction : Généralisation ≠ Robustesse ≠ Sécurité
+
+Ces trois propriétés sont distinctes et ne se substituent pas l'une à l'autre :
+
+- **Généralisation** : performance sur des données non vues ($x$ non vus, distorsions non vues).
+- **Robustesse** : résistance aux distorsions communes (bruit, compression, géométrie).
+- **Sécurité adversariale** : résistance aux attaques craftées par un adversaire informé.
+
+Un système robuste n'est pas nécessairement sécurisé face à un attaquant adaptatif.
+
+### Attaques génériques basées sur les images
+
+Ces attaques exploitent une connaissance partielle de la méthode (mauvaise gestion de clé ou de message) et s'appliquent à n'importe quelle technologie de tatouage.
+
+#### Attaque par débruitage (Removal by Denoising)
+
+**Modèle :** Le tatouage est inséré comme $y = x + w$. L'attaquant traite $w$ comme du bruit et applique un débruiteur pour estimer $\hat{x} \approx x$.
+
+$$y_a = \hat{x} + \omega$$
+
+L'attaquant ajoute ensuite un bruit contrôlé $\omega$ pour masquer toute trace résiduelle du tatouage.
+
+**Mécanisme :** Tout filtre débruiteur (filtre médian, filtre de Wiener, débruiteur par réseau de neurones) peut être utilisé. Le tatouage, perçu comme du bruit à haute fréquence, est atténué lors du débruitage.
+
+Référence : [Voloshynovskiy et al., EWW'99](https://cvml.unige.ch/publications/postscript/99/VoloshynovskiyPereiraPun_eww99.pdf)
+
+#### Attaque par moyenne (Removal by Averaging)
+
+**Scénario :** Différentes versions tatouées d'une même image (avec des messages ou des clés distincts) sont disponibles (par exemple, copies distribuées à différents clients).
+
+**Mécanisme :** En faisant la moyenne de $N$ images tatouées avec des marques différentes, les tatouages (signaux de micro-modulation) s'annulent mutuellement :
+
+$$\frac{1}{N} \sum_{i=1}^N y_i \approx x$$
+
+Le contenu est préservé, mais le tatouage est supprimé.
+
+#### Attaque par collusion (Removal by Collusion)
+
+**Scénario :** Plusieurs images tatouées avec le **même message** mais des clés ou des réalisations différentes.
+
+**Mécanisme :**
+
+1. Estimer la composante de tatouage dans chaque image via filtrage de Wiener.
+2. Aligner et faire la moyenne des estimations pour obtenir une estimation consolidée du tatouage.
+3. Soustraire cette estimation de l'image tatouée.
+
+**Méthode alternative :** Si le tatouage est périodique, l'attaquant peut utiliser l'autocorrélation pour estimer et régénérer la marque.
+
+#### Attaque par copie (Copy Attack)
+
+**Mécanisme :** L'attaquant estime le tatouage depuis une image tatouée, puis réinjecte cette estimation dans une image **non tatouée** :
+
+1. Estimer $\hat{w}$ depuis l'image tatouée $y$.
+2. Insérer $\hat{w}$ dans une nouvelle image $x_t$ : $y_a = x_t + \hat{w}$.
+
+**Objectif :** Augmenter la probabilité de fausse acceptation pour une image non autorisée.
+
+::: {.callout-important title="Danger de l'attaque par copie"}
+L'attaque par copie est particulièrement insidieuse : elle n'essaie pas de supprimer le tatouage, mais de le transférer vers un contenu non autorisé. Elle peut faire passer n'importe quelle image pour une image « légitimement tatouée ».
+:::
+
+### Attaques contre le tatouage basé sur les modèles ML
+
+Ces attaques supposent la connaissance du modèle de fondation utilisé et s'appliquent aux technologies de tatouage basées sur les autoencodeurs et les modèles SSL (Self-Supervised Learning).
+
+#### Tatouage par modèles de fondation — Rappel
+
+**Composantes :**
+
+- $x$ : image originale.
+- $y$ : image tatouée.
+- $z = f_\theta(x)$ : représentation latente dans le modèle de vision $f_\theta$.
+- $w$ : vecteur porteur secret généré depuis une clé secrète.
+
+**Région de détection :**
+
+$$\mathcal{D}_k = \{z \in \mathbb{R}^d : |z^\top w| > \|z\| \cos(\alpha)\}$$
+
+L'angle $\alpha$ est déterminé par le taux de fausse acceptation cible $P_{fa}$.
+
+#### Attaque par copie dans l'espace latent
+
+**Objectif :** Transférer le tatouage d'une image tatouée $y$ vers une image non tatouée $x_t$, sans connaître la clé ni le message.
+
+**Approche :** Générer une image attaquée $y_a$ perceptuellement similaire à $x_t$, tout en alignant sa représentation latente sur celle de $y$.
+
+**Fonction de perte :**
+
+$$\mathcal{L}_{\text{CA}}(y_a, y, x_t) = \mathcal{L}_X(y_a, x_t) + \lambda \mathcal{L}_Z(z_a, z_w)$$
+
+- $\mathcal{L}_X$ : perte de similarité perceptuelle.
+- $\mathcal{L}_Z$ : perte de similarité dans l'espace latent.
+- $\lambda$ : facteur de pondération.
+
+#### Attaque par suppression (Removal Attack)
+
+$$\mathcal{L}_{\text{copy}} = \|x_{\text{tgt}} - x_{\text{tgt}}^{\text{new}}\|_2^2 + \varepsilon \|\hat{w} - w_{\text{tgt}}\|_2^2$$
+
+L'attaquant minimise simultanément la distorsion perceptuelle et l'erreur de transfert du tatouage.
+
+#### Résultats expérimentaux
+
+**Attaque par copie :**
+
+- Taux de succès élevé dans le transfert de tatouage.
+- PSNR > 40 dB sur les images attaquées — qualité perceptuelle préservée.
+
+**Attaque par suppression :**
+
+- Suppression réussie avec distorsion perceptuelle minimale.
+- La suppression non ciblée (untargeted) est plus efficace que la suppression ciblée.
+
+::: {.callout-important title="Conclusion de sécurité"}
+Les systèmes de tatouage basés sur les modèles de fondation sont **vulnérables** aux attaques par copie et par suppression. Des recherches complémentaires sont nécessaires pour renforcer la robustesse et la sécurité de ces systèmes.
+:::
+
+### Directions de recherche futures
+
+- Développer des stratégies d'insertion résistantes aux attaques de copie et de suppression.
+- Explorer des transformations apprenables améliorant la robustesse du tatouage.
+- Concevoir des algorithmes de détection avancés capables de distinguer les tatouages légitimes des patterns générés par des attaques.
+- Combiner des approches traditionnelles et des approches par modèles de fondation.
+- Intégrer l'entraînement adversarial lors de l'insertion du tatouage pour anticiper les attaques potentielles.
+
+Référence : Kinakh et al., *Evaluation of Security of ML-based Watermarking: Copy and Removal Attacks*, arXiv:2409.18211.
+
+---
+
+## Récapitulatif du cours {#sec-recap}
+
+Ce cours a couvert l'ensemble des briques fondamentales du tatouage numérique robuste :
+
+- **Applications** : protection des droits, traçabilité, stéganographie, détection d'altération.
+- **Fondements théoriques** : test d'hypothèse, score de détection, probabilités d'erreur, modèle d'insertion additif.
+- **Masquage perceptuel** : NVF, MSE pondéré, WPSNR, filtre de Wiener, insertion adaptative.
+- **Domaines d'insertion** : pixel, DCT/DFT/DWT, PCA, autoencodeurs, modèles de fondation.
+- **Synchronisation géométrique** : Fourier-Mellin, points de repère SIFT/ORB/RANSAC, auto-synchronisation, modèles de fondation.
+- **Fonctions de modulation** : additif, QIM, quantification vectorielle et par produit.
+- **Gestion des clés** : génération, distribution, stockage sécurisé.
+- **Sécurité adversariale** : attaques par débruitage, moyenne, collusion, copie, et attaques sur les modèles ML.
+
+::: {.callout-important title="Message central"}
+La robustesse (résistance aux distorsions accidentelles) et la sécurité (résistance aux attaques intentionnelles) sont deux propriétés distinctes. Concevoir un système de tatouage nécessite de les traiter séparément et de les équilibrer selon le contexte applicatif.
+:::
