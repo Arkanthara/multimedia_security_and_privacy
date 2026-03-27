@@ -1,0 +1,193 @@
+---
+title: "Notations et Concepts Fondamentaux — Révision"
+---
+
+# Notations de base
+
+## Symboles principaux
+
+| Symbole | Signification |
+|---|---|
+| **x** | Image originale |
+| **y** | Image stégo (Stego image) |
+| **w** | Tatouage (Watermark) |
+| **k** | Clé secrète |
+| **m** | Message multi-bit, $\mathbf{m} \in \{0,1\}^L$ |
+
+## Dimensions et espace pixel
+
+- Image : $H \times W \times C$ — $C=1$ (gris), $C=3$ (RGB)
+- Pixel : $x_i \in \mathcal{X} = \{0,\ldots,255\}$ — codage 8 bits ($2^8 = 256$)
+- Vecteur image gris : $\mathbf{x} \in \mathbb{R}^{H \cdot W}$, RGB : $\mathbf{x}_{\text{RGB}} \in \mathbb{R}^{3 \cdot H \cdot W}$
+- $M = H \times W$ = nombre total de pixels
+
+---
+
+# Métriques de qualité
+
+## Formules
+
+$$\text{MSE}(\mathbf{x},\mathbf{y}) = \frac{1}{M}\|\mathbf{x}-\mathbf{y}\|_2^2$$
+
+$$\text{PSNR} = 10\cdot\log_{10}\!\left(\frac{255^2}{\text{MSE}}\right) \quad \text{[dB]}$$
+
+$$\text{WMSE}(\mathbf{x},\mathbf{y}) = \frac{1}{M}\sum_{i=1}^M w_i(x_i-y_i)^2$$
+
+$$\text{WPSNR} = 10\cdot\log_{10}\!\left(\frac{255^2}{\text{WMSE}}\right)$$
+
+## Proximité vectorielle
+
+$$\mathbf{x}^T\mathbf{y} = \sum_{i=1}^M x_i y_i \qquad \cos(\theta) = \frac{\mathbf{x}^T\mathbf{y}}{\|\mathbf{x}\|\|\mathbf{y}\|}$$
+
+::: {.callout-tip title="PSNR"}
+\> 40 dB : imperceptible — 30–40 dB : acceptable — \< 30 dB : visible
+:::
+
+---
+
+# Transformées d'images
+
+## Vue d'ensemble
+
+| Transformée | Type | Inverse ? | Clé |
+|---|---|---|---|
+| Bit-planes | Fixe, non-linéaire | ✅ | LSB ≈ bruit, MSB = structure |
+| DFT | Fixe, orthogonale | ✅ | Coefficients complexes |
+| DCT | Fixe, orthogonale | ✅ | Réels, compaction énergie |
+| DWT | Fixe, orthogonale | ✅ | Multi-résolution |
+| PCA | Apprise, linéaire | ✅ | Données gaussiennes |
+| DL/SSL | Apprise, non-linéaire | ❌ | Décodeur requis |
+
+## Propriété orthogonale (commune)
+
+$$\mathbf{z} = \mathcal{T}(\mathbf{x}), \quad \mathbf{x} = \mathcal{T}^{-1}(\mathbf{z}), \quad \mathcal{T}^\top\mathcal{T} = \mathbf{I}$$
+
+## DCT — 3 modes d'application
+
+- **Plein cadre** : $\mathbf{z} = \text{DCT}(\mathbf{x})$, $\mathbf{x} \in \mathbb{R}^{H\times W}$
+- **Blocs 8×8** : $\mathbf{z}_{i,j} = \text{DCT}(\mathbf{x}_{i,j})$, $\mathbf{x}_{i,j} \in \mathbb{R}^{8\times 8}$ → **JPEG**
+- **Tensorielle** : $\mathbf{z}_{i,j} = \text{DCT}(\mathbf{x}^{(i,j)})$, $\mathbf{x}^{(i,j)} \in \mathbb{R}^{H/8\times W/8}$
+
+## PCA — Étapes
+
+1. Moyenne : $\bar{\mathbf{x}} = \frac{1}{N}\sum \mathbf{x}_i$
+2. Centrage : $\mathbf{x}'_i = \mathbf{x}_i - \bar{\mathbf{x}}$
+3. Covariance : $\mathbf{K}_{\mathbf{xx}} = \frac{1}{N}\sum \mathbf{x}'_i{\mathbf{x}'_i}^\top$
+4. Décomposition : $\mathbf{K}_{\mathbf{xx}} = \mathbf{U}\Sigma\mathbf{U}^\top$
+5. Projection : $\mathbf{z} = \mathbf{U}^\top\mathbf{x}$
+
+::: {.callout-warning title="Limite PCA"}
+Échoue sur les variétés non-linéaires (Non-linear Manifolds) → utiliser DL.
+:::
+
+---
+
+# Deep Learning — Modèles de fondation
+
+## Encodeur (Encoder)
+
+$$f_\phi(\mathbf{x}) = \sigma_K\!\left(\mathbf{W}_K\ldots(\sigma_1(\mathbf{W}_1\mathbf{x}+\mathbf{b}_1))+\mathbf{b}_K\right)$$
+
+- $\mathbf{W}_i$ : poids (Weights), $\mathbf{b}_i$ : biais (Biases), $\sigma_i$ : activation non-linéaire
+
+## SSL vs WSL
+
+| | SSL (Self-Supervised) | WSL (Weakly Supervised) |
+|---|---|---|
+| Données | 1 modalité + augmentations | 2 modalités alignées (ex. image+texte) |
+| Labels | Aucun | Alignement faible |
+| Objectif | $\max$ similarité vues augmentées | Aligner espaces latents |
+| Exemples | SimCLR, DINO, MAE | CLIP, BLIP, SigLIP |
+
+## Architectures SSL
+
+| Architecture | Perte | Risque | Exemples |
+|---|---|---|---|
+| Embedding-reconstruction (AE) | $\mathcal{L}_x(\mathbf{x}, \hat{\mathbf{x}}_+)$ | Aucun mode collapse | MAE, DAE |
+| Joint Embedding | $\mathcal{L}_y(\tilde{\mathbf{y}}_x, \tilde{\mathbf{y}}_{x_+})$ | Mode collapse | SimCLR, BYOL, DINO |
+| Joint Embedding-Prediction | $\mathcal{L}_y(\tilde{\mathbf{y}}_x, \hat{\mathbf{y}}_{x_+})$ | Mode collapse | I-JEPA |
+| Hybride | Les deux | Réduit | CAN, CAE, BeiT |
+
+::: {.callout-warning title="Mode Collapse"}
+Le réseau mappe tout vers le même point → représentation inutile. Évité par : normalisation, momentum (EMA), régularisation de variance.
+:::
+
+---
+
+# Tatouage numérique (Digital Watermarking)
+
+## Fonctions d'insertion
+
+$$\mathbf{y} = \phi(\mathbf{x}, \mathbf{k}) \quad \text{(zéro-bit)}$$
+
+$$\mathbf{y} = \phi(\mathbf{x}, \mathbf{k}, \mathbf{m}) \quad \text{(multi-bit, } \mathbf{m}\in\{0,1\}^L\text{)}$$
+
+## Triangle des contraintes
+
+- **Imperceptibilité** : PSNR/WPSNR élevé
+- **Robustesse** : survie aux transformations
+- **Capacité** : $L$ bits transportés
+
+---
+
+# Détection de signal (Hypothesis Testing)
+
+## Hypothèses
+
+| | Hypothèse | Modèle |
+|---|---|---|
+| $H_0$ | Pas de tatouage | $\mathbf{y} = \mathbf{x}$ |
+| $H_1$ | Tatouage présent | $\mathbf{y} = \mathbf{x} + \mathbf{w}$ |
+
+Hypothèses : $\mathbf{x} \sim \mathcal{N}(\mathbf{0}, \sigma_x^2\mathbf{I}_M)$, $\|\mathbf{w}\|_2^2 = E_w$ connu.
+
+## Score de détection
+
+$$S(\mathbf{y}) = \frac{\mathbf{y}^T\mathbf{w}}{M}$$
+
+## Distributions du score
+
+| | Sous $H_0$ | Sous $H_1$ |
+|---|---|---|
+| Moyenne $\mu$ | $0$ | $\dfrac{\|\mathbf{w}\|_2^2}{M}$ |
+| Variance $\sigma^2$ | $\dfrac{\|\mathbf{w}\|_2^2\sigma_x^2}{M^2}$ | $\dfrac{\|\mathbf{w}\|_2^2\sigma_x^2}{M^2}$ |
+
+::: {.callout-important title="Clé"}
+Même variance sous $H_0$ et $H_1$ — seules les moyennes diffèrent.
+:::
+
+## Probabilités d'erreur (Q-function)
+
+$$Q(x) = \frac{1}{\sqrt{2\pi}}\int_x^{+\infty} e^{-t^2/2}\,dt$$
+
+$$P_{\text{FA}}(\gamma) = Q\!\left(\frac{\gamma-\mu_0}{\sigma_0}\right) \qquad P_{\text{miss}}(\gamma) = 1 - Q\!\left(\frac{\gamma-\mu_1}{\sigma_1}\right)$$
+
+$$P_D(\gamma) = 1 - P_{\text{miss}}(\gamma)$$
+
+## Stratégies de seuil $\gamma$
+
+| Stratégie | Objectif | Seuil optimal |
+|---|---|---|
+| **Neyman-Pearson** | $\min P_{\text{miss}}$ sous $P_{\text{FA}} = \alpha$ fixé | Via inversion de $Q$ |
+| **Bayésien** | $\min P_{\text{erreur}} = P_{\text{FA}}P(H_0) + P_{\text{miss}}P(H_1)$ | $\gamma^* = \frac{\mu_0+\mu_1}{2}$ (si $\sigma_0=\sigma_1$, $P(H_0)=P(H_1)$) |
+
+## Courbe ROC
+
+- Trace $P_D(\gamma)$ vs $P_{\text{FA}}(\gamma)$ en faisant varier $\gamma$
+- Idéal : coin supérieur gauche ($P_D\to 1$, $P_{\text{FA}}\to 0$)
+- Diagonale = décision aléatoire (AUC = 0.5)
+- AUC = 1 → détecteur parfait
+
+---
+
+# Relations entre concepts
+```{mermaid}
+graph TD
+    IMG["Image x\n(H×W×C)"] --> TRANS["Transformées\nDFT / DCT / DWT / PCA / DL"]
+    TRANS --> LATENT["Espace latent z"]
+    IMG --> WM["Tatouage\ny = φ(x,k,m)"]
+    WM --> DET["Détection\nS(y) = yᵀw/M"]
+    DET --> TEST["Test H₀ vs H₁\n→ ROC, PFA, PD"]
+    LATENT --> HASH["Hachage perceptuel\n(Perceptual Hashing)"]
+    LATENT --> WM
+```

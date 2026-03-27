@@ -1,0 +1,291 @@
+---
+title: "Notations et Concepts Fondamentaux — Quiz"
+filters:
+  - quizdown
+execute:
+  enabled: false
+---
+
+## Niveau 1 — Fondamentaux
+```{quizdown}
+### Dans les notations du cours, que représente le symbole y ?
+
+> Pense au processus d'insertion d'un tatouage dans une image.
+
+1. [ ] L'image originale avant tout traitement
+1. [x] L'image stégo contenant le tatouage
+    > Correct : y désigne l'image stégo (Stego image), c'est-à-dire l'image originale après insertion du tatouage w.
+1. [ ] Le tatouage lui-meme
+1. [ ] La clé secrète d'insertion
+```
+```{quizdown}
+### Combien de valeurs distinctes peut prendre un pixel codé sur 8 bits ?
+
+> Pense à la puissance de 2 correspondant à 8 bits.
+
+1. [ ] 255
+1. [ ] 512
+1. [x] 256
+    > Correct : 2 puissance 8 = 256 valeurs, soit de 0 à 255.
+1. [ ] 128
+```
+```{quizdown}
+### Quelles dimensions caractérisent une image couleur RGB dans ce cours ?
+
+> Une image couleur a trois composantes de couleur.
+
+1. [ ] H x W
+1. [ ] H x W x 1
+1. [x] H x W x 3
+    > Correct : H est la hauteur, W la largeur, et C = 3 pour les trois canaux Rouge, Vert, Bleu.
+1. [ ] H x W x 8
+```
+```{quizdown}
+### Quelle est la dimension du vecteur obtenu en aplatissant une image en niveaux de gris de taille H x W ?
+
+> L'aplatissement (flattening) consiste à dérouler toutes les lignes en un seul vecteur.
+
+1. [ ] H + W
+1. [ ] 3 x H x W
+1. [x] H x W
+    > Correct : pour une image en niveaux de gris (C = 1), le vecteur aplati est de dimension M = H x W.
+1. [ ] H x W x 256
+```
+```{quizdown}
+### Quelles affirmations sur le processus de demosaïcage (Demosaicing) sont correctes ?
+
+> Pense à la structure du capteur d'image et au résultat final obtenu.
+
+- [x] Il convertit le motif de Bayer en image RGB
+    > Correct : le demosaïcage interpole les valeurs manquantes pour obtenir une image RGB complete.
+- [ ] Il compresse l'image pour reduire son poids
+    > Incorrect : le demosaïcage ne compresse pas, il reconstruit l'image couleur.
+- [x] Il est nécessaire car chaque photosite ne capture qu'une seule couleur
+    > Correct : chaque capteur du motif de Bayer ne capte qu'une couleur (R, G ou B), d'où le besoin d'interpolation.
+- [ ] Il produit une image en niveaux de gris
+    > Incorrect : le résultat est bien une image RGB H x W x 3.
+```
+```{quizdown}
+### Dans la notation du tatouage multi-bit, que représente L ?
+
+> La lettre L est associée au message binaire m.
+
+1. [ ] La largeur de l'image
+1. [ ] Le niveau de distorsion autorisé
+1. [ ] Le nombre de canaux de couleur
+1. [x] La longueur du message en bits
+    > Correct : m appartient à {0,1} puissance L, donc L est le nombre de bits du message a transmettre.
+```
+
+---
+
+## Niveau 2 — Compréhension
+```{quizdown}
+### Quel est l'avantage du WPSNR (Weighted PSNR) par rapport au PSNR classique dans le contexte du tatouage ?
+
+> Pense à la sensibilité de l'oeil humain selon les zones de l'image.
+
+1. [ ] Il est plus facile à calculer
+1. [x] Il reflète mieux la qualité visuelle perçue en pondérant les zones selon la sensibilité visuelle
+    > Correct : les poids w_i modélisent le Système Visuel Humain (HVS). Les zones texturées tolerent plus de distorsion que les zones lisses.
+1. [ ] Il donne toujours un score plus élevé que le PSNR
+1. [ ] Il est indépendant du contenu de l'image
+```
+```{quizdown}
+### Quelle propriété fondamentale distingue les transformées orthogonales (DFT, DCT, DWT) des transformées apprises par deep learning ?
+
+> Pense à la possibilité de reconstruire exactement le signal original.
+
+1. [ ] Les transformées orthogonales sont plus lentes à calculer
+1. [ ] Les transformées DL produisent des représentations de plus grande dimension
+1. [x] Les transformées orthogonales sont exactement inversibles, contrairement aux transformées DL qui nécessitent un décodeur appris
+    > Correct : la propriété T transposé T = I garantit la reconstruction parfaite. Les modeles DL n'ont pas de transformée inverse analytique.
+1. [ ] Les transformées orthogonales sont apprises depuis les données
+```
+```{quizdown}
+### Quelle est la principale limitation de la PCA (Analyse en Composantes Principales) pour représenter des images naturelles complexes ?
+
+> Pense à la structure géométrique des données d'images naturelles.
+
+1. [ ] La PCA est trop coûteuse en calcul
+1. [ ] La PCA ne préserve pas l'energie du signal
+1. [x] La PCA échoue si les données se trouvent sur une variété non-linéaire
+    > Correct : la PCA est efficace uniquement pour des données bien approximées par une gaussienne multidimensionnelle. Les images naturelles ont une structure non-linéaire complexe.
+1. [ ] La PCA produit des représentations trop grandes
+```
+```{quizdown}
+### Quelle propriété du spectre DFT est utile pour le tatouage numérique robuste ?
+
+> Pense a ce qui ne change pas lorsqu'on déplace une image dans l'espace.
+
+1. [ ] Le spectre DFT est toujours réel
+1. [x] Le module du spectre DFT est invariant par translation spatiale
+    > Correct : une translation dans le domaine spatial ne modifie que la phase, pas le module. Cela permet de comparer des images même légèrement décalées.
+1. [ ] La DFT produit des coefficients entiers
+1. [ ] Le spectre DFT est identique pour toutes les images de meme taille
+```
+```{quizdown}
+### Quelles affirmations sur la similarité cosinus sont correctes ?
+
+> Pense à la définition formelle et aux cas particuliers.
+
+- [x] Elle vaut 1 si les deux vecteurs sont colinéaires et de même sens
+    > Correct : cos(0) = 1, les vecteurs sont parfaitement alignés.
+- [x] Elle est invariante à l'échelle des vecteurs
+    > Correct : la normalisation par les normes rend la mesure indépendante de l'amplitude.
+- [ ] Elle est toujours positive
+    > Incorrect : la similarité cosinus peut être négative si l'angle entre les vecteurs dépasse 90 degrés.
+- [ ] Elle est équivalente à la distance euclidienne
+    > Incorrect : la distance euclidienne tient compte de l'amplitude, pas la similarité cosinus.
+```
+```{quizdown}
+### Quel est l'objectif principal de l'apprentissage auto-supervisé (Self-Supervised Learning) ?
+
+> Pense à la nature des données utilisées pour l'entraînement.
+
+1. [ ] Minimiser l'erreur de reconstruction pixel à pixel
+1. [ ] Apprendre à partir de grandes quantités de données annotées
+1. [x] Apprendre des représentations robustes sans données labellisées, via des augmentations
+    > Correct : le SSL crée des pseudo-labels en considerant que deux vues augmentées d'une même image doivent avoir des représentations similaires.
+1. [ ] Maximiser la distance entre les représentations de toutes les images
+```
+```{quizdown}
+### Quelle architecture de modele de fondation SSL presente un risque d'effondrement de mode (Mode Collapse) ?
+
+> Certaines architectures sont plus vulnerables que d'autres à ce problème.
+
+1. [ ] L'auto-encodeur débruiteur (Denoising Autoencoder)
+1. [ ] Le MAE (Masked Autoencoder)
+1. [x] Le Joint Embedding sans mécanisme de régularisation
+    > Correct : en l'absence de contraintes, le réseau peut apprendre la solution triviale qui consiste à mapper toutes les images vers le même point dans l'espace latent.
+1. [ ] L'encodeur-décodeur classique avec perte de reconstruction
+```
+```{quizdown}
+### Dans le cadre du test d'hypothèses pour la détection de tatouage, que signifie une probabilité de fausse acceptation (PFA) élevée ?
+
+> Rappelle-toi la définition de H0 et H1.
+
+1. [ ] Le détecteur manque souvent des tatouages réellement présents
+1. [x] Le détecteur déclare souvent la présence d'un tatouage alors qu'il n'y en a pas
+    > Correct : la PFA = P(S >= gamma | H0). Une PFA élevée signifie que l'on accepte trop souvent H1 à tort.
+1. [ ] La qualité visuelle de l'image tatouée est mauvaise
+1. [ ] Le tatouage est trop visible
+```
+
+---
+
+## Niveau 3 — Maîtrise
+```{quizdown}
+### Un ingénieur veut appliquer une DCT à une image pour un système de tatouage compatible JPEG. Quel mode d'application doit-il choisir et pourquoi ?
+
+> JPEG utilise un standard bien précis pour la compression.
+
+1. [x] DCT par blocs 8x8, car c'est le mode utilisé par la compression JPEG
+    > Correct : JPEG divise l'image en blocs non chevauchants de 8x8 pixels et applique la DCT a chacun. Un tatouage dans ce domaine survivra mieux à une recompression JPEG.
+1. [ ] DCT plein cadre, car elle fournit plus d'information fréquentielle
+1. [ ] DCT tensorielle, car elle produit une représentation plus compacte
+1. [ ] Aucune DCT, JPEG utilise la DFT
+```
+```{quizdown}
+### Remets les étapes du calcul PCA dans le bon ordre.
+
+> Pense au pipeline mathématique depuis les données brutes jusqu'à la projection.
+
+1. Collecte de N échantillons
+2. Calcul de la moyenne
+3. Centrage des données
+4. Calcul de la matrice de covariance
+5. Décomposition en valeurs propres
+6. Projection dans l'espace des composantes principales
+```
+```{quizdown}
+### Pour un système de tatouage, on obtient les résultats suivants : PSNR = 38 dB, le tatouage survit à une compression JPEG qualité 80, mais l'image apparaît légèrement dégradée dans les zones de couleur uniforme. Quelle métrique permettrait de mieux caractériser cette situation ?
+
+> Certaines métriques tiennent compte de la sensibilité variable de l'oeil selon les zones.
+
+1. [ ] MSE, car elle mesure l'erreur absolue
+1. [ ] PSNR, qui est déjà utilisé
+1. [x] WPSNR, car elle pondère les erreurs selon la sensibilité visuelle par zone
+    > Correct : le WPSNR attribue des poids plus faibles aux zones uniformes (tres sensibles à la distorsion) et des poids plus élevés aux zones texturées (moins sensibles). Il aurait révélé la degradation visible dans les zones plates.
+1. [ ] Similarité cosinus entre les deux images vectorisées
+```
+```{quizdown}
+### Remets les étapes d'un pipeline de détection de tatouage dans le bon ordre.
+
+> Pense au processus depuis l'image observée jusqu'à la décision finale.
+
+1. Réception de l'image observée y
+2. Calcul du score S(y) = y transposé w divisé par M
+3. Comparaison du score au seuil gamma
+4. Décision H0 ou H1
+5. Calcul de la probabilité d'erreur associée
+```
+```{quizdown}
+### Sous quelle condition les distributions du score S(y) sous H0 et H1 ont-elles la même variance ?
+
+> Rappelle-toi les formules des variances derivées dans le cours.
+
+1. [ ] Seulement si le tatouage w est gaussien
+1. [x] Toujours, car les deux variances valent ||w||2 au carré fois sigma_x au carré divisé par M au carré
+    > Correct : sigma0 carré = sigma1 carré = ||w||2 carré * sigma_x carré / M carré. L'image x étant le seul terme aléatoire, la variance ne dépend pas de l'hypothèse.
+1. [ ] Seulement si M est très grand
+1. [ ] Seulement si P(H0) = P(H1)
+```
+```{quizdown}
+### Un système de sécurité doit garantir un taux de fausse alarme inférieur à 1% tout en maximisant la détection. Quelle stratégie de sélection du seuil gamma convient le mieux ?
+
+> Pense aux deux stratégies vues en cours et à leurs objectifs respectifs.
+
+1. [ ] Stratégie bayésienne avec P(H0) = P(H1) = 0.5
+1. [x] Stratégie de Neyman-Pearson avec PFA fixé à 0.01
+    > Correct : Neyman-Pearson est conçu exactement pour ce cas : on fixe une contrainte sur la PFA et on maximise PD (ou minimise PMiss) sous cette contrainte.
+1. [ ] Minimiser la MSE entre x et y
+1. [ ] Choisir gamma = 0 pour maximiser la sensibilité
+```
+```{quizdown}
+### Quelles affirmations sur la courbe ROC (Receiver Operating Characteristic) sont correctes ?
+
+> Pense à la construction de la courbe et à son interprétation.
+
+- [x] Elle trace PD en fonction de PFA pour différentes valeurs du seuil gamma
+    > Correct : on fait varier gamma et on obtient les couples (PFA, PD) correspondants.
+- [ ] Une courbe proche de la diagonale indique un bon détecteur
+    > Incorrect : la diagonale correspond à une décision aléatoire (AUC = 0.5), c'est le pire cas.
+- [x] Un détecteur parfait aurait une courbe passant par le coin supérieur gauche
+    > Correct : PD = 1 et PFA = 0 simultanément correspond au coin supérieur gauche.
+- [ ] L'AUC peut être supérieure à 1
+    > Incorrect : l'AUC est toujours comprise entre 0 et 1.
+```
+```{quizdown}
+### Un tatouage w a une énergie ||w||2 au carré très élevée. Quels sont les effets sur le système de détection et sur la qualité visuelle ?
+
+> Il y a un compromis fondamental à identifier.
+
+1. [ ] La détection est meilleure et la qualité visuelle est préservée
+1. [ ] La détection est moins bonne car le score est plus bruité
+1. [x] La détection est meilleure (mu1 augmente) mais la qualité visuelle se dégrade (PSNR diminue)
+    > Correct : augmenter ||w||2 augmente mu1 = ||w||2 / M, améliorant la séparation entre H0 et H1. Mais la distorsion y - x = w augmente aussi, dégradant le PSNR. C'est le triangle imperceptibilité / robustesse / capacité.
+1. [ ] La qualité visuelle s'améliore car le PSNR est inversement proportionnel à ||w||2
+```
+```{quizdown}
+### Quelle est la différence fondamentale entre l'apprentissage auto-supervisé (SSL) et l'apprentissage faiblement supervisé (WSL) tel qu'utilisé dans CLIP ?
+
+> Pense au nombre de modalités et à la nature des données d'entraînement.
+
+1. [ ] Le SSL utilise des labels humains alors que le WSL n'en utilise pas
+1. [ ] Le WSL est plus rapide à entraîner que le SSL
+1. [x] Le SSL utilise une seule modalité avec des augmentations, le WSL aligne deux modalités faiblement appariées comme des paires image-texte
+    > Correct : SSL crée des paires en augmentant la même image. WSL (ex. CLIP) utilise des paires (image, texte) naturellement alignées de façon faible, permettant un espace latent multimodal.
+1. [ ] Le WSL ne peut pas fonctionner sans annotations manuelles précises
+```
+```{quizdown}
+### Un chercheur observe qu'après entraînement, son modèle SSL Joint Embedding produit exactement la même représentation pour toutes les images. De quel problème s'agit-il et quelle en est la cause ?
+
+> C'est un problème classique des architectures à représentation conjointe.
+
+1. [ ] Surapprentissage (Overfitting) : le modèle a mémorisé les données
+1. [x] Effondrement de mode (Mode Collapse) : le réseau a appris la solution triviale consistant à mapper toutes les images vers un unique point
+    > Correct : le Mode Collapse est la solution dégénérée qui minimise la perte de similarité en rendant toutes les représentations identiques. Des mécanismes comme la normalisation de variance, le momentum EMA ou les prototypes sont utilisés pour l'éviter.
+1. [ ] Sous-apprentissage (Underfitting) : le modèle est trop simple
+1. [ ] Dégradation du gradient (Vanishing Gradient) : les gradients s'annulent
+```
