@@ -1,0 +1,283 @@
+---
+title: "Tatouage Numérique — Révision"
+---
+
+## Applications & Compromis
+
+**3 familles principales :**
+
+- **Tatouage robuste** (Robust Watermarking) → copyright, traçabilité, réel vs. synthétique
+- **Stéganographie** (Steganography) → communication secrète, non-détectabilité statistique
+- **Détection d'altération** (Tamper Detection) → intégrité, authentification
+
+**Quadrilatère des compromis :**
+
+| Propriété | Description |
+|-----------|-------------|
+| Robustesse (Robustness) | Résistance aux dégradations |
+| Visibilité (Visibility) | Imperceptibilité (à minimiser) |
+| Capacité (Capacity) | Bits cachés |
+| Sécurité (Security) | Résistance aux attaquants |
+
+::: {.callout-important title="Piège"}
+Améliorer l'une des 4 propriétés dégrade généralement les autres.
+:::
+
+---
+
+## Deux problèmes fondamentaux
+
+| Type | Problème | Encodage | Sortie |
+|------|----------|----------|--------|
+| **Zéro-bit** (Zero-Bit) | Détection | $y = \omega(x, k)$ | $\{0,1\}$ |
+| **L-bit** (L-Bit) | Décodage | $y = \omega(x, k, m)$ | $\hat{m} \in \{-1,+1\}^L$ |
+
+---
+
+## Métriques de distorsion
+
+$$D_{xy} = \frac{1}{M}\|x-y\|_2^2 \quad M=H\times W\times C$$
+
+$$\text{PSNR} = 10\log_{10}\!\left(\frac{255^2}{D_{xy}}\right) \quad \text{(dB, plus haut = mieux)}$$
+
+$$\text{WPSNR} = 10\log_{10}\!\left(\frac{255^2}{\text{Weighted MSE}}\right) \quad \text{(perceptuel)}$$
+
+::: {.callout-note title="Repères"}
+PSNR > 30 dB → invisible. WPSNR > PSNR si masquage perceptuel actif.
+:::
+
+---
+
+## Modèle d'insertion & détection
+
+**Insertion :** $y = x + \varepsilon w$, $w = \text{Gen}(k)$
+
+**Score de détection :**
+
+$$S(v) = \frac{1}{M}v^\top w$$
+
+**Similarité cosinus :**
+
+$$\cos\theta = \frac{y^\top w}{\|y\|_2\|w\|_2}$$
+
+**Région de décision :**
+
+$$\mathcal{D} = \left\{y : |y^\top w| > \|y\|_2\|w\|_2\cos\theta\right\}$$
+
+---
+
+## Statistiques sous H₀ et H₁
+
+| | Moyenne | Variance |
+|--|---------|----------|
+| $H_0$ (pas de marque) | $\frac{1}{M}\mu_x^\top w$ | $\frac{\sigma_x^2\|w\|_2^2}{M^2}$ |
+| $H_1$ (marque présente) | $\frac{1}{M}\mu_x^\top w + \frac{\|w\|_2^2}{M}$ | $\frac{\sigma_x^2\|w\|_2^2}{M^2}$ |
+
+::: {.callout-important title="Point clé"}
+Les variances sous $H_0$ et $H_1$ sont **identiques** — la séparabilité dépend uniquement de $\|w\|_2^2 / \sigma_x^2$.
+:::
+
+**Probabilités d'erreur :**
+
+$$P_{FA}(\lambda) = Q\!\left(\frac{\lambda-\mu_0}{\sigma_0}\right) \qquad P_D(\lambda) = Q\!\left(\frac{\lambda-\mu_1}{\sigma_1}\right)$$
+
+---
+
+## Masquage perceptuel (Perceptual Masking)
+
+**NVF — Noise Visibility Function :**
+
+$$\text{NVF}(x) = \frac{1}{1 + D\cdot\dfrac{\sigma^2(x)}{\sigma^2_{\max}}} \qquad D \approx 150$$
+
+| NVF ≈ 1 | NVF ≈ 0 |
+|---------|---------|
+| Zone lisse | Zone texturée |
+| HVS très sensible | HVS peu sensible |
+| Insertion faible | Insertion forte |
+
+**Insertion pondérée :**
+
+$$y_w = \text{clip}\!\left(x + (1-\text{NVF})\cdot w\cdot S_w + \text{NVF}\cdot w\cdot S_1, 0, 1\right)$$
+
+**Filtre de Wiener — prédiction du tatouage :**
+
+$$\hat{x}_{i,j} = \mu_{i,j} + \frac{\sigma^2_{i,j}}{\sigma^2_{i,j}+\sigma^2_{\text{noise}}}(x_{i,j}-\mu_{i,j})$$
+
+$$\hat{w} = y - \hat{x} \quad \text{(tatouage prédit)}$$
+
+**Résultats clés (insertion pondérée vs. simple) :**
+
+- PSNR pondéré **plus bas** (31,79 vs. 33,65 dB) → distorsion MSE accrue
+- WPSNR pondéré **plus haut** (35,88 vs. 35,28 dB) → meilleure qualité perceptuelle
+- Cosine similarity $\hat{w}$ vs $w$ : **0,74** (pondéré) vs. **0,73** (simple)
+
+---
+
+## Domaines d'insertion (Embedding Domains)
+
+| Domaine | Exemple | Invariant géom. | Appris |
+|---------|---------|-----------------|--------|
+| Pixel | Additif direct | ✗ | ✗ |
+| DCT/DFT/DWT | JPEG, Wavelet | ✗ (sauf |FT| → translation) | ✗ |
+| PCA | Composantes principales | ✗ | ✓ (linéaire) |
+| Autoencodeur | HiDDeN | Partiel | ✓ (non-linéaire) |
+| Fondation (Foundation) | CLIP, DINO | Partiel | ✓ (latent) |
+
+::: {.callout-important title="Limitation commune DCT/DFT/DWT/PCA"}
+Toutes **sensibles aux distorsions affines**. Exception : magnitude de Fourier (→ translation), FMT (→ RST).
+:::
+
+**Autoencodeur — 2 pertes d'entraînement :**
+
+$$\mathcal{L} = \mathcal{L}_x(x,y) + \mathcal{L}_m(m,\hat{m})$$
+
+---
+
+## Synchronisation géométrique (Geometrical Sync.)
+
+### 1 — Domaines invariants (Fourier-Mellin)
+
+**Fourier-Mellin Transform (FMT) :**
+
+$$\text{Étapes : FT 2D} \to \text{coordonnées log-polaires} \to \text{FT angulaire}$$
+
+- Mise à l'échelle → translation dans domaine log-polaire
+- Rotation → décalage cyclique angulaire
+
+::: {.callout-important title="Limites FMT"}
+Pas de robustesse au recadrage, cisaillement, perspectives. Dégradation à la reconstruction.
+:::
+
+### 2 — Points de repère / RANSAC (Feature-Based)
+
+**Pipeline :**
+
+1. Détection keypoints (SIFT / ORB)
+2. Descripteurs locaux
+3. Appariement FLANN
+4. Estimation affine par **RANSAC**
+5. Application de $T^{-1}$
+
+**Transformation affine :**
+
+$$T(i,j) = \begin{pmatrix}a&b\\c&d\end{pmatrix}\begin{pmatrix}i\\j\end{pmatrix} + \begin{pmatrix}t_1\\t_2\end{pmatrix}$$
+
+::: {.callout-important title="Limite critique"}
+Nécessite l'image de référence connue → **non scalable** pour grande base d'images.
+:::
+
+### 3 — Auto-synchronisation (Self-Sync.)
+
+**Principe :** Tatouage répétitif → autocorrélation → détection de la grille
+
+**ACF par FFT :**
+
+$$\text{ACF}(x) = \mathcal{F}^{-1}\!\left(\mathcal{F}(x)\cdot\overline{\mathcal{F}(x)}\right)$$
+
+**Attaques testées :** bruit additif $\mathcal{N}(0,30^2)$, sous-échantillonnage ×2, rotation 45°
+
+::: {.callout-important title="3 limitations auto-sync."}
+1. **Sécurité** : période estimable par Wiener → régénération de la marque
+2. **Taille min.** : bloc 2×2 → image ≥ 64×64 px
+3. **HVS** : motifs répétitifs potentiellement visibles
+:::
+
+### 4 — Modèles de fondation (Foundation Models)
+
+Invariance naturelle dans l'espace latent (CLIP, DINO). Pas de sync. géométrique explicite. Vulnérable aux attaques adversariales.
+
+---
+
+## Fonctions de modulation (Modulation Functions)
+
+### Additif / Spread Spectrum
+
+$$y = x + \varepsilon\sum_{n=1}^L m_n w_n \qquad w_n \sim \mathcal{N}(0,\sigma_w^2 I)$$
+
+$$\hat{m}_n = \text{sign}(y^\top w_n)$$
+
+⚠️ Sensible à l'interférence hôte $\sigma_x^2$.
+
+### QIM binaire (Quantization Index Modulation)
+
+$$y_i = Q_{m_i}(x_i) \qquad \hat{m}_i = \arg\min_{j} |y_i - Q_j|$$
+
+- $Q_0 = \{0,2,4,\ldots\}$ (bit 0) | $Q_1 = \{1,3,5,\ldots\}$ (bit 1)
+- Robuste au bruit | Sensible à la mise à l'échelle
+
+### Quantification vectorielle / par produit
+
+| Méthode | Principe | Complexité |
+|---------|----------|------------|
+| VQ (Vector Quantization) | Vecteur → centroïde le plus proche | Élevée |
+| PQ (Product Quantization) | $B$ blocs quantifiés indépendamment | Modérée |
+
+**Formulation générale :** $y = \omega(x, m, k)$
+
+---
+
+## Gestion des clés (Key Management)
+
+- **Génération** : $w = \text{Gen}(k)$ — déterministe, imprévisible sans $k$
+- **Distribution** : chaque utilisateur = clé distincte (traçabilité)
+- **Stockage sécurisé** : clé compromise → marque supprimable/copiable
+
+::: {.callout-important title="Règle fondamentale"}
+Toute la sécurité repose sur le **secret de la clé**. Clé connue = système compromis.
+:::
+
+---
+
+## Sécurité adversariale
+
+### Généralisation ≠ Robustesse ≠ Sécurité
+
+| Concept | Contre quoi ? |
+|---------|---------------|
+| Généralisation | Données / distorsions non vues |
+| Robustesse | Distorsions accidentelles communes |
+| Sécurité | Attaquant **adaptatif informé** |
+
+### Attaques classiques (toutes technologies)
+
+| Attaque | Mécanisme | Résultat |
+|---------|-----------|----------|
+| **Débruitage** (Denoising) | Filtre Wiener / DNN sur $y$ → $\hat{x}$ | Suppression de $w$ |
+| **Moyenne** (Averaging) | $\frac{1}{N}\sum y_i \approx x$ (clés/msg. différents) | Annulation de $w$ |
+| **Collusion** (Collusion) | Estimation + moyenne de $\hat{w}$, soustraction | Suppression de $w$ |
+| **Copie** (Copy Attack) | Extraire $\hat{w}$ → réinjecter dans $x_t$ | Transfert du tatouage |
+
+::: {.callout-important title="Piège — Copy Attack"]
+N'essaie **pas de supprimer** le tatouage, mais de le **transférer** vers un contenu non autorisé → fausse acceptation.
+:::
+
+### Attaques sur fondation ML (Copy + Removal)
+
+**Région de détection :**
+
+$$\mathcal{D}_k = \{z \in \mathbb{R}^d : |z^\top w| > \|z\|\cos\alpha\}$$
+
+**Perte — Copy Attack latent :**
+
+$$\mathcal{L}_{\text{CA}} = \mathcal{L}_X(y_a, x_t) + \lambda\,\mathcal{L}_Z(z_a, z_w)$$
+
+**Résultats :** PSNR attaqué > 40 dB | Suppression réussie avec distorsion minimale.
+
+::: {.callout-important title="Conclusion sécurité"]
+Les fondation-model watermarking sont **vulnérables** aux attaques copy+removal. Recherche active requise.
+:::
+
+---
+
+## Récapitulatif des formules clés
+
+| Formule | Usage |
+|---------|-------|
+| $y = x + \varepsilon w$ | Insertion additive |
+| $S(v) = \frac{1}{M}v^\top w$ | Score de détection |
+| $\cos\theta = \frac{y^\top w}{\|y\|_2\|w\|_2}$ | Similarité cosinus |
+| $\text{NVF} = \frac{1}{1+D\sigma^2/\sigma^2_{\max}}$ | Masquage perceptuel |
+| $\hat{w} = y - \text{Wiener}(y)$ | Prédiction tatouage |
+| $\text{ACF}(x) = \mathcal{F}^{-1}(\mathcal{F}(x)\cdot\overline{\mathcal{F}(x)})$ | Auto-synchronisation |
+| $y_i = Q_{m_i}(x_i)$ | QIM |
+| $\mathcal{L} = \mathcal{L}_x + \mathcal{L}_m$ | Entraînement autoencodeur |

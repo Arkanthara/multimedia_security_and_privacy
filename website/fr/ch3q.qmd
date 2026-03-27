@@ -1,0 +1,340 @@
+---
+title: "Tatouage Numérique — Quiz"
+filters:
+  - quizdown
+execute:
+  enabled: false
+---
+
+## Niveau 1 — Fondamentaux
+
+```{quizdown}
+### Quels éléments font partie des trois grandes familles d'applications du tatouage numérique ?
+
+> Chaque famille a un objectif principal différent : robustesse, discrétion statistique ou intégrité.
+
+- [x] Protection des droits d'auteur
+    > Correct : la protection du copyright est une application du tatouage robuste.
+- [x] Communication secrète sans révéler l'existence du message
+    > Correct : c'est la définition même de la stéganographie.
+- [ ] Compression d'images
+    > Incorrect : la compression n'est pas une application du tatouage numérique, même si certains domaines comme DCT sont partagés.
+- [x] Vérification de l'intégrité d'un contenu numérique
+    > Correct : c'est le rôle de la détection d'altération (tamper detection).
+- [ ] Amélioration de la résolution d'une image
+    > Incorrect : la super-résolution n'est pas liée au tatouage numérique.
+```
+
+```{quizdown}
+### Quelle est la différence fondamentale entre le tatouage zéro-bit et le tatouage L-bit ?
+
+> Pense aux sorties respectives de chacun des deux détecteurs.
+
+1. [ ] Le tatouage zéro-bit insère plus d'information que le tatouage L-bit
+1. [x] Le tatouage zéro-bit résout un problème de détection (oui/non), le tatouage L-bit résout un problème de décodage (quel message ?)
+    > Correct : le détecteur zéro-bit retourne {0,1} ; le décodeur L-bit retourne le message m chapeau de L bits.
+1. [ ] Le tatouage L-bit ne nécessite pas de clé secrète
+    > Incorrect : les deux utilisent une clé secrète k.
+1. [ ] Il n'y a aucune différence dans le modèle d'insertion
+    > Incorrect : la fonction d'encodage L-bit inclut en plus le message m : y = omega(x, k, m).
+```
+
+```{quizdown}
+### Que mesure le PSNR (Peak Signal-to-Noise Ratio) dans le contexte du tatouage numérique ?
+
+> Pense à la relation entre PSNR et distorsion MSE.
+
+1. [ ] La quantité d'information cachée dans l'image
+1. [ ] La robustesse du tatouage face aux attaques
+1. [x] La qualité perceptuelle de l'image tatouée par rapport à l'originale
+    > Correct : PSNR = 10 log10(255^2 / D_xy), plus il est élevé, moins la distorsion est visible.
+1. [ ] La probabilité de détection correcte du tatouage
+    > Incorrect : la probabilité de détection est mesurée par P_D, pas par le PSNR.
+```
+
+```{quizdown}
+### La Noise Visibility Function (NVF) prend une valeur proche de 1 dans quel type de zone ?
+
+> NVF mesure la sensibilité du système visuel humain selon la texture locale.
+
+1. [ ] Les zones fortement texturées
+1. [x] Les zones lisses (faible variance locale)
+    > Correct : NVF proche de 1 signifie que le HVS est très sensible aux perturbations dans cette zone.
+1. [ ] Les zones de contours nets
+    > Incorrect : les contours ont une variance locale élevée, donc NVF y est plus faible.
+1. [ ] Les zones de haute fréquence
+    > Incorrect : les hautes fréquences correspondent à des zones texturées avec une NVF faible.
+```
+
+```{quizdown}
+### Le score de détection S(v) est défini comme :
+
+> Pense à la relation entre S(v) et le produit scalaire entre l'observation et la marque.
+
+1. [ ] La norme L2 de la différence entre v et w
+1. [x] Le produit scalaire normalisé entre v et w : (1/M) * v^T * w
+    > Correct : S(v) = (1/M) v^T w, avec M = H x W x C. La normalisation rend le score indépendant de la taille de l'image.
+1. [ ] La distance euclidienne entre v et w
+1. [ ] La variance de v projetée sur w
+```
+
+```{quizdown}
+### Dans le modèle d'hypothèses simplifié, quelle est la formulation sous H1 (marque présente) ?
+
+> On aggrège l'image originale et le bruit de distorsion en un seul vecteur aléatoire x.
+
+1. [ ] v = w, le signal observé est uniquement la marque
+1. [ ] v = x + z, où z est un bruit additif indépendant de w
+1. [x] v = x + w, où x est le vecteur aléatoire combinant l'image et la distorsion
+    > Correct : sous H1, v = x + w avec x ~ N(mu_x, K_xx) et w déterministe issu de la clé k.
+1. [ ] v = x - w, la marque est soustraite de l'image
+```
+
+---
+
+## Niveau 2 — Compréhension
+
+```{quizdown}
+### Quel est l'impact principal d'une forte variance de l'image hôte (sigma_x^2 élevé) sur la détection du tatouage ?
+
+> Regarde les formules de variance sous H0 et H1.
+
+1. [ ] La moyenne du score augmente sous H0 et H1
+1. [ ] Le score moyen sous H1 diminue
+1. [x] La variance du score augmente identiquement sous H0 et H1, rendant la détection plus difficile
+    > Correct : Var(S | H0) = Var(S | H1) = sigma_x^2 * ||w||_2^2 / M^2. Une forte sigma_x^2 élargit les deux distributions, augmentant le chevauchement et donc les erreurs.
+1. [ ] La variance sous H1 devient inférieure à celle sous H0
+    > Incorrect : les deux variances sont identiques, indépendamment de la présence ou non de la marque.
+```
+
+```{quizdown}
+### Pourquoi le WPSNR (Weighted PSNR) est-il supérieur au PSNR pour une insertion pondérée par la NVF, à PSNR égal ?
+
+> Pense à la définition du MSE pondéré et à la NVF dans les différentes zones de l'image.
+
+1. [ ] Parce que la force d'insertion est globalement plus faible
+1. [ ] Parce que le WPSNR utilise une normalisation différente
+1. [x] Parce que les distorsions sont concentrées dans les zones texturées (NVF faible) où le HVS est peu sensible, réduisant le MSE pondéré
+    > Correct : le MSE pondéré pénalise davantage les erreurs dans les zones lisses (NVF ~ 1). En concentrant la distorsion là où NVF ~ 0, le MSE pondéré est réduit, donc le WPSNR augmente.
+1. [ ] Parce que l'insertion pondérée utilise moins de bits
+    > Incorrect : l'insertion pondérée ne change pas la quantité d'information cachée.
+```
+
+```{quizdown}
+### Quelles propriétés caractérisent les transformées DCT, DFT et DWT utilisées en tatouage numérique ?
+
+> Pense aux avantages et aux limitations communes de ces transformées classiques.
+
+- [x] Elles sont orthogonales
+    > Correct : DCT, DFT et DWT sont toutes des transformées orthogonales.
+- [ ] Elles sont invariantes aux rotations
+    > Incorrect : seule la magnitude de Fourier est invariante aux translations, pas aux rotations.
+- [x] Elles sont sensibles aux distorsions affines (rotation, mise à l'echelle)
+    > Correct : cette sensibilité est leur principale limitation pour le tatouage robuste.
+- [x] Elles permettent d'étendre le masquage perceptuel au domaine fréquentiel
+    > Correct : la décomposition fréquentielle de DCT et DWT permet d'appliquer le masquage perceptuel.
+- [ ] Elles sont invariantes aux translations
+    > Incorrect : c'est uniquement la magnitude de la transformée de Fourier qui possède cette propriété, pas DCT ou DWT.
+```
+
+```{quizdown}
+### Dans le cadre du tatouage par autoencodeur, quel est le rôle de la perte L_m (loss message) ?
+
+> Pense aux deux objectifs que l'autoencodeur doit simultanément satisfaire.
+
+1. [ ] Minimiser la distorsion perceptuelle entre x et y
+1. [x] Minimiser l'erreur de décodage du message entre m et m chapeau
+    > Correct : L_m(m, m_chapeau) force l'autoencodeur à encoder le message de manière récupérable, même après distorsions. La perte totale est L = L_x + L_m.
+1. [ ] Maximiser le PSNR de l'image tatouée
+    > Incorrect : le PSNR est lié à L_x, pas à L_m.
+1. [ ] Régulariser les poids du décodeur
+    > Incorrect : L_m n'est pas une régularisation mais une perte de fidélité de message.
+```
+
+```{quizdown}
+### Quelle est la principale limitation de la synchronisation par points de repère (feature-based) avec SIFT/ORB/RANSAC ?
+
+> Pense au passage à l'echelle avec une grande base d'images.
+
+1. [ ] Elle ne fonctionne pas sous rotation
+1. [ ] Elle ne supporte pas les transformations affines
+1. [x] Elle nécessite la connaissance de l'image de référence et n'est pas scalable pour de grandes bases d'images
+    > Correct : si l'image de référence est inconnue parmi N images, comparer chaque image candidate est computationnellement non scalable.
+1. [ ] Elle est identique à la transformée de Fourier-Mellin
+    > Incorrect : ce sont deux approches de synchronisation géométrique totalement différentes.
+```
+
+```{quizdown}
+### Quelle propriété mathématique fondamentale exploite l'auto-synchronisation (self-synchronization) ?
+
+> Pense au rôle de la structure répétitive du tatouage et à la fonction mathématique utilisée pour la détecter.
+
+1. [ ] La linéarité du filtre de Wiener
+1. [ ] L'invariance aux translations de la magnitude de Fourier
+1. [x] Les proprietes d'autocorrélation du tatouage répétitif, qui révèlent la grille d'insertion via ses pics
+    > Correct : ACF(w) = F^{-1}(F(w) * conj(F(w))). Les pics de l'ACF indiquent la période de répétition du tatouage.
+1. [ ] La décomposition en valeurs singulières de l'image
+    > Incorrect : la SVD n'est pas utilisée dans l'auto-synchronisation classique.
+```
+
+```{quizdown}
+### Dans la QIM binaire (Quantization Index Modulation), quelle est la vulnérabilité principale ?
+
+> Compare QIM avec le tatouage additif en termes de types d'attaques.
+
+1. [ ] Sensibilité au bruit additif gaussien
+1. [ ] Incapacité à insérer plusieurs bits
+1. [x] Sensibilité aux attaques de mise a l'echelle (scaling) et aux opérations volumétriques
+    > Correct : une mise à l'echelle de l'image modifie les valeurs des pixels de manière uniforme, déplaçant les valeurs vers les mauvais centroïdes des quantificateurs.
+1. [ ] Nécessite de connaître l'image originale pour décoder
+    > Incorrect : le décodage QIM est "aveugle" (blind), il ne nécessite que la clé, pas l'image originale.
+```
+
+---
+
+## Niveau 3 — Maîtrise
+
+```{quizdown}
+### Un système de tatouage est testé : il résiste parfaitement au bruit gaussien et à la compression JPEG, mais échoue complètement lorsqu'un attaquant connaît la méthode et utilise un filtre de Wiener pour supprimer la marque. Quelle propriété lui fait défaut ?
+
+> Distingue les trois concepts : généralisation, robustesse et sécurité adversariale.
+
+1. [ ] Généralisation — le système ne fonctionne pas sur des données non vues
+1. [ ] Robustesse — le système ne résiste pas aux distorsions communes
+1. [x] Sécurité adversariale — le système échoue face à un attaquant adaptatif informé
+    > Correct : robustesse et sécurité sont des proprietes distinctes. Un système robuste aux distorsions accidentelles peut être vulnérable à un attaquant qui connaît la méthode et l'exploite (ici, attaque par débruitage).
+1. [ ] Capacité — le système ne peut pas cacher suffisamment d'information
+```
+
+```{quizdown}
+### Un attaquant possède 50 exemplaires de la même image tatouée avec des clés différentes. Quelle attaque est la plus efficace ?
+
+> Pense au mécanisme qui annule des signaux de micro-modulation décorrélés.
+
+1. [ ] Attaque par copie (copy attack)
+1. [x] Attaque par moyenne (averaging attack)
+    > Correct : en moyennant N images avec des marques décorrélées (clés différentes), les tatouages s'annulent mutuellement (moyenne -> 0) tandis que le contenu commun (l'image) est préservé.
+1. [ ] Attaque par débruitage (denoising attack)
+    > Incorrect : le débruitage peut fonctionner sur une seule image. Ici, l'attaquant a plusieurs exemplaires, ce qui rend la moyenne bien plus puissante.
+1. [ ] Attaque par collusion (collusion attack)
+    > Incorrect : la collusion s'applique quand plusieurs images partagent le même message mais des clés différentes. Ici, les clés sont différentes, donc la moyenne simple suffit.
+```
+
+```{quizdown}
+### Remets dans le bon ordre les étapes de la détection par auto-synchronisation apres une attaque geometrique.
+
+> Pense au pipeline complet depuis l'image attaquée jusqu'a la détection des pics de grille.
+
+1. Recevoir l'image attaquée y_attaque
+2. Appliquer le filtre de Wiener pour prédire le tatouage
+3. Calculer l'autocorrélation (ACF) du tatouage prédit
+4. Appliquer la suppression des non-maxima (NMS) pour identifier les pics
+5. Utiliser les pics de l'ACF pour estimer la transformation géométrique subie
+```
+
+```{quizdown}
+### La perte de l'attaque par copie dans l'espace latent d'un modèle de fondation est L_CA = L_X(y_a, x_t) + lambda * L_Z(z_a, z_w). Que représente lambda dans cette formulation ?
+
+> Pense aux deux objectifs contradictoires que cette perte équilibre.
+
+1. [ ] Le taux d'apprentissage de l'optimisation
+1. [ ] La force d'insertion du tatouage original
+1. [x] Le poids relatif entre la similarité perceptuelle a l'image cible et la similarite dans l'espace latent avec l'image tatouée
+    > Correct : lambda contrôle le compromis entre "ressembler visuellement à x_t" (L_X) et "avoir la même représentation latente que y" (L_Z). Un lambda élevé favorise le succès de l'attaque au détriment de la qualité visuelle.
+1. [ ] Le taux de fausse acceptation cible
+    > Incorrect : le taux de fausse acceptation P_fa détermine l'angle alpha dans la région de détection D_k, pas lambda.
+```
+
+```{quizdown}
+### Remets dans le bon ordre les étapes de la transformation de Fourier-Mellin (FMT) pour atteindre l'invariance RST.
+
+> Pense à la séquence de transformations mathématiques successives.
+
+1. Appliquer la transformée de Fourier 2D à l'image originale
+2. Convertir le resultat en coordonnées log-polaires
+3. Appliquer une transformée de Fourier 1D le long de l'axe angulaire
+4. Obtenir une représentation invariante à la rotation, au changement d'echelle et à la translation
+```
+
+```{quizdown}
+### Un chercheur compare deux systèmes de tatouage. Le système A a un PSNR de 35 dB et un WPSNR de 33 dB. Le système B a un PSNR de 32 dB et un WPSNR de 36 dB. Quelle conclusion est correcte ?
+
+> Pense à ce que signifie WPSNR < PSNR vs. WPSNR > PSNR pour la répartition des distorsions.
+
+1. [ ] Le système A est meilleur car son PSNR est plus élevé
+1. [ ] Le système B est inutilisable car son PSNR est plus faible
+1. [x] Le système B exploite mieux le masquage perceptuel : ses distorsions sont concentrées dans les zones peu sensibles (NVF faible), d'où un WPSNR supérieur malgré un PSNR inferieur
+    > Correct : WPSNR > PSNR implique que les distorsions sont majoritairement dans les zones texturées (NVF ~ 0), où le HVS est insensible. C'est le signe d'un bon masquage perceptuel.
+1. [ ] Les deux systèmes sont équivalents car leurs métriques se compensent
+    > Incorrect : WPSNR est la métrique pertinente pour la qualité perceptuelle réelle. Le système B est perceptuellement supérieur.
+```
+
+```{quizdown}
+### Dans le cadre du tatouage additif avec plusieurs porteuses (spread spectrum), pourquoi l'image hôte x est-elle qualifiée d'"interférence" pour la détection ?
+
+> Pense à ce que le détecteur cherche à mesurer et à ce qui perturbe cette mesure.
+
+1. [ ] Parce que x est trop proche de w en termes de valeurs de pixels
+1. [ ] Parce que x a une norme plus grande que w, rendant w invisible
+1. [x] Parce que le terme x^T * w_n dans le score de détection crée une variance non nulle sous H0, augmentant le risque de fausse acceptation
+    > Correct : sous H0, E[S] = (1/M) mu_x^T w et Var(S) = sigma_x^2 ||w||^2 / M^2. La variance sigma_x^2 due à l'image hôte est la source principale d'erreurs de détection.
+1. [ ] Parce que x modifie la clé secrète k
+    > Incorrect : l'image hôte n'affecte pas la clé mais perturbe le score de corrélation.
+```
+
+```{quizdown}
+### Quelle combinaison de propriétés distingue la Quantification par Produit (PQ) de la Quantification Vectorielle (VQ) classique ?
+
+> Pense au compromis que PQ introduit par rapport à VQ.
+
+- [ ] PQ quantifie le vecteur complet en une seule operation
+    > Incorrect : c'est VQ qui quantifie le vecteur complet en cherchant le centroïde le plus proche dans le codebook.
+- [x] PQ divise le vecteur en blocs et quantifie chaque bloc indépendamment
+    > Correct : PQ decompose le vecteur en B blocs, chacun ayant son propre sous-codebook, ce qui réduit drastiquement la complexité.
+- [x] PQ offre une complexité réduite par rapport à VQ
+    > Correct : VQ nécessite de chercher dans un très grand codebook, ce qui est prohibitif pour les grands vecteurs.
+- [ ] PQ est moins robuste que VQ pour le tatouage
+    > Incorrect : PQ est jugée suffisamment robuste pour le tatouage dans les domaines transformés et le hachage perceptuel.
+```
+
+```{quizdown}
+### Quelles limitations affectent l'auto-synchronisation par tatouage répétitif ?
+
+> Pense aux trois types de faiblesses identifiées dans le cours.
+
+- [x] Un attaquant peut estimer la période du tatouage par filtrage de Wiener et supprimer la marque
+    > Correct : c'est la fuite de sécurité principale : la structure répétitive est exploitable par un attaquant informé.
+- [ ] Elle ne fonctionne pas pour les images en niveaux de gris
+    > Incorrect : l'auto-synchronisation fonctionne indépendamment du mode de couleur de l'image.
+- [x] Elle requiert une image d'au moins 64x64 pixels pour une répétition minimale de 2x2 blocs
+    > Correct : un bloc de 16x16 suréchantillonné par 2 donne 32x32, et une répétition 2x2 nécessite donc 64x64 pixels minimum.
+- [x] Les motifs répétitifs peuvent être détectés par le système visuel humain
+    > Correct : la répétition régulière peut créer des artefacts visuels perceptibles, réduisant la discrétion.
+```
+
+```{quizdown}
+### Un attaquant souhaite faire passer une image non tatouée pour une image tatouée, sans accès à la clé secrète. Quelle attaque est adaptée et comment fonctionne-t-elle ?
+
+> Pense aux attaques qui ne cherchent pas à supprimer mais à transférer ou imiter le tatouage.
+
+1. [ ] Attaque par débruitage : appliquer un filtre sur l'image cible
+1. [ ] Attaque par collusion : moyenner plusieurs versions de l'image cible
+1. [x] Attaque par copie (copy attack) : estimer la marque depuis une image tatouée existante et la réinjecter dans l'image cible
+    > Correct : l'attaquant estime w_chapeau depuis y (image tatouée disponible), puis calcule y_a = x_t + w_chapeau. Cela augmente la probabilité de fausse acceptation pour x_t.
+1. [ ] Attaque par moyenne : combiner plusieurs images tatouées pour extraire la clé
+    > Incorrect : la moyenne ne permet pas d'extraire la clé ; elle annule les tatouages. De plus, on ne peut pas inférer la clé depuis les images seules.
+```
+
+```{quizdown}
+### Quel est l'avantage principal d'utiliser l'espace latent d'un modèle de fondation (foundation model) comme domaine d'insertion pour le tatouage numérique ?
+
+> Pense à ce que ces modèles ont appris pendant leur pré-entraînement massif.
+
+1. [ ] La complexité computationnelle très faible de l'insertion
+1. [x] La robustesse naturelle à de nombreuses distorsions grâce au pré-entraînement sur de larges jeux de données
+    > Correct : les modèles de fondation comme CLIP ou DINO développent des représentations invariantes à de nombreuses transformations. Leur espace latent est donc robuste sans nécessiter un entraînement spécifique aux distorsions.
+1. [ ] L'invariance garantie à toutes les transformations géométriques
+    > Incorrect : les modèles de fondation ne garantissent pas une invariance totale, notamment aux transformations géométriques extrêmes.
+1. [ ] L'impossibilité d'effectuer des attaques adversariales sur leur espace latent
+    > Incorrect : c'est précisément une limitation identifiée : les espaces latents des fondation models sont vulnérables aux attaques adversariales.
+```
