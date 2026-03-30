@@ -116,14 +116,26 @@ body {
 
 // --- Headings ----------------------------------------------
 h1, h2, h3, h4, h5, h6 {
-  color: $subtext1;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 
-h1 { color: $text; border-bottom: 2px solid $surface1; padding-bottom: 0.3em; }
-h2 { color: $subtext1; }
-h3 { color: $subtext0; }
+// Use a single hue (Mauve) with decreasing intensity.
+// Higher-level headings are closer to `$mauve`; lower-level headings
+// are progressively mixed with the background `$base`.
+$ci-h1-color: $mauve;
+$ci-h2-color: mix($mauve, $base, 92%);
+$ci-h3-color: mix($mauve, $base, 85%);
+$ci-h4-color: mix($mauve, $base, 78%);
+$ci-h5-color: mix($mauve, $base, 72%);
+$ci-h6-color: mix($mauve, $base, 66%);
+
+h1, .h1 { color: $ci-h1-color; border-bottom: 2px solid rgba($mauve, 0.35); padding-bottom: 0.3em; }
+h2, .h2 { color: $ci-h2-color; }
+h3, .h3 { color: $ci-h3-color; }
+h4, .h4 { color: $ci-h4-color; }
+h5, .h5 { color: $ci-h5-color; }
+h6, .h6 { color: $ci-h6-color; }
 
 // --- Navbar ------------------------------------------------
 .navbar {
@@ -452,6 +464,13 @@ blockquote {
   color: $text;
 }
 
+// --- Emphasis ---------------------------------------------
+// Make Markdown **bold** text more visible.
+main.content strong,
+main.content b {
+  color: $maroon;
+}
+
 // --- Footer ------------------------------------------------
 .nav-footer {
   background-color: $mantle;
@@ -492,4 +511,52 @@ figure {
 [data-bs-theme="dark"] {
   background-color: $base;
   color: $text;
+}
+
+// --- Layout -------------------------------------------------
+// Quizdown injects a fixed max-width (e.g. 900px) on `.quizdown-content`.
+// Override it in the theme so quiz pages can go full-width on ultra-wide screens.
+.quizdown-content {
+  max-width: none !important;
+  width: 100%;
+  margin: 0 !important;
+}
+
+// Quarto's default page grid uses a fixed min/max content track that can
+// cap width on ultra-wide screens and force horizontal scrolling on phones.
+// Override the grid tracks so content is fluid on both.
+
+$ci-sidepanel-width: clamp(9rem, 14vw, 18rem);
+
+@media (min-width: 992px) {
+  #quarto-content.page-columns {
+    grid-template-columns:
+      [screen-start] 1.5em
+      [screen-start-inset] 0
+      [page-start] minmax(25px, 50px)
+      [page-start-inset] $ci-sidepanel-width
+      [body-start-outset] minmax(25px, 50px)
+      [body-start] 1.5em
+      [body-content-start] minmax(0, 1fr)
+      [body-content-end] 1.5em
+      [body-end] minmax(25px, 50px)
+      [body-end-outset] $ci-sidepanel-width
+      [page-end-inset] minmax(25px, 50px)
+      [page-end] 0
+      [screen-end-inset] 1.5em
+      [screen-end] !important;
+  }
+}
+
+@media (max-width: 991.98px) {
+  #quarto-content.page-columns {
+    grid-template-columns:
+      [screen-start] 0
+      [screen-start-inset page-start page-start-inset body-start-outset] 0
+      [body-start] 0.75rem
+      [body-content-start] minmax(0, 1fr)
+      [body-content-end] 0.75rem
+      [body-end body-end-outset page-end-inset page-end screen-end-inset] 0
+      [screen-end] !important;
+  }
 }
