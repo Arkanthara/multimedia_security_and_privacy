@@ -1,0 +1,747 @@
+---
+title: "Méthodes de protection de la vie privée : perspectives multimédia et biométriques"
+---
+
+# Introduction : vie privée et sécurité
+
+## Pourquoi protéger les données multimédia et biométriques ?
+
+Dans notre société numérique, les systèmes d'information manipulent des données de plus en plus sensibles. Deux domaines sont particulièrement concernés : le **multimédia** (images, vidéos, sons) et la **biométrie** (empreintes digitales, iris, visage…).
+
+La problématique centrale est la suivante : comment **authentifier** ou **identifier** un individu à partir de données noisy (bruitées), tout en garantissant la **confidentialité** et la **vie privée** (Privacy) de ces données ?
+
+::: {.callout-note title="À retenir"}
+La sécurité (Security) vise à protéger les données contre les attaques. La vie privée (Privacy) vise à limiter ce que l'on peut déduire sur un individu à partir des données stockées. Ces deux objectifs sont liés mais distincts.
+:::
+
+---
+
+## La sécurité de l'information
+
+### Les outils traditionnels
+
+Avant d'aborder les approches modernes, il est utile de rappeler les mécanismes classiques de sécurité de l'information.
+
+**Numéro d'identification personnel — NIP (Personal Identifier Number — PIN)**
+
+Le PIN est un code secret partagé entre un utilisateur et un système. Il permet de contrôler l'accès à des services, des systèmes ou des informations (ex. : déverrouillage d'un smartphone, accès à un compte bancaire).
+
+**Module d'identité d'abonné (Subscriber Identity Module — SIM)**
+
+La carte SIM permet l'accès aux réseaux de téléphonie mobile. Elle protège contre l'utilisation illégale du réseau en liant l'abonné à son opérateur via une clé secrète stockée sur la carte.
+
+**Couche de sockets sécurisée (Secure Socket Layer — SSL)**
+
+Le protocole SSL (et son successeur TLS) est utilisé pour chiffrer les communications entre deux terminaux sur internet (ex. : HTTPS). Il empêche l'écoute clandestine (eavesdropping) des échanges.
+
+::: {.callout-tip title="Intuition"}
+Ces trois mécanismes reposent sur un même principe : **quelque chose que vous possédez** (carte SIM, certificat SSL) ou **quelque chose que vous connaissez** (PIN). La biométrie introduit une troisième dimension : **quelque chose que vous êtes**.
+:::
+
+---
+
+## La cryptographie traditionnelle
+
+### Définition et rôle
+
+La **cryptographie** (Cryptography) est la science qui développe des outils permettant de protéger l'information et d'établir des interactions sécurisées.
+
+Elle repose sur deux fonctions fondamentales :
+
+- **Chiffrement (Encryption)** : assure la confidentialité de l'information. Seul le détenteur de la clé peut déchiffrer les données.
+
+- **Authentification (Authentication)** : vérifie l'identité d'une entité ou l'intégrité d'un message.
+
+::: {.callout-important title="Principe fondamental"}
+Les algorithmes cryptographiques sont publics. La sécurité d'un schéma dépend **uniquement du secret de la clé** détenue par les parties légitimes, et non de la confidentialité de l'algorithme lui-même (principe de Kerckhoffs).
+:::
+
+### Les problèmes pratiques de la cryptographie moderne
+
+Malgré sa robustesse théorique, la cryptographie traditionnelle se heurte à plusieurs défis pratiques dans notre société :
+
+**1. Génération et distribution des clés (Key generation and distribution)**
+
+Créer une clé aléatoire de haute qualité et la transmettre de manière sécurisée aux parties légitimes est un problème non trivial. La moindre fuite de la clé compromet l'ensemble du système.
+
+**2. Stockage sécurisé (Safe storage)**
+
+Les clés doivent être stockées dans des environnements de confiance : téléphones mobiles, jetons bancaires, cartes à puce, etc. Ces supports physiques sont eux-mêmes vulnérables au vol ou à la manipulation.
+
+**3. Observation bruitée (Noisy observation)**
+
+Le troisième problème, central dans ce cours, concerne l'authentification basée sur des caractéristiques physiologiques. Contrairement à un PIN, une empreinte digitale capturée à deux moments différents n'est **jamais exactement identique**. La cryptographie classique, fondée sur la correspondance exacte des données, est donc inadaptée à ce cas.
+
+::: {.callout-tip title="Intuition"}
+Imaginez que votre mot de passe soit une empreinte digitale. Si vous changez légèrement l'angle de votre doigt, le hash de l'empreinte sera totalement différent, et l'accès vous sera refusé. C'est le problème fondamental de l'application naïve de la cryptographie aux données biométriques.
+:::
+
+---
+
+# La biométrie
+
+## Qu'est-ce que la biométrie ?
+
+La **biométrie** (Biometrics) désigne l'ensemble des techniques d'identification automatique d'individus à partir de leurs caractéristiques biologiques ou comportementales. Ces caractéristiques sont uniques, permanentes, et ne peuvent pas être perdues ou oubliées.
+
+Les principales modalités biométriques étudiées dans ce cours sont :
+
+- **Empreinte digitale (Fingerprint)** : analyse des crêtes papillaires, des pores, des fourches (bifurcations) et des terminaisons de crêtes.
+
+- **Iris** : analyse du motif complexe et unique de l'iris de l'œil.
+
+- **Visage (Facial recognition)** : analyse de la géométrie du visage par balayage 2D ou 3D, extraction de points caractéristiques.
+
+- **Veine palmaire (Palm vein)** : analyse du réseau de veines de la paume grâce à la lumière infrarouge absorbée par l'hémoglobine.
+
+::: {.callout-note title="À retenir"}
+Un **gabarit biométrique** (Biometric Template) est une représentation numérique extraite d'une caractéristique biométrique. Ce n'est pas l'image brute de l'empreinte ou de l'iris, mais un vecteur de caractéristiques (features) calculé par un algorithme.
+:::
+
+---
+
+## Pourquoi protéger les données biométriques ?
+
+### La sensibilité des gabarits biométriques
+
+Un gabarit biométrique est une représentation d'une caractéristique **unique** à un individu. Contrairement à un mot de passe, il peut également révéler des informations sur l'état de santé de la personne (par exemple, certaines maladies se manifestent dans l'iris ou le réseau veineux).
+
+Il contient donc des informations à **haute sensibilité pour la vie privée** (privacy-sensitive information).
+
+### Les attaques possibles sur une base de données biométriques
+
+Si une base de données biométriques est compromise, les conséquences sont potentiellement irréversibles :
+
+- **Usurpation d'identité (Impersonation)** : un attaquant utilise le gabarit volé pour se faire passer pour la victime.
+
+- **Vol d'identité (Identity theft)** : utilisation frauduleuse de l'identité biométrique dans d'autres systèmes.
+
+- **Correspondance inter-bases (Cross-database matching)** : si la même empreinte digitale est enrôlée dans plusieurs systèmes (police, employeur, banque…), une base compromise peut permettre de faire le lien entre toutes ces identités sans le consentement de l'utilisateur.
+
+- **Pathologies détectables (Detectable pathologies)** : des maladies peuvent être inférées à partir des gabarits (ex. : certaines pathologies oculaires visibles sur l'iris).
+
+- **Attaques non encore découvertes (Yet undiscovered attacks)** : l'évolution des algorithmes d'apprentissage automatique peut rendre possible demain des attaques actuellement inconnues.
+
+::: {.callout-warning title="Caractère non révocable des données biométriques"}
+Contrairement à un mot de passe compromis que l'on peut changer, **les caractéristiques biométriques sont non révocables** (non-cancelable). Un individu ne dispose que de dix doigts, deux iris, un visage. Si ces données sont volées et utilisées frauduleusement, il est impossible de les "réinitialiser".
+
+C'est ce qui rend la protection des gabarits biométriques absolument critique.
+:::
+
+---
+
+# L'approche cryptographique
+
+## Application aux données multimédia
+
+### Principe du hachage à sens unique
+
+L'idée classique pour protéger des données sensibles en base de données est de **ne pas stocker les données elles-mêmes**, mais uniquement leur **empreinte cryptographique** (one-way hash).
+
+Le principe est le suivant :
+
+- Soit $\mathbf{x} \in \mathcal{X}^N$ les données originales (ex. : une empreinte digitale représentée comme un vecteur de $N$ composantes).
+
+- On calcule $\mathbf{b}_x = \varphi(\mathbf{x}) \in \{0,1\}^L$, un vecteur binaire de taille $L$ via une fonction à sens unique $\varphi(.)$.
+
+- Seul $\mathbf{b}_x$ est stocké dans la base de données publique. Les données brutes $\mathbf{x}$ ne sont jamais conservées.
+
+- Lors d'une tentative d'accès, si l'on présente les mêmes données, on obtient le même hash et l'accès est accordé.
+
+::: {.callout-tip title="Intuition"}
+C'est le même mécanisme que les mots de passe UNIX : le mot de passe n'est jamais stocké en clair, seulement son hash. Lors de la connexion, on calcule le hash du mot de passe entré et on le compare à celui stocké.
+:::
+
+### La limite fondamentale du hachage cryptographique
+
+Il existe une **hypothèse implicite** dans cette approche : on suppose que le hash $\varphi(\mathbf{x})$ est **non informatif** sur $\mathbf{x}$, c'est-à-dire que la connaissance du hash ne révèle rien sur les données originales.
+
+En théorie de l'information, cette hypothèse se traduit par :
+
+$$I\bigl(X; h(X)\bigr) = 0$$
+
+Cette équation signifie que le hash $h(X)$ et les données $X$ sont **mutuellement indépendants** du point de vue de l'information.
+
+::: {.callout-warning title="Attention — Hypothèse fausse"}
+Cette hypothèse est **fausse** en théorie de l'information. Puisque $h(X)$ est une **fonction** de $X$, la connaissance de $h(X)$ fournit nécessairement de l'information sur $X$ :
+
+$$I\bigl(X; h(X)\bigr) > 0$$
+
+En d'autres termes, même un hash ne révèle jamais **zéro** information sur les données. Il peut être difficile à inverser en pratique, mais il n'est pas théoriquement non-informatif.
+:::
+
+---
+
+## Pourquoi les outils de sécurité traditionnels sont inadaptés au multimédia ?
+
+### Le problème de sensibilité au bruit
+
+Les outils cryptographiques classiques sont conçus pour des données **exactes** (bit à bit). Ils sont donc extrêmement **sensibles au bruit et aux distorsions non intentionnelles** (Sensitivity to noise and unintentional distortions).
+
+**Illustration concrète :**
+
+1. On calcule le hash $h(\mathbf{x})$ de l'image originale $\mathbf{x}$ → on obtient par exemple `AF 24 A0 7C 1E 2D`.
+
+2. L'image subit un traitement bénin (compression JPEG légère, redimensionnement, bruit numérique…) → on obtient $\mathbf{y}$.
+
+3. On calcule le hash de l'image traitée $h(\mathbf{y})$ → on obtient par exemple `48 73 C1 B5 28 32`.
+
+4. Les deux hash sont **totalement différents** (Mismatch), alors que $\mathbf{x}$ et $\mathbf{y}$ représentent visuellement la même image.
+```{mermaid}
+flowchart LR
+    A["Image originale x"] --> B["Hash"]
+    B --> C["AF 24 A0 7C 1E 2D"]
+    A --> D["Traitement\n(compression, bruit...)"]
+    D --> E["Image traitée y"]
+    E --> F["Hash"]
+    F --> G["48 73 C1 B5 28 32"]
+    C --> H{{"Mismatch !"}}
+    G --> H
+    style H fill:#ff4444,color:#fff
+```
+
+### Le problème du traitement dans le domaine chiffré
+
+Un second problème pratique est celui du **traitement dans le domaine chiffré** (Data handling in the encrypted domain). Si les données sont chiffrées pour être protégées, il est généralement impossible de les traiter (rechercher, comparer, analyser) sans les déchiffrer, ce qui recrée une vulnérabilité.
+
+::: {.callout-note title="À retenir"}
+Les algorithmes cryptographiques classiques sont inadaptés aux données multimédia et biométriques pour deux raisons fondamentales :
+
+1. **Sensibilité au bruit** : la moindre modification des données (inévitable dans un contexte biométrique) invalide le hash.
+
+2. **Traitement dans le domaine chiffré** : difficile de faire de la comparaison ou de la recherche sur des données chiffrées.
+:::
+
+---
+
+# L'approche par traitement du signal
+
+## Authentification par test d'hypothèses
+
+### Principe général
+
+L'approche par **traitement du signal** (Signal Processing approach) adapte les outils de la théorie de la décision statistique pour gérer la nature intrinsèquement bruitée des données biométriques.
+
+Au lieu de comparer bit à bit, on formule le problème comme un **test d'hypothèses** (Hypothesis testing).
+
+### Formulation du test d'hypothèses pour l'authentification
+
+Soit $\mathbf{y}$ la donnée biométrique observée lors d'une tentative d'accès. On souhaite tester si $\mathbf{y}$ correspond à l'individu enrôlé $m$ ou non.
+
+On définit deux hypothèses :
+
+$$\begin{cases} H_0 : \mathbf{y} = \mathbf{x}' + \mathbf{z}, \\ H_1 : \mathbf{y} = \mathbf{x}(m) + \mathbf{z}, \end{cases}$$
+
+avec $\mathbf{x}' \neq \mathbf{x}(m)$ pour tout $1 \leq m \leq |\mathcal{M}|$.
+
+- $H_0$ : hypothèse nulle — la donnée observée $\mathbf{y}$ provient d'un individu différent ($\mathbf{x}'$ est un imposteur).
+- $H_1$ : hypothèse alternative — la donnée observée $\mathbf{y}$ provient bien de l'individu $m$ enrôlé ($\mathbf{x}(m)$ est le gabarit de référence).
+- $\mathbf{z}$ : bruit d'acquisition (supposé gaussien dans le cas classique).
+
+::: {.callout-tip title="Intuition"}
+Contrairement au hash cryptographique qui exige une correspondance **exacte**, le test d'hypothèses accepte une **région de décision étendue** autour du gabarit de référence. La donnée observée n'a pas besoin d'être identique au gabarit, elle doit seulement être **suffisamment proche**.
+:::
+
+### Région de décision sous hypothèse gaussienne
+
+Sous l'hypothèse que le bruit $\mathbf{z}$ est gaussien, la distance naturelle est la **distance euclidienne** (Euclidean distance), et la région de décision prend la forme d'une **sphère** (Sphere region) de rayon $\sqrt{\gamma N}$ autour du gabarit :
+
+$$\mathcal{R}_1 : d^E\bigl(\mathbf{y}, \mathbf{x}(m)\bigr) = \|\mathbf{y} - \mathbf{x}(m)\|^2 \leq \gamma N$$
+
+Ce qui est équivalent (en développant le produit scalaire) à :
+
+$$\mathcal{R}_1 : \mathbf{y}^T \mathbf{x}(m) \geq \gamma' N$$
+
+où $\gamma'$ est un seuil de décision ajustable.
+
+::: {.callout-note title="À retenir"}
+La statistique de test utilisée est le **score de corrélation normalisé** $\rho = \frac{\mathbf{y}^T \mathbf{x}(m)}{N}$. On accepte l'hypothèse $H_1$ (individu authentique) si et seulement si ce score dépasse le seuil $\gamma'$.
+:::
+
+---
+
+## Probabilités d'erreur en authentification
+
+### Définition des erreurs
+
+La performance d'un système d'authentification est caractérisée par deux types d'erreur :
+
+**Probabilité de fausse acceptation (Probability of False Acceptance — $P_f$)**
+
+$$P_f = \Pr\bigl[\mathbf{y}^T \mathbf{x}(m) \geq \gamma' N \mid H_0\bigr]$$
+
+C'est la probabilité qu'un imposteur soit accepté à tort. On veut la minimiser.
+
+**Probabilité de rejet d'un utilisateur légitime (Probability of Miss — $P_m$)**
+
+$$P_m = \Pr\bigl[\mathbf{y}^T \mathbf{x}(m) < \gamma' N \mid H_1\bigr]$$
+
+C'est la probabilité qu'un utilisateur légitime soit rejeté à tort. On veut également la minimiser.
+
+::: {.callout-tip title="Intuition"}
+Il existe un compromis (trade-off) inévitable entre $P_f$ et $P_m$. En déplaçant le seuil $\gamma'$ vers la droite (seuil plus élevé), on réduit $P_f$ mais on augmente $P_m$, et vice versa. Ce compromis est visualisé par la courbe ROC (Receiver Operating Characteristic).
+:::
+
+---
+
+## Attaques aveugles vs. attaques informées
+
+### Attaques aveugles (Blind attacks)
+
+Dans le scénario des **attaques aveugles** (Blind attacks), l'attaquant génère $\mathbf{x}'$ sous $H_0$ sans connaissance du gabarit de référence $\mathbf{x}(m)$. Il tente "au hasard" de trouver un vecteur qui satisfasse le critère de décision.
+
+Dans ce cas, la distribution de $\rho = \frac{\mathbf{y}^T \mathbf{x}(m)}{N}$ sous $H_0$ est centrée **loin** du seuil $\gamma'$, ce qui rend la fausse acceptation peu probable.
+
+### Attaques informées (Informed attacks)
+
+Dans le scénario des **attaques informées** (Informed attacks), l'attaquant connaît le gabarit de référence $\mathbf{x}(m)$ (par exemple, parce qu'il a accès à la base de données publique). Il peut alors générer $\mathbf{x}'$ **aussi proche que possible** de $\mathbf{x}(m)$.
+
+La probabilité de succès de l'attaque est :
+
+$$P_{sa} = \Pr\bigl[\mathbf{y}^T \mathbf{x}(m) \geq \gamma' N \mid H_0 \text{ informée}\bigr]$$
+
+::: {.callout-warning title="Résultat fondamental"}
+On peut démontrer que :
+
+$$P_{sa} \geq P_f$$
+
+La probabilité de succès d'une attaque informée est **toujours supérieure ou égale** à la probabilité de fausse acceptation en attaque aveugle.
+
+**Conclusion** : divulguer le gabarit $\mathbf{x}(m)$ est dangereux pour les performances de sécurité du système. Plus l'attaquant est informé, plus il est facile de tromper le système.
+:::
+
+---
+
+## Problèmes ouverts de l'approche signal pour l'authentification
+
+L'approche par traitement du signal permet de gérer le bruit, mais elle présente un problème majeur : le gabarit $\mathbf{x}(m)$ est stocké en clair dans un espace public.
+```{mermaid}
+flowchart LR
+    A["x(m)\n(gabarit biométrique)"] --> B["Stockage public"]
+    B --> C["x(m) disponible"]
+    C --> D["Attaque"]
+    D --> E["x' proche de x(m)"]
+    E --> F["p(y|x)"]
+    F --> G["Test"]
+    G --> H["Y/N"]
+    B --> F
+    style B fill:#4488ff,color:#fff
+    style D fill:#ff4444,color:#fff
+```
+
+**Problèmes ouverts :**
+
+- $\mathbf{x}(m)$ est stocké dans le domaine public → accessible à un attaquant.
+
+- **Pas de sécurité** : $\mathbf{x}(m)$ peut être utilisé pour concevoir des attaques ciblées.
+
+- **Pas de vie privée** : $\mathbf{x}(m)$ révèle directement des informations sur l'individu (pathologies, etc.).
+
+---
+
+## Identification par test d'hypothèses multiples
+
+### Du problème binaire au problème M-aire
+
+L'**identification** (Identification) va plus loin que l'authentification. Il ne s'agit plus de vérifier si une personne est bien celle qu'elle prétend être, mais de **retrouver son identité** parmi $|\mathcal{M}|$ individus enrôlés.
+
+On parle de **test d'hypothèses M-aire** (M-ary hypothesis testing) :
+
+$$\begin{cases} H_0 : \mathbf{y} = \mathbf{x}' + \mathbf{z} \\ H_1 : \mathbf{y} = \mathbf{x}(1) + \mathbf{z} \\ \vdots \\ H_{|\mathcal{M}|} : \mathbf{y} = \mathbf{x}(|\mathcal{M}|) + \mathbf{z} \end{cases}$$
+
+avec $\mathbf{x}' \neq \mathbf{x}(m)$ pour tout $1 \leq m \leq |\mathcal{M}|$.
+
+### Règle de décision
+
+Le décodeur recherche l'identité $\hat{m}$ qui minimise la distance euclidienne entre la donnée observée et le gabarit de référence :
+
+$$\hat{m} = \arg\min_{1 \leq m \leq |\mathcal{M}|} \left( \|\mathbf{y} - \mathbf{x}(m)\|^2 \leq \gamma N \right)$$
+
+Si aucun gabarit n'est suffisamment proche, la décision est $0$ (individu inconnu).
+
+### Probabilités d'erreur en identification
+
+En identification, les erreurs sont plus complexes :
+
+**Probabilité de fausse acceptation (False Acceptance)**
+
+$$P_f = \Pr\left[\bigcup_{m=1}^{|\mathcal{M}|} \mathbf{y}^T \mathbf{x}(m) \geq \gamma' N \;\middle|\; H_{0 \text{ blind}}\right]$$
+
+**Probabilité de succès d'attaque informée**
+
+$$P_{sa} = \Pr\left[\bigcup_{m=1}^{|\mathcal{M}|} \mathbf{y}^T \mathbf{x}(m) \geq \gamma' N \;\middle|\; H_{0 \text{ informed}}\right]$$
+
+**Probabilité d'identification incorrecte (Incorrect Classification)**
+
+$$P_{ic} = \Pr\left[\underbrace{\mathbf{y}^T \mathbf{x}(m) < \gamma' N}_{\text{miss}} \bigcup \underbrace{\bigcup_{m' \neq m} \mathbf{y}^T \mathbf{x}(m') \geq \gamma' N}_{\text{miss-acceptation}} \;\middle|\; H_m\right]$$
+
+::: {.callout-note title="À retenir"}
+En identification, il existe deux types d'erreur additionnels par rapport à l'authentification :
+
+- **Miss** : l'individu légitime n'est pas reconnu (son score est en dessous du seuil).
+- **Miss-acceptation** : l'individu légitime est confondu avec un autre individu enrôlé.
+:::
+
+---
+
+# Vers le hachage robuste
+
+## Limites de l'approche signal et motivation
+
+L'approche par traitement du signal résout le problème du bruit, mais laisse les gabarits $\mathbf{x}(m)$ exposés. Le **hachage robuste** (Robust Hashing) tente de combiner les avantages du hachage cryptographique (non-inversibilité) avec la robustesse aux distorsions du signal.
+
+**Si $\mathbf{x}(m)$ est exposé, l'attaquant peut :**
+
+1. **Déduire des informations sur la vie privée** (deduce privacy) : pathologies, caractéristiques physiologiques, etc.
+
+2. **Concevoir des attaques informées** (design attacks) : générer un $\mathbf{x}'$ très proche du gabarit cible.
+
+---
+
+## Principe du hachage robuste
+
+### De l'espace continu à l'espace binaire
+
+Le hachage robuste est une transformation $\varphi(\cdot)$ qui, combinée avec une clé secrète $K$, projette les données dans un espace binaire :
+
+$$\varphi : \mathcal{R}^N \times \mathcal{K} \to \{0,1\}^L$$
+
+- $\mathbf{x} \in \mathcal{R}^N$ : données originales (ex. : gabarit biométrique).
+- $K$ : clé secrète (connue seulement du système de vérification).
+- $\mathbf{b}_x \in \{0,1\}^L$ : **empreinte binaire** (Binary fingerprint) de taille $L$.
+
+### Modèle de canal binaire symétrique
+
+La relation entre l'empreinte binaire enrôlée $\mathbf{b}_x$ et l'empreinte binaire de la requête $\mathbf{b}_y$ (calculée à partir de $\mathbf{y}$, version bruitée de $\mathbf{x}$) est modélisée par un **canal binaire symétrique** (Binary Symmetric Channel — BSC) de paramètre $P_b$ :
+
+$$P_b = \frac{1}{L} \sum_{i=1}^{L} \Pr\bigl[b_{x_i} \neq b_{y_i}\bigr]$$
+
+$P_b$ est la **probabilité moyenne d'erreur par bit**. Elle mesure à quel point les deux empreintes binaires diffèrent.
+
+La décision est prise sur la base de la **distance de Hamming** (Hamming distance) :
+
+$$d^H\bigl(\mathbf{b}_x(m), \mathbf{b}_y\bigr) \leq \alpha L$$
+
+si la distance de Hamming est inférieure à un seuil $\alpha L$, les deux empreintes sont considérées comme correspondantes.
+
+::: {.callout-tip title="Intuition"}
+Le canal BSC est une abstraction élégante : il dit que chaque bit de l'empreinte biométrique peut être "retourné" (0→1 ou 1→0) avec une probabilité $P_b$ due au bruit d'acquisition. Plus $P_b$ est petit, plus les empreintes sont similaires, et plus l'identification/authentification est fiable.
+:::
+
+---
+
+## Propriétés souhaitées du hachage robuste
+
+Un bon hachage robuste doit satisfaire deux propriétés apparemment contradictoires :
+
+**Robustesse** : le hash doit être robuste à certaines modifications mineures du signal, notamment :
+
+- Distorsions de traitement du signal (flou, bruit, compression avec perte, etc.)
+- Distorsions géométriques (transformations affines, projectives, etc.)
+
+**Non-inversibilité** : le hash doit être difficile (idéalement impossible) à inverser. Cela doit être garanti dans deux scénarios :
+
+- **(a) Clé inconnue** : sans connaître $K$, il doit être impossible de retrouver $\mathbf{x}$ à partir de $\mathbf{b}_x$.
+
+- **(b) Clé connue** : même si $K$ est connue, tout estimé $\hat{\mathbf{x}}$ obtenu à partir de $\mathbf{b}_x$ doit être **loin** de $\mathbf{x}$ :
+
+$$d^E(\mathbf{x}, \hat{\mathbf{x}}) \geq \gamma N$$
+
+Cette non-inversibilité est rendue possible par la **perte d'information** lors de la binarisation : $X \to \mathbf{B}_x$ et $Y \to \mathbf{B}_y$.
+
+::: {.callout-warning title="Compromis inévitable"}
+La binarisation entraîne une **perte d'information**. Par conséquent, l'authentification/identification basée sur $(\mathbf{B}_x, \mathbf{B}_y)$ est **moins précise** que celle basée directement sur $(\mathbf{X}, \mathbf{Y})$. C'est le prix à payer pour la protection de la vie privée.
+:::
+
+---
+
+## Impact de la réduction de dimensionnalité et de la binarisation
+
+### Comparaison des distributions dans les deux domaines
+
+La binarisation transforme le problème de test dans le domaine continu (basé sur $\rho = \frac{\mathbf{y}^T \mathbf{x}(m)}{N}$) en un problème dans le domaine binaire (basé sur $d^H$).
+
+**Dans le domaine original :**
+
+Les distributions sous $H_1$, $H_{0 \text{ blind}}$ et $H_{0 \text{ informed}}$ sont bien séparées, ce qui permet une bonne discrimination.
+
+**Dans le domaine binaire :**
+
+La binarisation rapproche les distributions sous $H_{0 \text{ blind}}$ et $H_{0 \text{ informed}}$. La **perte d'information** est visible : la discrimination est moins nette, mais la non-inversibilité est assurée.
+
+::: {.callout-note title="À retenir"}
+Il existe un **compromis fondamental** entre sécurité/vie privée et performance :
+
+- **Plus $L$ est grand** (empreinte binaire longue) → **meilleure performance** en identification (les distributions se séparent davantage dans le domaine binaire) mais **risque plus élevé** d'inversion (plus d'information disponible).
+
+- **Plus $L$ est petit** → **meilleure protection de la vie privée** mais **moins bonne performance**.
+:::
+
+---
+
+# L'approche hybride
+
+## Motivation et principe général
+
+L'approche hybride (Hybrid approach) vise à combiner les avantages de trois disciplines :
+
+- **Cryptographie** : pour assurer la confidentialité et la non-inversibilité.
+- **Traitement du signal** : pour gérer les données bruitées et non exactes.
+- **Théorie des codes** : pour corriger les erreurs dues au bruit biométrique.
+
+### Le problème de performance avec les transformations non-inversibles
+
+Lorsqu'on applique une transformation non-inversible (binarisation), on perd de la performance. On peut tenter de compenser cette perte en **augmentant la taille $L$** de l'empreinte binaire.
+
+Cependant, augmenter $L$ crée un problème inverse : **plus l'empreinte est longue, plus elle contient d'information, et plus la reconstruction de $\mathbf{x}$ à partir de $\mathbf{b}_x$ devient facile** pour un attaquant.
+
+On est donc face à un cercle vicieux :
+
+- $L$ petit → bonne protection mais mauvaise performance.
+- $L$ grand → bonne performance mais mauvaise protection.
+
+::: {.callout-important title="Question centrale"}
+Peut-on trouver un compromis entre sécurité/vie privée et performance ?
+
+**Réponse** : Oui, grâce à la combinaison cryptographie + traitement du signal + codage (théorie des codes correcteurs d'erreurs).
+:::
+
+---
+
+## Stratégies hybrides
+
+### Idées générales
+
+Les méthodes hybrides reposent sur une idée commune : exploiter le fait que les données $\mathbf{X}$ et $\mathbf{Y}$ (ou leurs empreintes binaires $\mathbf{B}_x$ et $\mathbf{B}_y$) sont **corrélées** sous l'hypothèse $H_1$ (authentification) ou $H_m$ (identification).
+
+Cette corrélation peut être utilisée pour **corriger les erreurs** introduites par le bruit biométrique, sans stocker directement le gabarit biométrique.
+
+Deux grandes familles de méthodes hybrides :
+
+- **Engagement flou (Fuzzy Commitment)**
+- **Données auxiliaires (Helper Data)**
+
+---
+
+## Engagement flou (Fuzzy Commitment)
+
+### Principe
+
+L'engagement flou repose sur l'utilisation d'une **clé secrète $\mathbf{k}$** combinée avec l'empreinte biométrique binaire $\mathbf{b}_x$ pour créer des **données auxiliaires** $\mathbf{m}$ stockées publiquement.
+
+**Phase d'enrôlement :**
+
+1. On calcule l'empreinte binaire $\mathbf{b}_x = \text{Fingerprint}(\mathbf{x}, K)$.
+
+2. On génère une clé secrète $\mathbf{k}$ (aléatoire, i.i.d.).
+
+3. On calcule les données auxiliaires : $\mathbf{m} = \mathbf{k} \oplus \mathbf{b}_x$ (XOR bit à bit).
+
+4. On stocke publiquement : $(\mathbf{m}, \varphi(\mathbf{k}))$ où $\varphi(\mathbf{k})$ est le hash cryptographique de la clé.
+
+**Phase d'authentification :**
+
+1. On calcule l'empreinte binaire de la requête $\mathbf{b}_y = \text{Fingerprint}(\mathbf{y}, K)$.
+
+2. On récupère les données auxiliaires $\mathbf{m}$ et on calcule :
+
+$$\hat{\mathbf{k}} = \mathbf{m} \oplus \mathbf{b}_y = (\mathbf{k} \oplus \mathbf{b}_x) \oplus \mathbf{b}_y$$
+
+3. Si $\mathbf{b}_x = \mathbf{b}_y$ (individu légitime, sans erreur) : $\hat{\mathbf{k}} = \mathbf{k}$, et on vérifie $\varphi(\hat{\mathbf{k}}) = \varphi(\mathbf{k})$ → accès accordé.
+
+4. Sinon (imposteur ou bruit) : $\hat{\mathbf{k}} \neq \mathbf{k}$, et $\varphi(\hat{\mathbf{k}}) \neq \varphi(\mathbf{k})$ → accès refusé.
+```{mermaid}
+flowchart TD
+    subgraph Enrôlement
+        X["x (biométrie)"] --> FP1["Fingerprint"]
+        K1["Clé K"] --> FP1
+        FP1 --> BX["b_x"]
+        KEY["k (clé secrète)"] --> XOR1["⊕ XOR"]
+        BX --> XOR1
+        XOR1 --> M["m = k ⊕ b_x\n(données auxiliaires)"]
+        KEY --> HASH1["Hash φ(k)"]
+        M --> PUB["Stockage public"]
+        HASH1 --> PUB
+    end
+
+    subgraph Authentification
+        Y["y (biométrie requête)"] --> FP2["Fingerprint"]
+        K1 --> FP2
+        FP2 --> BY["b_y"]
+        M2["m (récupéré)"] --> XOR2["⊕ XOR"]
+        BY --> XOR2
+        XOR2 --> KHAT["k̂ estimé"]
+        KHAT --> HASH2["Hash φ(k̂)"]
+        PUB2["φ(k) (récupéré)"] --> CMP{{"Comparaison"}}
+        HASH2 --> CMP
+        CMP --> RES["Y/N"]
+    end
+```
+
+::: {.callout-tip title="Intuition — Analogie avec le masque jetable"}
+L'empreinte biométrique $\mathbf{b}_x$ joue le rôle d'un **masque jetable** (One-Time Pad) : elle "chiffre" la clé $\mathbf{k}$ par XOR. Lors de l'authentification, si la biométrie de la requête correspond ($\mathbf{b}_y \approx \mathbf{b}_x$), on peut "déchiffrer" et retrouver $\mathbf{k}$.
+
+La différence avec un masque jetable classique est que $\mathbf{b}_x$ n'est pas i.i.d. (elle dépend de la biométrie de la personne) et qu'elle ne change pas d'une session à l'autre (non-renouvelable).
+:::
+
+### Le problème des erreurs résiduelles
+
+En général, $\mathbf{b}_x \neq \mathbf{b}_y$ à cause du bruit d'acquisition. Dans ce cas :
+
+$$\hat{\mathbf{k}} = \mathbf{k} \oplus \underbrace{\mathbf{b}_x \oplus \mathbf{b}_y}_{\mathbf{b}_z} = \mathbf{k} \oplus \mathbf{b}_z$$
+
+où $\mathbf{b}_z$ représente les **erreurs binaires** dues au bruit. On a donc $\varphi(\mathbf{k}) \neq \varphi(\hat{\mathbf{k}})$, et l'utilisateur légitime est rejeté à tort.
+
+**Solution** : ajouter de la redondance à la clé $\mathbf{k}$ via un **code correcteur d'erreurs** (Error Correction Code — ECC) pour corriger les erreurs dans $\mathbf{b}_z$.
+
+La redondance nécessaire est proportionnelle à :
+
+$$\approx L \cdot H_2(P_b)$$
+
+où $H_2(P_b) = -P_b \log_2 P_b - (1-P_b)\log_2(1-P_b)$ est l'**entropie binaire** du canal BSC.
+
+### Problèmes ouverts de l'engagement flou
+
+L'engagement flou avec code correcteur d'erreurs résout le problème de performance, mais introduit de nouvelles vulnérabilités :
+
+**Problème 1 : ECC($\mathbf{k}$) n'est plus i.i.d.**
+
+L'ajout de bits de redondance à $\mathbf{k}$ via l'ECC crée des corrélations dans la séquence ECC($\mathbf{k}$). La séquence n'est plus uniformément distribuée, ce qui réduit son entropie.
+
+→ **Conséquence** : il est plus facile pour un attaquant de prédire la clé $\mathbf{k}$ et de monter une attaque.
+
+**Problème 2 : $\mathbf{b}_x$ n'est pas i.i.d.**
+
+L'empreinte biométrique $\mathbf{b}_x$ n'est pas uniformément distribuée (les bits biométriques ne sont pas indépendants). Les attaques sont donc possibles **conjointement** sur $\mathbf{m} = \mathbf{k} \oplus \mathbf{b}_x$ et sur $\mathbf{b}_x$.
+
+::: {.callout-warning title="Attention — Limites de l'engagement flou"}
+Les deux problèmes ouverts de l'engagement flou (non-i.i.d. de ECC($\mathbf{k}$) et de $\mathbf{b}_x$) réduisent la sécurité du schéma. En pratique, un attaquant averti peut exploiter ces corrélations pour reconstituer la clé ou les données biométriques.
+:::
+
+---
+
+## Systèmes basés sur les données auxiliaires (Helper Data based systems)
+
+### Architecture générale
+
+Les systèmes basés sur les **données auxiliaires** (Helper Data based systems) constituent l'état de l'art actuel en matière de protection de gabarits biométriques.
+
+L'architecture est la suivante :
+
+**Phase d'enrôlement :**
+
+1. On calcule l'empreinte binaire $\mathbf{b}_x$.
+
+2. On applique un ECC à $\mathbf{b}_x$ pour obtenir les **bits de parité** (Parity Check Bits).
+
+3. Les bits de parité (données auxiliaires, Helper Data) et $\varphi(\mathbf{b}_x)$ (hash de l'empreinte) sont stockés publiquement.
+
+**Phase d'authentification :**
+
+1. On calcule l'empreinte binaire de la requête $\mathbf{b}_y$.
+
+2. On utilise les données auxiliaires (bits de parité) pour corriger les erreurs de $\mathbf{b}_y$ via le décodeur ECC$^{-1}$ et on obtient $\hat{\mathbf{b}}_x$.
+
+3. On calcule $\varphi(\hat{\mathbf{b}}_x)$ et on compare avec $\varphi(\mathbf{b}_x)$ stocké.
+
+4. Si les deux hash correspondent → accès accordé.
+```{mermaid}
+flowchart TD
+    subgraph Enrôlement
+        X["x"] --> FP1["Fingerprint + K"]
+        FP1 --> BX["b_x"]
+        BX --> ECC["ECC"]
+        ECC --> HD["Données auxiliaires\n(Parity Check Bits)"]
+        BX --> H1["Hash φ(b_x)"]
+        HD --> PS["Stockage public"]
+        H1 --> PS
+    end
+
+    subgraph Authentification
+        Y["y"] --> FP2["Fingerprint + K"]
+        FP2 --> BY["b_y"]
+        PS2["Données auxiliaires\n(récupérées)"] --> ECCINV["ECC⁻¹ décodeur"]
+        BY --> ECCINV
+        ECCINV --> BXHAT["b̂_x"]
+        BXHAT --> H2["Hash φ(b̂_x)"]
+        PS3["φ(b_x)\n(récupéré)"] --> CMP{{"Mismatch ?"}}
+        H2 --> CMP
+        CMP --> RES["Y/N"]
+    end
+```
+
+### Redondance et performance
+
+Le décodeur ECC$^{-1}$ corrige les erreurs dans $\mathbf{b}_y$ en utilisant les bits de parité, à condition que le nombre d'erreurs ne dépasse pas la capacité de correction du code.
+
+La redondance nécessaire reste proportionnelle à :
+
+$$\approx L \cdot H_2(P_b)$$
+
+### Problèmes ouverts et perspectives
+
+Les systèmes basés sur les données auxiliaires représentent le **meilleur compromis actuel** entre sécurité, vie privée et performance. Cependant, ils ne sont pas parfaits :
+
+- La redondance publiée (bits de parité) peut révéler des informations sur $\mathbf{b}_x$ et donc sur les données biométriques originales.
+
+- Le choix du code ECC doit être adapté à la distribution réelle de $\mathbf{b}_z$ (les erreurs biométriques ne sont pas nécessairement uniformes).
+
+::: {.callout-note title="À retenir — État de l'art"}
+Les systèmes basés sur les données auxiliaires (Helper Data) représentent l'état de l'art en protection de gabarits biométriques. Ils combinent :
+
+1. **Une transformation non-inversible** (fingerprinting + binarisation) pour la protection de la vie privée.
+
+2. **Un code correcteur d'erreurs** (ECC) pour compenser la perte de performance due à la binarisation.
+
+3. **Un hash cryptographique** pour la vérification finale.
+
+La recherche active dans ce domaine porte sur de meilleures transformations biométriques, des codes plus efficaces, et des garanties de sécurité prouvables.
+:::
+
+---
+
+# Synthèse et récapitulatif
+
+## Vue d'ensemble des approches
+
+Les trois grandes approches abordées dans ce cours peuvent être résumées comme suit :
+
+**Approche cryptographique**
+
+- Principe : stocker le hash des données, ne jamais stocker les données brutes.
+- Avantage : confidentialité forte, non-inversibilité théorique.
+- Limite : sensibilité au bruit, inadaptée aux données biométriques noisy.
+
+**Approche par traitement du signal**
+
+- Principe : test d'hypothèses avec région de décision étendue.
+- Avantage : gestion native du bruit biométrique, bonnes performances.
+- Limite : stockage des gabarits en clair → pas de sécurité ni de vie privée.
+
+**Approche hybride (état de l'art)**
+
+- Principe : combinaison de hachage robuste, de codes correcteurs d'erreurs et de cryptographie.
+- Avantage : équilibre entre performance et protection.
+- Limite : redondance inévitable, compromis à optimiser selon l'application.
+
+## Le triangle fondamental
+```{mermaid}
+graph TD
+    A["🔒 Sécurité\n(Security)"] --- B["🎯 Performance\n(Accuracy)"]
+    B --- C["🔐 Vie privée\n(Privacy)"]
+    C --- A
+    D["⚖️ Compromis\nhybride"] -.-> A
+    D -.-> B
+    D -.-> C
+    style D fill:#ffd700,color:#000
+```
+
+::: {.callout-important title="Message central du cours"}
+La protection de la vie privée dans les systèmes biométriques et multimédia est intrinsèquement liée à un **compromis fondamental** entre trois objectifs :
+
+- **Sécurité** : résistance aux attaques.
+- **Performance** : précision de l'identification/authentification.
+- **Vie privée** : impossibilité de déduire des informations sensibles à partir des données stockées.
+
+Les approches hybrides (fuzzy commitment, helper data) représentent l'état de l'art pour naviguer dans ce triangle. Elles combinent cryptographie, traitement du signal et théorie des codes pour offrir le meilleur compromis possible.
+:::
