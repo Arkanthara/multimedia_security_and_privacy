@@ -92,6 +92,11 @@ def parse_args() -> argparse.Namespace:
             "with BER/PSNR/runtime metrics and parameter sweeps."
         )
     )
+    parser.add_argument(
+        "--models",
+        default=",".join(spec.name for spec in MODEL_SPECS),
+        help="Comma-separated implementation names to benchmark (codex,codex-4,sonnet).",
+    )
     parser.add_argument("--images-dir", default=str(ROOT_DIR / "img"), help="Directory containing test images.")
     parser.add_argument("--out-dir", default="results", help="Output directory for CSV/JSON reports.")
     parser.add_argument("--message-lengths", default="32,64,128", help="Comma-separated message lengths.")
@@ -119,6 +124,32 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--quiet", action="store_true", help="Reduce progress logging.")
     return parser.parse_args()
+
+
+def resolve_model_specs(selected_names: list[str]) -> list[ModelSpec]:
+    """Resolve selected implementation names to model specifications.
+
+    Parameters
+    ----------
+    selected_names : list[str]
+        Implementation names requested on the command line.
+
+    Returns
+    -------
+    list[ModelSpec]
+        Ordered list of model specs matching ``selected_names``.
+
+    Raises
+    ------
+    ValueError
+        If any requested name is unknown.
+    """
+    by_name = {spec.name: spec for spec in MODEL_SPECS}
+    unknown = [name for name in selected_names if name not in by_name]
+    if unknown:
+        known = ", ".join(sorted(by_name))
+        raise ValueError(f"Unknown model(s): {', '.join(unknown)}. Known models: {known}.")
+    return [by_name[name] for name in selected_names]
 
 
 def to_uint8_image(image: np.ndarray) -> np.ndarray:
@@ -439,6 +470,7 @@ def evaluate_config(
     ecc_active = requested_ecc
     if requested_ecc and hasattr(model, "_bch"):
         ecc_active = getattr(model, "_bch") is not None
+    ecc_mode_requested = str(config.get("ecc_mode", "none")) if requested_ecc else "none"
 
     encode_times: list[float] = []
     decode_times: list[float] = []
@@ -501,7 +533,10 @@ def evaluate_config(
         "model": model_name,
         "config": config,
         "config_text": compact_config(config),
+        "ecc_requested": requested_ecc,
         "ecc_active": bool(ecc_active),
+        "ecc_mode_requested": ecc_mode_requested,
+        "ecc_profile": ecc_mode_requested,
         "ber_main": ber_main,
         "ber_penalized": ber_penalized,
         "avg_psnr": avg_psnr,
@@ -553,7 +588,10 @@ def save_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         "avg_psnr",
         "encode_time_per_image",
         "decode_time_per_image",
+        "ecc_requested",
         "ecc_active",
+        "ecc_mode_requested",
+        "ecc_profile",
         *[f"ber_{name}" for name in ATTACK_NAMES],
         "config_text",
         "config",
@@ -621,6 +659,39 @@ def print_summary(valid_results: list[dict[str, Any]], top_k: int) -> None:
         attack_rows.append([result["model"], *[fmt(result[f"ber_{name}"]) for name in ATTACK_NAMES]])
     print(render_table(attack_headers, attack_rows))
 
+    print("\n=== Best Configuration By ECC Profile ===")
+    ecc_headers = [
+        "model",
+        "ECC profile",
+        "BER penalized",
+        "PSNR",
+        "enc s/img",
+        "dec s/img",
+        "ECC active",
+        "config",
+    ]
+    ecc_rows: list[list[str]] = []
+    for model_name in sorted(grouped):
+        rows = grouped[model_name]
+        by_profile: dict[str, list[dict[str, Any]]] = {}
+        for row in rows:
+            by_profile.setdefault(str(row.get("ecc_profile", "none")), []).append(row)
+        for profile_name in sorted(by_profile):
+            best = sorted(by_profile[profile_name], key=sort_key)[0]
+            ecc_rows.append(
+                [
+                    model_name,
+                    profile_name,
+                    fmt(best["ber_penalized"]),
+                    fmt(best["avg_psnr"], 2),
+                    fmt(best["encode_time_per_image"], 4),
+                    fmt(best["decode_time_per_image"], 4),
+                    str(best["ecc_active"]),
+                    best["config_text"],
+                ]
+            )
+    print(render_table(ecc_headers, ecc_rows))
+
     for model_name in sorted(grouped):
         rows = sorted(grouped[model_name], key=sort_key)[:top_k]
         print(f"\n=== Top {top_k} Configs: {model_name} ===")
@@ -643,6 +714,9 @@ def print_summary(valid_results: list[dict[str, Any]], top_k: int) -> None:
 def main() -> int:
     args = parse_args()
 
+    selected_model_names = parse_str_list(args.models)
+    selected_specs = resolve_model_specs(selected_model_names)
+
     images_dir = Path(args.images_dir).resolve()
     out_dir = Path(args.out_dir)
     if not out_dir.is_absolute():
@@ -653,10 +727,11 @@ def main() -> int:
     attacks = build_attacks(args)
 
     print(f"Loaded {len(images)} image(s) from {images_dir}")
+    print(f"Selected implementation(s): {', '.join(spec.name for spec in selected_specs)}")
 
     all_results: list[dict[str, Any]] = []
 
-    for model_spec in MODEL_SPECS:
+    for model_spec in selected_specs:
         model_class = load_watermark_class(model_spec)
         configs = generate_configs(model_spec, model_class, args)
 

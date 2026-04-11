@@ -76,12 +76,12 @@ class WatermarkModel:
     key : int, default 42
         Seed for the deterministic PRNG (``numpy.random.default_rng``).
         Must be identical at encode and decode time.
-    alpha : float, default 4.0
+    alpha : float, default 6.0
         Embedding strength. Larger → more robust, lower PSNR.
     repeat : int, default 5
         ECC disabled : message tiled *repeat* times; majority vote per bit.
         ECC enabled  : BCH parity tiled *repeat* times; message embedded once.
-    use_error_correction : bool, default True
+    use_error_correction : bool, default False
         Enable BCH error correction (requires ``bchlib``).
         Falls back silently to pure repetition if the library is absent.
     ecc_mode : str, default ``'single'``
@@ -100,10 +100,10 @@ class WatermarkModel:
         max_encode_time: float = 5.0,
         max_decode_time: float = 1.0,
         key: int               = 42,
-        alpha: float           = 4.0,
+        alpha: float           = 10.0,
         repeat: int            = 5,
         use_error_correction: bool = True,
-        ecc_mode: str          = "single",
+        ecc_mode: str          = "combined",
         neighborhood_size: int = 3,
     ) -> None:
         if neighborhood_size % 2 == 0 or neighborhood_size < 3:
@@ -380,7 +380,7 @@ class WatermarkModel:
             img = img[:, :, np.newaxis]
         H, W, C = img.shape
 
-        wm      = watermark.astype(np.uint8)
+        wm = np.array(watermark, dtype=np.uint8)
         payload = (
             np.concatenate([wm, np.tile(self._ecc_encode(wm), self.repeat)])
             if self._bch is not None else
