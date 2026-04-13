@@ -1,8 +1,8 @@
 """
 model.py
 ========
-Fully vectorized blind watermarking — confidence-weighted decoding,
-optional CRC-32 error correction.
+Vectorized blind watermarking — confidence-weighted decoding,
+optional robustness to lossless geometric transforms (flips, 90° rotations).
 
 Embedding rule
 --------------
@@ -11,97 +11,161 @@ Each watermark bit shifts one randomly-selected pixel by ±alpha::
     bit = 1  →  pixel += alpha
     bit = 0  →  pixel -= alpha
 
-Confidence score (core decoding primitive)
-------------------------------------------
-For every embedded pixel position::
+Decoding — two complementary quality metrics
+--------------------------------------------
 
-    score = center_pixel − mean(k×k neighbourhood, center excluded)
+**Metric 1 — Embedding strength** (``embedding_strength``)::
 
-Positive → likely 1; negative → likely 0; |score| = confidence.
-Averaging scores across repeated copies of the same bit improves SNR
-proportionally to √(copies), strictly better than binary majority voting
-because the full signal magnitude is preserved before the hard decision.
+    strength = mean_i( |pixel_i − mean(k×k ring neighbourhood_i)| )
 
-Payload layouts
----------------
-CRC disabled  (``use_crc=False``)::
+Measures how much the sampled pixels deviate from their local surroundings.
+If those pixels were shifted by ±alpha at encode time, strength ≈ alpha,
+regardless of the bit values (0 or 1 both give |Δ| = alpha).
+Near zero → wrong pixel positions sampled (wrong orientation) or nothing
+embedded.
 
-    payload = tile(message, msg_repeat)
+**Metric 2 — Overall confidence** (``overall_confidence``)::
 
-    Decode: reshape scores to (msg_repeat, message_length), average, hard-decide.
-    Simple, fast, no overhead.  Raise *msg_repeat* for more robustness.
+    For each bit position i ∈ [0, message_length):
+        frac_i  = fraction of msg_repeat copies that decode bit i as 1
+        conf_i  = max(frac_i, 1 − frac_i)       ∈ [0.5, 1.0]
 
-CRC enabled   (``use_crc=True``)::
+    overall_confidence = mean_i( conf_i )        ∈ [0.5, 1.0]
 
-    payload = [ tile(message, msg_repeat)  |  tile(CRC-32, crc_repeat) ]
-                    m copies                       n copies,  n > m
+Measures copy agreement at each bit position, then averages across bits.
+  1.0 → every copy agrees on every bit — no copy was altered (perfect).
+  0.5 → completely random (50/50 coin toss per bit across copies).
 
-    The CRC field gets more copies than the message so it is recovered
-    more reliably, giving the repair stage a trusted oracle.
+Key property: confidence is computed from copy *agreement*, not from bit
+*values*.  It therefore works correctly for any watermark message, including
+uniformly random ones (≈ 50 % ones) whose mean signed score is ≈ 0 — a case
+that would fool a plain "mean-score magnitude" coherence test.
 
-    Decode pipeline:
-      1. Average message scores over m copies → mean score per bit.
-      2. Average CRC scores over n copies → hard-decode reference CRC.
-      3. Hard-decide message from sign of mean scores.
-      4. Verify CRC-32(message) == reference CRC → return on success.
-      5. Brute-force repair: flip the k = 1 … *max_flip_bits* least-confident
-         message bits (sorted by |mean score| ascending) until CRC passes.
+Transform-search strategy
+--------------------------
+When ``robust_to_transforms=True``, the decoder tries six lossless candidate
+inverse transforms ordered cheapest-first::
 
-Why CRC-32 even for a 32-bit message?
---------------------------------------
-CRC-32 doubles the bit overhead for a 32-bit message, but remains the right
-choice for two reasons:
+    identity → hflip → vflip → rot270 → rot90 → rot180
 
-* **Silent errors.** Without a verifiable reference you cannot know whether
-  the decoded output is correct.  CRC makes errors detectable.
+All transforms are lossless (numpy views or ``numpy.rot90``): no interpolation,
+no resolution change, and — for ±90° rotations — H and W simply swap so
+``_pixel_indices`` adapts automatically.
 
-* **Brute-force fidelity.** The repair stage needs an oracle whose false-
-  positive rate is negligible across all candidates tried.  With k=3 and a
-  pool of 32 bits the search has ≤ 4 960 candidates; CRC-32 gives a false-
-  acceptance probability of 4 960 × 2⁻³² ≈ 10⁻⁶.  CRC-16 (half the
-  overhead) would push that to ~5 % — unacceptably high.
+For each candidate:
+  1. Apply the inverse-transform candidate to the received image.
+  2. Recompute pixel indices from the (possibly swapped) image shape.
+  3. Rank by ``overall_confidence`` (primary criterion).
+  4. **Early exit** if ``overall_confidence ≥ confidence_threshold``.
+  5. After all candidates, return the highest-confidence result.
 
 Dependencies
 ------------
-numpy, opencv-python (cv2 available for callers; not used internally).
+numpy, opencv-python (cv2 re-exported for callers; not used internally).
 """
 
 from __future__ import annotations
 
-import binascii
-import itertools
-from typing import Tuple
+from typing import List, NamedTuple, Optional, Tuple
 
-import cv2          # noqa: F401 — available for callers (e.g. PSNR checks)
+import cv2          # noqa: F401 — re-exported for callers (e.g. PSNR checks)
 import numpy as np
 
 
-# ── Module-level CRC helper ───────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# Lossless transform catalogue
+# ─────────────────────────────────────────────────────────────────────────────
+# Each entry is the *inverse* of one possible attack transform.
+# Ordered cheapest-first so the early-exit fires quickly for common cases.
+#
+#   Attack applied to image    Inverse tried here
+#   ──────────────────────     ──────────────────
+#   (none)                     identity
+#   horizontal flip            hflip     (self-inverse)
+#   vertical flip              vflip     (self-inverse)
+#   90° CW rotation            rot270    (= 90° CCW)
+#   90° CCW rotation           rot90     (= 90° CW)
+#   180° rotation              rot180    (self-inverse)
+# ─────────────────────────────────────────────────────────────────────────────
 
-_CRC_BITS: int = 32   # width of the CRC field (fixed)
+_CANDIDATE_TRANSFORMS: List[str] = [
+    "identity",
+    "hflip",
+    "vflip",
+    "rot270",
+    "rot90",
+    "rot180",
+]
 
 
-def _crc32_bits(bits: np.ndarray) -> np.ndarray:
+def _apply_transform(img: np.ndarray, name: str) -> np.ndarray:
     """
-    Return the CRC-32 of *bits* as a (32,) uint8 bit array (big-endian).
+    Apply a named lossless geometric transform to a (H, W, C) float32 array.
+
+    All operations are zero-copy views or single ``numpy.rot90`` calls —
+    no interpolation, no quality loss.  For rot90 / rot270, H and W swap;
+    for all others the shape is unchanged.
 
     Parameters
     ----------
-    bits : np.ndarray, shape (n,), dtype uint8
+    img  : np.ndarray, shape (H, W, C), float32
+    name : str — one of the entries in ``_CANDIDATE_TRANSFORMS``
 
     Returns
     -------
-    np.ndarray, shape (32,), dtype uint8
+    np.ndarray, shape (H', W', C), float32
     """
-    crc = binascii.crc32(np.packbits(bits).tobytes()) & 0xFFFF_FFFF
-    return np.unpackbits(np.frombuffer(crc.to_bytes(4, "big"), dtype=np.uint8))
+    if name == "identity":
+        return img
+    if name == "hflip":
+        return img[:, ::-1, :]
+    if name == "vflip":
+        return img[::-1, :, :]
+    if name == "rot90":                      # 90° CCW
+        return np.rot90(img, k=1, axes=(0, 1))
+    if name == "rot180":
+        return np.rot90(img, k=2, axes=(0, 1))
+    if name == "rot270":                     # 90° CW
+        return np.rot90(img, k=3, axes=(0, 1))
+    raise ValueError(f"Unknown transform: {name!r}")
 
 
-# ── Model ─────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# Public result type
+# ─────────────────────────────────────────────────────────────────────────────
+
+class DecodeResult(NamedTuple):
+    """
+    Full watermark decode result, returned by :meth:`WatermarkModel.decode_verbose`.
+
+    Attributes
+    ----------
+    bits : np.ndarray, shape (message_length,), uint8
+        Hard-decoded watermark bits (majority vote across ``msg_repeat`` copies).
+    embedding_strength : float
+        Mean |pixel − ring_mean| at selected positions (Metric 1).
+        Scales with alpha; near zero → wrong orientation or nothing embedded.
+    overall_confidence : float
+        Mean per-bit copy-agreement fraction (Metric 2), in [0.5, 1.0].
+        1.0 → every copy agrees on every bit (perfect decode).
+        0.5 → fully random (wrong orientation or no watermark).
+    transform : str
+        Name of the candidate inverse transform that produced this result.
+    """
+    bits:               np.ndarray
+    embedding_strength: float
+    overall_confidence: float
+    transform:          str
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WatermarkModel
+# ─────────────────────────────────────────────────────────────────────────────
 
 class WatermarkModel:
     """
-    Vectorized blind watermarking — confidence-weighted, optionally CRC-protected.
+    Vectorized blind watermarking — confidence-weighted decoding,
+    optionally robust to lossless geometric transforms.
 
     Parameters
     ----------
@@ -111,69 +175,51 @@ class WatermarkModel:
         PRNG seed for deterministic pixel selection.
         **Must be identical at encode and decode time.**
     alpha : float, default 75.0
-        Embedding strength. Larger → more robust, lower PSNR.
-    use_crc : bool, default False
-        Enable CRC-32 error detection and brute-force correction.
-        When *False*, the entire embedding budget is spent on message copies,
-        yielding better raw SNR at the cost of no integrity guarantee.
-        Compensate by raising *msg_repeat* (e.g. 8–10).
+        Embedding strength.  Larger → more robust, lower PSNR.
     msg_repeat : int, default 35
-        Number of message copies embedded (m).
-        Also the sole redundancy knob when ``use_crc=False``.
-        When ``use_crc=True``, must satisfy ``msg_repeat < crc_repeat``.
-    crc_repeat : int, default 5
-        Number of CRC-32 copies embedded (n). Ignored when ``use_crc=False``.
-        Must satisfy ``crc_repeat > msg_repeat``.
-    neighborhood_size : int, default 3
-        Side length of the square neighbourhood for the confidence score.
+        Number of message copies embedded.  SNR ∝ √msg_repeat;
+        raise (e.g. 50–100) for more robustness against post-processing.
+    neighborhood_size : int, default 5
+        Side length of the square neighbourhood used for confidence scores.
         Must be an odd integer ≥ 3 (e.g. 3 for 3×3, 5 for 5×5).
-    max_flip_bits : int, default 3
-        Maximum bits flipped per brute-force repair level (CRC mode only).
-        Cost at level k: C(min(message_length, 32), k).
-        k=3 → ≤ 4 960 CRC checks (negligible runtime).
+    robust_to_transforms : bool, default True
+        When True, :meth:`decode` searches over all lossless candidate
+        inverse transforms and returns the highest-confidence result.
+    confidence_threshold : float, default 0.90
+        Early-exit threshold for the transform search.
+        A result with ``overall_confidence ≥ confidence_threshold`` is
+        accepted immediately (range (0.5, 1.0]; 0.90 → 90 % copy agreement).
 
     Total embedded bits
     -------------------
-    ``use_crc=False`` :  ``message_length × msg_repeat``
-    ``use_crc=True``  :  ``message_length × msg_repeat + 32 × crc_repeat``
+    ``message_length × msg_repeat``
     """
 
     def __init__(
         self,
-        message_length: int    = 32,
-        key: int               = 42,
-        alpha: float           = 75.0,
-        use_crc: bool          = False,
-        msg_repeat: int        = 35,
-        crc_repeat: int        = 5,
-        neighborhood_size: int = 3,
-        max_flip_bits: int     = 3,
+        message_length:       int   = 32,
+        key:                  int   = 42,
+        alpha:                float = 75.0,
+        msg_repeat:           int   = 35,
+        neighborhood_size:    int   = 5,
+        robust_to_transforms: bool  = True,
+        confidence_threshold: float = 0.90,
     ) -> None:
         if neighborhood_size % 2 == 0 or neighborhood_size < 3:
             raise ValueError("neighborhood_size must be an odd integer ≥ 3.")
-        if use_crc and crc_repeat <= msg_repeat:
-            raise ValueError(
-                f"crc_repeat ({crc_repeat}) must exceed msg_repeat ({msg_repeat}) "
-                "so the CRC field is recovered more reliably than the message."
-            )
 
-        self.message_length    = message_length
-        self.key               = key
-        self.alpha             = float(alpha)
-        self.use_crc           = use_crc
-        self.msg_repeat        = msg_repeat
-        self.crc_repeat        = crc_repeat
-        self.neighborhood_size = neighborhood_size
-        self.max_flip_bits     = max_flip_bits
+        self.message_length       = message_length
+        self.key                  = key
+        self.alpha                = float(alpha)
+        self.msg_repeat           = msg_repeat
+        self.neighborhood_size    = neighborhood_size
+        self.robust_to_transforms = robust_to_transforms
+        self.confidence_threshold = confidence_threshold
 
-        self._total_embedded: int = (
-            message_length * msg_repeat + _CRC_BITS * crc_repeat
-            if use_crc else
-            message_length * msg_repeat
-        )
+        self._total_embedded: int = message_length * msg_repeat
 
-        # ── Neighbourhood ring offsets — computed once at construction ────
-        # All (row, col) offsets in the k×k window except the center (0, 0).
+        # ── Neighbourhood ring offsets — precomputed once ─────────────────
+        # All (Δrow, Δcol) pairs in the k×k window except the center (0, 0).
         half   = neighborhood_size // 2
         dr, dc = np.mgrid[-half : half + 1, -half : half + 1]
         dr, dc = dr.ravel(), dc.ravel()
@@ -182,26 +228,23 @@ class WatermarkModel:
         self._DC:  np.ndarray = dc[ring].astype(np.intp)   # (k²−1,)
         self._pad: int        = half
 
-    # ------------------------------------------------------------------ #
-    #  Internal helpers                                                    #
-    # ------------------------------------------------------------------ #
+    # ── Internal helpers ──────────────────────────────────────────────────
 
     def _pixel_indices(
         self, H: int, W: int, C: int
     ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
-        Sample ``_total_embedded`` unique pixel positions from H×W×C.
+        Draw ``_total_embedded`` unique pixel positions from H×W×C using
+        a seeded RNG — identical seed → identical positions every call.
 
-        Uses a seeded ``numpy.random.default_rng`` — identical seed →
-        identical positions at encode and decode time.
-
-        Returns
-        -------
-        rows, cols, chans : np.ndarray[intp], each shape (_total_embedded,)
+        Callers that have applied a geometric transform must pass the
+        *post-transform* (H, W).  For lossless ±90° rotations H and W
+        simply swap, so the same seeded draw addresses the correct pixels
+        in the transformed image — no special handling required.
 
         Raises
         ------
-        ValueError if the image is too small to hold the payload.
+        ValueError if the image is too small to host the payload.
         """
         n   = self._total_embedded
         cap = H * W * C
@@ -211,96 +254,110 @@ class WatermarkModel:
                 f"capacity is {cap} ({H}×{W}×{C})."
             )
         flat = np.random.default_rng(self.key).choice(cap, size=n, replace=False)
-        return np.unravel_index(flat, (H, W, C))  # type: ignore[return-value]
+        return np.unravel_index(flat, (H, W, C))   # type: ignore[return-value]
 
     def _confidence_scores(
         self,
-        img: np.ndarray,
-        rows: np.ndarray,
-        cols: np.ndarray,
+        img:   np.ndarray,
+        rows:  np.ndarray,
+        cols:  np.ndarray,
         chans: np.ndarray,
     ) -> np.ndarray:
         """
-        Compute real-valued confidence scores at all embedded positions.
-
-        For each position i::
+        Compute a real-valued score at each embedded pixel position::
 
             score_i = img[row_i, col_i, chan_i]
                     − mean( k×k neighbourhood, center excluded )
 
-        Reflect-padding (width = _pad) handles border pixels transparently.
+        Reflect-padding (width = ``_pad``) handles border pixels without
+        introducing artificial edges.  Sign encodes the decoded bit;
+        magnitude encodes confidence.  Both metrics are derived from these.
 
         Returns
         -------
-        np.ndarray, shape (_total_embedded,), dtype float32
-            Positive → bit likely 1; negative → likely 0;
-            larger |score| → higher confidence.
+        np.ndarray, shape (_total_embedded,), float32
         """
         padded = np.pad(
             img,
             ((self._pad, self._pad), (self._pad, self._pad), (0, 0)),
             mode="reflect",
         )
-        # Neighbour absolute indices into padded array: (n_bits, n_neighbors)
-        nr  = rows[:, np.newaxis]  + self._pad + self._DR
-        nc  = cols[:, np.newaxis]  + self._pad + self._DC
-        nch = np.broadcast_to(chans[:, np.newaxis], nr.shape).astype(np.intp)
+        nr  = rows[:, None] + self._pad + self._DR          # (n, k²−1)
+        nc  = cols[:, None] + self._pad + self._DC
+        nch = np.broadcast_to(chans[:, None], nr.shape).astype(np.intp)
 
         return img[rows, cols, chans] - padded[nr, nc, nch].mean(axis=1)
 
-    def _crc_repair(
-        self,
-        msg_bits: np.ndarray,
-        confidence: np.ndarray,
-        ref_crc: np.ndarray,
-    ) -> np.ndarray:
+    def _decode_once(
+        self, img: np.ndarray, transform: str = "identity"
+    ) -> DecodeResult:
         """
-        Flip the fewest, least-confident bits until CRC-32 passes.
+        Decode the watermark from a single (H, W, C) float32 image and
+        compute both quality metrics.
 
-        Levels k = 1, 2, …, *max_flip_bits* are tried in order.
-        At level k all C(pool, k) combinations of flipping k bits drawn
-        from the ``pool`` least-confident positions are tested.
-        The pool is capped at 32 so the worst-case cost (k=3) is
-        C(32, 3) = 4 960 CRC checks regardless of message length.
+        Pixel indices are derived from ``img.shape`` — caller is responsible
+        for passing the already-transformed image.
+
+        Parameters
+        ----------
+        img       : np.ndarray, shape (H, W, C), float32
+        transform : str — echoed into the returned DecodeResult
 
         Returns
         -------
-        np.ndarray, shape (message_length,), uint8
-            Corrected bits, or *msg_bits* unchanged if repair fails.
+        DecodeResult
         """
-        pool = np.argsort(confidence)[:min(self.message_length, 32)].tolist()
+        H, W, C = img.shape
+        rows, cols, chans = self._pixel_indices(H, W, C)
+        scores = self._confidence_scores(img, rows, cols, chans)
 
-        for k in range(1, self.max_flip_bits + 1):
-            for idx in itertools.combinations(pool, k):
-                trial        = msg_bits.copy()
-                trial[list(idx)] ^= np.uint8(1)
-                if np.array_equal(_crc32_bits(trial), ref_crc):
-                    return trial
+        # ── Metric 1: embedding strength ──────────────────────────────────
+        # mean |score| over all selected pixels.
+        # ≈ alpha if those pixels were actually shifted by ±alpha at encode time.
+        embedding_strength = float(np.abs(scores).mean())
 
-        return msg_bits  # repair exhausted — return best-effort hard decision
+        # ── Metric 2: per-bit copy agreement → overall confidence ─────────
+        # Reshape raw scores into (msg_repeat, message_length): one row per copy.
+        scores_2d = scores.reshape(self.msg_repeat, self.message_length)
 
-    # ------------------------------------------------------------------ #
-    #  Public API                                                          #
-    # ------------------------------------------------------------------ #
+        # Hard bit decision for every (copy, bit-position) pair.
+        bits_2d  = scores_2d >= 0.0                          # (msg_repeat, msg_len)
+
+        # Fraction of copies voting "1" at each bit position.
+        frac_one = bits_2d.mean(axis=0)                      # (message_length,)
+
+        # Per-bit confidence = how strongly copies agree with majority.
+        # max(p, 1−p) is 1.0 when all copies agree, 0.5 when perfectly split.
+        bit_conf = np.maximum(frac_one, 1.0 - frac_one)      # (message_length,)
+        overall_confidence = float(bit_conf.mean())
+
+        # Final bits: majority vote (equivalent to rounding frac_one).
+        bits = (frac_one >= 0.5).astype(np.uint8)
+
+        return DecodeResult(
+            bits=bits,
+            embedding_strength=embedding_strength,
+            overall_confidence=overall_confidence,
+            transform=transform,
+        )
+
+    # ── Public API ────────────────────────────────────────────────────────
 
     def encode(self, image: np.ndarray, watermark: np.ndarray) -> np.ndarray:
         """
         Embed *watermark* into *image* via additive pixel modulation.
 
-        Payload (fully vectorized)::
+        Each selected pixel is shifted by::
 
-            use_crc=False : tile(message, msg_repeat)
-            use_crc=True  : [tile(message, msg_repeat) | tile(CRC-32, crc_repeat)]
+            Δ = alpha × (2 × bit − 1)     # +alpha for bit=1, −alpha for bit=0
 
-        Each selected pixel is modified by::
-
-            Δ = alpha × (2 × bit − 1)      # +alpha for 1, −alpha for 0
-
-        Output is clipped to [0, 255].
+        Payload ``= tile(watermark, msg_repeat)`` — all copies use the same
+        seeded pixel positions so they can be averaged at decode time.
+        Output is clipped to [0, 255] and cast to the original dtype.
 
         Parameters
         ----------
-        image : np.ndarray, shape (H, W) or (H, W, C), uint8 or float
+        image     : np.ndarray, shape (H, W) or (H, W, C), uint8 or float
         watermark : np.ndarray, shape (message_length,), dtype uint8
 
         Returns
@@ -314,16 +371,9 @@ class WatermarkModel:
             img = img[:, :, np.newaxis]
         H, W, C = img.shape
 
-        wm = np.asarray(watermark, dtype=np.uint8)
-        payload = (
-            np.concatenate([np.tile(wm, self.msg_repeat),
-                            np.tile(_crc32_bits(wm), self.crc_repeat)])
-            if self.use_crc else
-            np.tile(wm, self.msg_repeat)
-        )  # shape: (_total_embedded,)
-
-        rows, cols, chans = self._pixel_indices(H, W, C)
-        img[rows, cols, chans] += self.alpha * (2.0 * payload.astype(np.float32) - 1.0)
+        payload                   = np.tile(np.asarray(watermark, dtype=np.uint8), self.msg_repeat)
+        rows, cols, chans         = self._pixel_indices(H, W, C)
+        img[rows, cols, chans]   += self.alpha * (2.0 * payload.astype(np.float32) - 1.0)
         np.clip(img, 0.0, 255.0, out=img)
 
         if grayscale:
@@ -332,19 +382,10 @@ class WatermarkModel:
 
     def decode(self, image: np.ndarray) -> np.ndarray:
         """
-        Extract the binary watermark from *image*.
+        Extract the watermark from *image*; return bits only.
 
-        Only the ``_total_embedded`` selected pixels and their k×k neighbours
-        are ever read — no full-image scan.
-
-        CRC disabled
-            Average confidence scores over ``msg_repeat`` copies of each bit;
-            hard-decide from the sign of the mean.
-
-        CRC enabled
-            Same averaging for message bits, then for CRC bits.
-            Verify CRC-32; on failure run brute-force repair on the
-            least-confident message bits.
+        Thin wrapper around :meth:`decode_verbose` — use that method to
+        also obtain quality metrics and the winning transform name.
 
         Parameters
         ----------
@@ -354,37 +395,60 @@ class WatermarkModel:
         -------
         np.ndarray, shape (message_length,), dtype uint8
         """
+        return self.decode_verbose(image).bits
+
+    def decode_verbose(self, image: np.ndarray) -> DecodeResult:
+        """
+        Extract the watermark from *image* with full diagnostic information.
+
+        Without geometric robustness (``robust_to_transforms=False``)
+            Single decode pass on the image as-is.
+
+        With geometric robustness (``robust_to_transforms=True``)
+            For each candidate in ``_CANDIDATE_TRANSFORMS`` (cheapest first):
+
+            1. Apply the candidate inverse transform — H and W swap for
+               rot90 / rot270, which is handled automatically by
+               ``_pixel_indices`` using the post-transform shape.
+            2. Compute ``overall_confidence`` (primary ranking criterion).
+               This metric is insensitive to bit values and converges to 0.5
+               for wrong orientations regardless of image content.
+            3. **Early exit** if ``overall_confidence ≥ confidence_threshold``.
+            4. After all candidates, return the highest-confidence result.
+
+        Parameters
+        ----------
+        image : np.ndarray, shape (H, W) or (H, W, C)
+
+        Returns
+        -------
+        DecodeResult — bits, embedding_strength, overall_confidence, transform
+        """
         grayscale = image.ndim == 2
         img       = image.astype(np.float32)
         if grayscale:
             img = img[:, :, np.newaxis]
-        H, W, C = img.shape
 
-        rows, cols, chans = self._pixel_indices(H, W, C)
-        scores = self._confidence_scores(img, rows, cols, chans)  # (_total_embedded,)
+        # ── Fast path: no transform search ────────────────────────────────
+        if not self.robust_to_transforms:
+            return self._decode_once(img, transform="identity")
 
-        # ── Average message scores over msg_repeat copies ────────────────
-        msg_mean = (
-            scores[: self.message_length * self.msg_repeat]
-            .reshape(self.msg_repeat, self.message_length)
-            .mean(axis=0)                                   # (message_length,)
-        )
-        msg_bits = (msg_mean >= 0.0).astype(np.uint8)       # hard decision
-        msg_conf = np.abs(msg_mean)                          # per-bit confidence
+        # ── Robust path: search over lossless inverse transforms ──────────
+        best: Optional[DecodeResult] = None
 
-        if not self.use_crc:
-            return msg_bits
+        for name in _CANDIDATE_TRANSFORMS:
+            transformed = _apply_transform(img, name)
 
-        # ── Average CRC scores over crc_repeat copies ────────────────────
-        ref_crc = (
-            scores[self.message_length * self.msg_repeat :]
-            .reshape(self.crc_repeat, _CRC_BITS)
-            .mean(axis=0)
-            >= 0.0
-        ).astype(np.uint8)                                   # (32,)
+            try:
+                result = self._decode_once(transformed, transform=name)
+            except ValueError:
+                continue  # transformed image too small (rare edge case)
 
-        # ── Verify → repair → return ─────────────────────────────────────
-        if np.array_equal(_crc32_bits(msg_bits), ref_crc):
-            return msg_bits
+            if best is None or result.overall_confidence > best.overall_confidence:
+                best = result
 
-        return self._crc_repair(msg_bits, msg_conf, ref_crc)
+            if result.overall_confidence >= self.confidence_threshold:
+                break  # reliable decode found — skip remaining candidates
+
+        assert best is not None, "All candidate transforms failed (image too small?)."
+        return best

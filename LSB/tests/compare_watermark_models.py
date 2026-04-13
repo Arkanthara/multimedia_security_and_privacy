@@ -5,15 +5,15 @@ This script benchmarks LSB/model.py only.
 
 Key capabilities
 ----------------
-1. Parameter sweeps for core watermark settings:
-   message_length, alpha, use_crc, msg_repeat, crc_repeat,
-   neighborhood_size, max_flip_bits, key.
-2. Parameter sweeps for the NVF method (when supported by the model):
-   use_nvf, nvf_window_size, nvf_D, nvf_alpha_low.
-3. Built-in default efficiency check:
-   compares default parameters with use_nvf=False vs use_nvf=True.
+1. Parameter sweeps for current watermark settings:
+   message_length, alpha, msg_repeat, neighborhood_size,
+   robust_to_transforms, confidence_threshold, key.
+2. Explicit geometric robustness attacks:
+   hflip, vflip, rot90, rot180, rot270.
+3. Built-in default robustness check:
+   compares default parameters with robust_to_transforms=False vs True.
 4. Attack-aware scoring and reporting:
-   BER, worst-attack BER, PSNR, encode/decode runtime.
+   BER, transform BER, worst-attack BER, PSNR, encode/decode runtime.
 
 Images are loaded recursively from LSB/img with paths containing "_old"
 explicitly excluded.
@@ -35,7 +35,7 @@ import json
 import math
 import time
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 import cv2
 import numpy as np
@@ -44,18 +44,27 @@ import numpy as np
 ROOT_DIR = Path(__file__).resolve().parents[1]
 TESTS_DIR = Path(__file__).resolve().parent
 MODEL_PATH = ROOT_DIR / "model.py"
-CRC_BITS = 32
 
 
 ATTACK_NAMES = (
     "none",
+    "hflip",
+    "vflip",
+    "rot90",
+    "rot180",
+    "rot270",
     "jpeg",
     "blur",
     "gaussian_noise",
-    "rotation",
-    "brightness",
-    "contrast",
-    "resize",
+    "rotation_affine",
+)
+
+TRANSFORM_ATTACK_NAMES = (
+    "hflip",
+    "vflip",
+    "rot90",
+    "rot180",
+    "rot270",
 )
 
 
@@ -96,25 +105,11 @@ def parse_bool_list(value: str) -> list[bool]:
     return values
 
 
-def parse_optional_float_token(token: str) -> Optional[float]:
-    lowered = token.strip().lower()
-    if lowered in {"auto", "none", "null", "default"}:
-        return None
-    return float(token)
-
-
-def parse_optional_float_list(value: str) -> list[Optional[float]]:
-    values = [parse_optional_float_token(tok) for tok in value.split(",") if tok.strip()]
-    if not values:
-        raise ValueError("Expected at least one optional-float token.")
-    return values
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Benchmark parameter combinations for LSB/model.py WatermarkModel "
-            "including optional NVF settings, with BER/PSNR/runtime metrics."
+            "with a focus on geometric-transform robustness (flips and 90-degree rotations)."
         )
     )
 
@@ -140,19 +135,9 @@ def parse_args() -> argparse.Namespace:
         help="Comma-separated alpha values.",
     )
     parser.add_argument(
-        "--use-crc",
-        default="false,true",
-        help="Comma-separated booleans for use_crc.",
-    )
-    parser.add_argument(
         "--msg-repeats",
         default="20,35,50",
         help="Comma-separated msg_repeat values.",
-    )
-    parser.add_argument(
-        "--crc-repeats",
-        default="25,40,55",
-        help="Comma-separated crc_repeat values.",
     )
     parser.add_argument(
         "--neighborhood-sizes",
@@ -160,49 +145,30 @@ def parse_args() -> argparse.Namespace:
         help="Comma-separated odd neighborhood_size values >= 3.",
     )
     parser.add_argument(
-        "--max-flip-bits",
-        default="2",
-        help="Comma-separated max_flip_bits values.",
+        "--robust-to-transforms",
+        default="false,true",
+        help="Comma-separated booleans for robust_to_transforms.",
+    )
+    parser.add_argument(
+        "--confidence-thresholds",
+        default="0.80,0.90,0.97",
+        help="Comma-separated confidence_threshold values in (0.5, 1.0].",
     )
     parser.add_argument("--key", type=int, default=42, help="Model key seed.")
 
     parser.add_argument(
-        "--use-nvf",
-        default="false,true",
-        help="Comma-separated booleans for use_nvf.",
-    )
-    parser.add_argument(
-        "--nvf-window-sizes",
-        default="3",
-        help="Comma-separated odd nvf_window_size values.",
-    )
-    parser.add_argument(
-        "--nvf-d-values",
-        default="50",
-        help="Comma-separated nvf_D values.",
-    )
-    parser.add_argument(
-        "--nvf-alpha-lows",
-        default="auto",
-        help="Comma-separated nvf_alpha_low values or auto.",
-    )
-
-    parser.add_argument(
         "--attacks",
-        default="none,jpeg,blur,gaussian_noise,rotation",
+        default="none,hflip,vflip,rot90,rot180,rot270,jpeg,blur,gaussian_noise",
         help="Comma-separated attack names. Available: " + ", ".join(ATTACK_NAMES),
     )
     parser.add_argument("--jpeg-quality", type=int, default=55, help="JPEG quality in [1, 100].")
     parser.add_argument("--blur-kernel", type=int, default=3, help="Odd Gaussian blur kernel size.")
     parser.add_argument("--noise-sigma", type=float, default=4.0, help="Gaussian noise sigma.")
-    parser.add_argument("--rotation-degrees", type=float, default=8.0, help="Rotation attack angle in degrees.")
-    parser.add_argument("--brightness-shift", type=float, default=18.0, help="Brightness beta shift.")
-    parser.add_argument("--contrast-factor", type=float, default=1.2, help="Contrast alpha factor.")
     parser.add_argument(
-        "--resize-scale",
+        "--rotation-degrees",
         type=float,
-        default=0.5,
-        help="Downscale factor used by resize attack before upscaling.",
+        default=8.0,
+        help="Angle in degrees for the optional rotation_affine attack.",
     )
 
     parser.add_argument("--seed", type=int, default=12345, help="Global deterministic seed.")
@@ -213,6 +179,12 @@ def parse_args() -> argparse.Namespace:
         default=0.25,
         help="Penalty multiplier applied when avg PSNR falls below target.",
     )
+    parser.add_argument(
+        "--transform-ber-weight",
+        type=float,
+        default=1.0,
+        help="Extra score weight for mean BER over flip/rotation attacks.",
+    )
     parser.add_argument("--top-k", type=int, default=12, help="How many top configs to print.")
     parser.add_argument(
         "--max-configs",
@@ -221,9 +193,9 @@ def parse_args() -> argparse.Namespace:
         help="If > 0, evaluate only the first N generated configurations.",
     )
     parser.add_argument(
-        "--skip-default-efficiency-check",
+        "--skip-default-transform-check",
         action="store_true",
-        help="Disable default use_nvf=False vs use_nvf=True comparison.",
+        help="Disable default robust_to_transforms=False vs True comparison.",
     )
     parser.add_argument("--quiet", action="store_true", help="Reduce progress logging.")
 
@@ -379,11 +351,8 @@ def bit_error_rate(reference_bits: np.ndarray, decoded_bits: np.ndarray) -> floa
     return float(np.mean(reference_bits != decoded_bits))
 
 
-def ensure_same_layout(attacked: np.ndarray, reference: np.ndarray) -> np.ndarray:
+def ensure_decode_ready(attacked: np.ndarray) -> np.ndarray:
     out = attacked
-
-    if out.shape[:2] != reference.shape[:2]:
-        out = cv2.resize(out, (reference.shape[1], reference.shape[0]), interpolation=cv2.INTER_LINEAR)
 
     if out.ndim == 2:
         out = cv2.cvtColor(out, cv2.COLOR_GRAY2BGR)
@@ -404,6 +373,26 @@ AttackFn = Callable[[np.ndarray, argparse.Namespace, np.random.Generator], np.nd
 
 def attack_none(image: np.ndarray, _: argparse.Namespace, __: np.random.Generator) -> np.ndarray:
     return image.copy()
+
+
+def attack_hflip(image: np.ndarray, _: argparse.Namespace, __: np.random.Generator) -> np.ndarray:
+    return image[:, ::-1, :].copy()
+
+
+def attack_vflip(image: np.ndarray, _: argparse.Namespace, __: np.random.Generator) -> np.ndarray:
+    return image[::-1, :, :].copy()
+
+
+def attack_rot90(image: np.ndarray, _: argparse.Namespace, __: np.random.Generator) -> np.ndarray:
+    return np.rot90(image, k=1, axes=(0, 1)).copy()
+
+
+def attack_rot180(image: np.ndarray, _: argparse.Namespace, __: np.random.Generator) -> np.ndarray:
+    return np.rot90(image, k=2, axes=(0, 1)).copy()
+
+
+def attack_rot270(image: np.ndarray, _: argparse.Namespace, __: np.random.Generator) -> np.ndarray:
+    return np.rot90(image, k=3, axes=(0, 1)).copy()
 
 
 def attack_jpeg(image: np.ndarray, args: argparse.Namespace, __: np.random.Generator) -> np.ndarray:
@@ -431,7 +420,7 @@ def attack_gaussian_noise(image: np.ndarray, args: argparse.Namespace, rng: np.r
     return np.clip(noisy, 0.0, 255.0).astype(np.uint8)
 
 
-def attack_rotation(image: np.ndarray, args: argparse.Namespace, __: np.random.Generator) -> np.ndarray:
+def attack_rotation_affine(image: np.ndarray, args: argparse.Namespace, __: np.random.Generator) -> np.ndarray:
     h, w = image.shape[:2]
     matrix = cv2.getRotationMatrix2D((w / 2.0, h / 2.0), float(args.rotation_degrees), 1.0)
     return cv2.warpAffine(
@@ -443,37 +432,18 @@ def attack_rotation(image: np.ndarray, args: argparse.Namespace, __: np.random.G
     )
 
 
-def attack_brightness(image: np.ndarray, args: argparse.Namespace, __: np.random.Generator) -> np.ndarray:
-    return cv2.convertScaleAbs(image, alpha=1.0, beta=float(args.brightness_shift))
-
-
-def attack_contrast(image: np.ndarray, args: argparse.Namespace, __: np.random.Generator) -> np.ndarray:
-    return cv2.convertScaleAbs(image, alpha=float(args.contrast_factor), beta=0.0)
-
-
-def attack_resize(image: np.ndarray, args: argparse.Namespace, __: np.random.Generator) -> np.ndarray:
-    scale = float(args.resize_scale)
-    scale = min(max(scale, 0.1), 1.0)
-    if math.isclose(scale, 1.0, rel_tol=0.0, abs_tol=1e-9):
-        return image.copy()
-
-    h, w = image.shape[:2]
-    tw = max(1, int(round(w * scale)))
-    th = max(1, int(round(h * scale)))
-    down = cv2.resize(image, (tw, th), interpolation=cv2.INTER_AREA)
-    return cv2.resize(down, (w, h), interpolation=cv2.INTER_LINEAR)
-
-
 def build_attacks(selected_names: list[str]) -> dict[str, AttackFn]:
     registry: dict[str, AttackFn] = {
         "none": attack_none,
+        "hflip": attack_hflip,
+        "vflip": attack_vflip,
+        "rot90": attack_rot90,
+        "rot180": attack_rot180,
+        "rot270": attack_rot270,
         "jpeg": attack_jpeg,
         "blur": attack_blur,
         "gaussian_noise": attack_gaussian_noise,
-        "rotation": attack_rotation,
-        "brightness": attack_brightness,
-        "contrast": attack_contrast,
-        "resize": attack_resize,
+        "rotation_affine": attack_rotation_affine,
     }
 
     unknown = [name for name in selected_names if name not in registry]
@@ -493,32 +463,23 @@ def config_text(config: dict[str, Any]) -> str:
     ordered = (
         "message_length",
         "alpha",
-        "use_crc",
         "msg_repeat",
-        "crc_repeat",
         "neighborhood_size",
-        "max_flip_bits",
-        "use_nvf",
-        "nvf_window_size",
-        "nvf_D",
-        "nvf_alpha_low",
+        "robust_to_transforms",
+        "confidence_threshold",
         "key",
     )
     return ", ".join(f"{key}={config[key]}" for key in ordered if key in config)
 
 
-def payload_bits(message_length: int, msg_repeat: int, use_crc: bool, crc_repeat: int) -> int:
-    if use_crc:
-        return message_length * msg_repeat + CRC_BITS * crc_repeat
+def payload_bits(message_length: int, msg_repeat: int) -> int:
     return message_length * msg_repeat
 
 
 def config_payload_bits(config: dict[str, Any]) -> int:
     message_length = int(config.get("message_length", 32))
     msg_repeat = int(config.get("msg_repeat", 1))
-    use_crc = bool(config.get("use_crc", False))
-    crc_repeat = int(config.get("crc_repeat", 1))
-    return payload_bits(message_length, msg_repeat, use_crc, crc_repeat)
+    return payload_bits(message_length, msg_repeat)
 
 
 def config_fits_capacity(config: dict[str, Any], min_capacity: int) -> bool:
@@ -533,94 +494,59 @@ def generate_configs(
     has = lambda name: name in supported
 
     message_lengths = parse_int_list(args.message_lengths) if has("message_length") else [32]
-    alphas = parse_float_list(args.alphas) if has("alpha") else [10.0]
-    use_crc_values = parse_bool_list(args.use_crc) if has("use_crc") else [False]
+    alphas = parse_float_list(args.alphas) if has("alpha") else [75.0]
     msg_repeats = parse_int_list(args.msg_repeats) if has("msg_repeat") else [1]
-    crc_repeats = parse_int_list(args.crc_repeats) if has("crc_repeat") else [1]
     neighborhood_sizes = (
         parse_int_list(args.neighborhood_sizes) if has("neighborhood_size") else [3]
     )
-    max_flip_values = parse_int_list(args.max_flip_bits) if has("max_flip_bits") else [0]
-    use_nvf_values = parse_bool_list(args.use_nvf) if has("use_nvf") else [False]
-    nvf_window_values = parse_int_list(args.nvf_window_sizes) if has("nvf_window_size") else [3]
-    nvf_d_values = parse_float_list(args.nvf_d_values) if has("nvf_D") else [50.0]
-    nvf_alpha_low_values = (
-        parse_optional_float_list(args.nvf_alpha_lows) if has("nvf_alpha_low") else [None]
+    robust_values = (
+        parse_bool_list(args.robust_to_transforms) if has("robust_to_transforms") else [False]
+    )
+    confidence_thresholds = (
+        parse_float_list(args.confidence_thresholds) if has("confidence_threshold") else [0.90]
     )
 
     configs: list[dict[str, Any]] = []
     seen: set[str] = set()
 
-    for (
-        msg_len,
-        alpha,
-        use_crc,
-        msg_repeat,
-        neighborhood_size,
-        max_flip_bits,
-        use_nvf,
-    ) in itertools.product(
+    for msg_len, alpha, msg_repeat, neighborhood_size, robust_to_transforms in itertools.product(
         message_lengths,
         alphas,
-        use_crc_values,
         msg_repeats,
         neighborhood_sizes,
-        max_flip_values,
-        use_nvf_values,
+        robust_values,
     ):
         if msg_len <= 0 or msg_repeat <= 0:
             continue
         if neighborhood_size < 3 or neighborhood_size % 2 == 0:
             continue
-        if max_flip_bits < 0:
-            continue
 
-        crc_candidates = crc_repeats if use_crc else [crc_repeats[0]]
-        nvf_iter = (
-            itertools.product(nvf_window_values, nvf_d_values, nvf_alpha_low_values)
-            if use_nvf
-            else [(nvf_window_values[0], nvf_d_values[0], nvf_alpha_low_values[0])]
-        )
+        thresholds_iter = confidence_thresholds if robust_to_transforms else [confidence_thresholds[0]]
 
-        for crc_repeat in crc_candidates:
-            if crc_repeat <= 0:
-                continue
-            if use_crc and crc_repeat <= msg_repeat:
+        for confidence_threshold in thresholds_iter:
+            if confidence_threshold <= 0.5 or confidence_threshold > 1.0:
                 continue
 
-            for nvf_window_size, nvf_d, nvf_alpha_low in nvf_iter:
-                if nvf_window_size < 1 or nvf_window_size % 2 == 0:
-                    continue
-                if nvf_d <= 0:
-                    continue
-                if use_nvf and nvf_alpha_low is not None and float(nvf_alpha_low) >= float(alpha):
-                    continue
+            candidate: dict[str, Any] = {
+                "message_length": int(msg_len),
+                "alpha": float(alpha),
+                "msg_repeat": int(msg_repeat),
+                "neighborhood_size": int(neighborhood_size),
+                "robust_to_transforms": bool(robust_to_transforms),
+                "confidence_threshold": float(confidence_threshold),
+                "key": int(args.key),
+            }
 
-                candidate: dict[str, Any] = {
-                    "message_length": int(msg_len),
-                    "alpha": float(alpha),
-                    "use_crc": bool(use_crc),
-                    "msg_repeat": int(msg_repeat),
-                    "crc_repeat": int(crc_repeat),
-                    "neighborhood_size": int(neighborhood_size),
-                    "max_flip_bits": int(max_flip_bits),
-                    "use_nvf": bool(use_nvf),
-                    "nvf_window_size": int(nvf_window_size),
-                    "nvf_D": float(nvf_d),
-                    "nvf_alpha_low": None if nvf_alpha_low is None else float(nvf_alpha_low),
-                    "key": int(args.key),
-                }
+            candidate = {key: value for key, value in candidate.items() if key in supported}
+            if not config_fits_capacity(candidate, min_capacity):
+                continue
 
-                candidate = {key: value for key, value in candidate.items() if key in supported}
-                if not config_fits_capacity(candidate, min_capacity):
-                    continue
+            frozen = json.dumps(candidate, sort_keys=True)
+            if frozen in seen:
+                continue
 
-                frozen = json.dumps(candidate, sort_keys=True)
-                if frozen in seen:
-                    continue
-
-                seen.add(frozen)
-                configs.append(candidate)
+            seen.add(frozen)
+            configs.append(candidate)
 
     if args.max_configs > 0:
         return configs[: args.max_configs]
@@ -674,7 +600,7 @@ def evaluate_config(
                     stable_seed(args.seed, config_token, image_name, attack_name)
                 )
                 attacked = attack_fn(watermarked, args, attack_rng)
-                attacked = ensure_same_layout(attacked, watermarked)
+                attacked = ensure_decode_ready(attacked)
 
                 decode_start = time.perf_counter()
                 decoded = model.decode(attacked)
@@ -698,7 +624,15 @@ def evaluate_config(
     }
     all_bers = [ber for values in attack_bers.values() for ber in values]
 
+    transform_bers = [
+        float(attack_means[f"ber_{name}"])
+        for name in TRANSFORM_ATTACK_NAMES
+        if f"ber_{name}" in attack_means and math.isfinite(float(attack_means[f"ber_{name}"]))
+    ]
+
     ber_mean = float(np.mean(all_bers)) if all_bers else float("nan")
+    ber_transform_mean = float(np.mean(transform_bers)) if transform_bers else float("nan")
+    ber_transform_worst = float(np.max(transform_bers)) if transform_bers else float("nan")
     avg_psnr = float(np.mean(psnr_values)) if psnr_values else float("nan")
     ber_worst_attack = float(np.nanmax(list(attack_means.values()))) if attack_means else float("nan")
 
@@ -707,7 +641,12 @@ def evaluate_config(
     else:
         psnr_penalty = 0.0
 
-    score = ber_mean + float(args.psnr_penalty_weight) * psnr_penalty
+    transform_term = ber_transform_mean if math.isfinite(ber_transform_mean) else 0.0
+    score = (
+        ber_mean
+        + float(args.transform_ber_weight) * transform_term
+        + float(args.psnr_penalty_weight) * psnr_penalty
+    )
 
     return {
         "status": "ok",
@@ -715,7 +654,9 @@ def evaluate_config(
         "config_text": config_text(config),
         "score": score,
         "ber_mean": ber_mean,
+        "ber_transform_mean": ber_transform_mean,
         "ber_worst_attack": ber_worst_attack,
+        "ber_transform_worst": ber_transform_worst,
         "avg_psnr": avg_psnr,
         "encode_time_per_image": float(np.mean(encode_times)) if encode_times else float("nan"),
         "decode_time_per_call": float(np.mean(decode_times)) if decode_times else float("nan"),
@@ -723,14 +664,27 @@ def evaluate_config(
     }
 
 
-def sort_key(result: dict[str, Any]) -> tuple[float, float, float, float, float, float]:
+def _sortable_float(value: Any, default: float = float("inf")) -> float:
+    try:
+        out = float(value)
+    except Exception:
+        return default
+    if math.isnan(out):
+        return default
+    return out
+
+
+def sort_key(result: dict[str, Any]) -> tuple[float, float, float, float, float, float, float]:
+    avg_psnr = _sortable_float(result.get("avg_psnr"), default=float("nan"))
+    psnr_key = -avg_psnr if math.isfinite(avg_psnr) else float("inf")
     return (
-        float(result["score"]),
-        float(result["ber_mean"]),
-        float(result["ber_worst_attack"]),
-        -float(result["avg_psnr"]),
-        float(result["encode_time_per_image"]),
-        float(result["decode_time_per_call"]),
+        _sortable_float(result.get("score")),
+        _sortable_float(result.get("ber_transform_mean")),
+        _sortable_float(result.get("ber_mean")),
+        _sortable_float(result.get("ber_transform_worst")),
+        _sortable_float(result.get("ber_worst_attack")),
+        psnr_key,
+        _sortable_float(result.get("decode_time_per_call")),
     )
 
 
@@ -762,7 +716,9 @@ def save_csv(path: Path, rows: list[dict[str, Any]], attack_names: list[str]) ->
         "status",
         "score",
         "ber_mean",
+        "ber_transform_mean",
         "ber_worst_attack",
+        "ber_transform_worst",
         "avg_psnr",
         "encode_time_per_image",
         "decode_time_per_call",
@@ -792,10 +748,13 @@ def print_summary(valid_results: list[dict[str, Any]], attack_names: list[str], 
     print("\n=== Best Configuration ===")
     print(best["config_text"])
     print(
-        "score={score}, ber_mean={ber}, ber_worst_attack={worst}, psnr={psnr}, enc_s/img={enc}, dec_s/call={dec}".format(
+        "score={score}, ber_mean={ber}, ber_transform_mean={ber_tf}, ber_worst_attack={worst}, "
+        "ber_transform_worst={worst_tf}, psnr={psnr}, enc_s/img={enc}, dec_s/call={dec}".format(
             score=fmt(best["score"]),
             ber=fmt(best["ber_mean"]),
+            ber_tf=fmt(best["ber_transform_mean"]),
             worst=fmt(best["ber_worst_attack"]),
+            worst_tf=fmt(best["ber_transform_worst"]),
             psnr=fmt(best["avg_psnr"], 2),
             enc=fmt(best["encode_time_per_image"], 5),
             dec=fmt(best["decode_time_per_call"], 5),
@@ -807,9 +766,26 @@ def print_summary(valid_results: list[dict[str, Any]], attack_names: list[str], 
     ber_rows = [[attack, fmt(best.get(f"ber_{attack}", float("nan")))] for attack in attack_names]
     print(render_table(ber_headers, ber_rows))
 
+    transform_attacks = [name for name in TRANSFORM_ATTACK_NAMES if name in attack_names]
+    if transform_attacks:
+        print("\n=== Flip/Rotation BER (Best Config) ===")
+        tf_rows = [[attack, fmt(best.get(f"ber_{attack}", float("nan")))] for attack in transform_attacks]
+        print(render_table(["attack", "ber"], tf_rows))
+
     top_n = max(1, int(top_k))
     print(f"\n=== Top {top_n} Configurations ===")
-    headers = ["rank", "score", "ber", "worst", "psnr", "enc s/img", "dec s/call", "config"]
+    headers = [
+        "rank",
+        "score",
+        "ber",
+        "ber_tf",
+        "worst",
+        "worst_tf",
+        "psnr",
+        "enc s/img",
+        "dec s/call",
+        "config",
+    ]
     rows: list[list[str]] = []
 
     for rank, result in enumerate(valid_results[:top_n], start=1):
@@ -818,7 +794,9 @@ def print_summary(valid_results: list[dict[str, Any]], attack_names: list[str], 
                 str(rank),
                 fmt(result["score"]),
                 fmt(result["ber_mean"]),
+                fmt(result.get("ber_transform_mean", float("nan"))),
                 fmt(result["ber_worst_attack"]),
+                fmt(result.get("ber_transform_worst", float("nan"))),
                 fmt(result["avg_psnr"], 2),
                 fmt(result["encode_time_per_image"], 5),
                 fmt(result["decode_time_per_call"], 5),
@@ -828,7 +806,7 @@ def print_summary(valid_results: list[dict[str, Any]], attack_names: list[str], 
     print(render_table(headers, rows))
 
 
-def evaluate_default_nvf_efficiency(
+def evaluate_default_transform_robustness(
     model_class: type,
     supported: set[str],
     images: list[tuple[str, np.ndarray]],
@@ -837,10 +815,10 @@ def evaluate_default_nvf_efficiency(
     min_capacity: int,
     watermark_cache: dict[int, dict[str, np.ndarray]],
 ) -> dict[str, Any]:
-    if "use_nvf" not in supported:
+    if "robust_to_transforms" not in supported:
         return {
             "status": "skipped",
-            "reason": "use_nvf is not supported by WatermarkModel.",
+            "reason": "robust_to_transforms is not supported by WatermarkModel.",
         }
 
     defaults = default_constructor_config(model_class)
@@ -851,85 +829,91 @@ def evaluate_default_nvf_efficiency(
         }
 
     base = {key: value for key, value in defaults.items() if key in supported}
-    config_no_nvf = dict(base)
-    config_no_nvf["use_nvf"] = False
-    config_with_nvf = dict(base)
-    config_with_nvf["use_nvf"] = True
+    config_without = dict(base)
+    config_without["robust_to_transforms"] = False
+    config_with = dict(base)
+    config_with["robust_to_transforms"] = True
 
-    if not config_fits_capacity(config_no_nvf, min_capacity) or not config_fits_capacity(config_with_nvf, min_capacity):
+    if not config_fits_capacity(config_without, min_capacity) or not config_fits_capacity(config_with, min_capacity):
         return {
             "status": "skipped",
-            "reason": "Default NVF comparison does not fit image payload capacity.",
-            "default_no_nvf": config_no_nvf,
-            "default_with_nvf": config_with_nvf,
+            "reason": "Default robust_to_transforms comparison does not fit image payload capacity.",
+            "default_without": config_without,
+            "default_with": config_with,
         }
 
-    msg_len = int(config_no_nvf.get("message_length", 32))
+    msg_len = int(config_without.get("message_length", 32))
     if msg_len not in watermark_cache:
         watermark_cache[msg_len] = build_watermark_map(images, msg_len, args.seed)
     watermarks = watermark_cache[msg_len]
 
-    result_no_nvf = evaluate_config(model_class, config_no_nvf, images, watermarks, attacks, args)
-    result_with_nvf = evaluate_config(model_class, config_with_nvf, images, watermarks, attacks, args)
+    result_without = evaluate_config(model_class, config_without, images, watermarks, attacks, args)
+    result_with = evaluate_config(model_class, config_with, images, watermarks, attacks, args)
 
     out: dict[str, Any] = {
         "status": "ok",
-        "default_no_nvf": result_no_nvf,
-        "default_with_nvf": result_with_nvf,
+        "default_without_transform_robustness": result_without,
+        "default_with_transform_robustness": result_with,
     }
 
-    if result_no_nvf.get("status") == "ok" and result_with_nvf.get("status") == "ok":
-        total_runtime_no_nvf = float(result_no_nvf["encode_time_per_image"]) + float(result_no_nvf["decode_time_per_call"])
-        total_runtime_with_nvf = float(result_with_nvf["encode_time_per_image"]) + float(result_with_nvf["decode_time_per_call"])
+    if result_without.get("status") == "ok" and result_with.get("status") == "ok":
+        total_runtime_without = float(result_without["encode_time_per_image"]) + float(result_without["decode_time_per_call"])
+        total_runtime_with = float(result_with["encode_time_per_image"]) + float(result_with["decode_time_per_call"])
 
         out["delta_with_minus_without"] = {
-            "score": float(result_with_nvf["score"]) - float(result_no_nvf["score"]),
-            "ber_mean": float(result_with_nvf["ber_mean"]) - float(result_no_nvf["ber_mean"]),
-            "ber_worst_attack": float(result_with_nvf["ber_worst_attack"]) - float(result_no_nvf["ber_worst_attack"]),
-            "avg_psnr": float(result_with_nvf["avg_psnr"]) - float(result_no_nvf["avg_psnr"]),
-            "encode_time_per_image": float(result_with_nvf["encode_time_per_image"]) - float(result_no_nvf["encode_time_per_image"]),
-            "decode_time_per_call": float(result_with_nvf["decode_time_per_call"]) - float(result_no_nvf["decode_time_per_call"]),
-            "total_runtime": total_runtime_with_nvf - total_runtime_no_nvf,
+            "score": float(result_with["score"]) - float(result_without["score"]),
+            "ber_mean": float(result_with["ber_mean"]) - float(result_without["ber_mean"]),
+            "ber_transform_mean": float(result_with["ber_transform_mean"]) - float(result_without["ber_transform_mean"]),
+            "ber_worst_attack": float(result_with["ber_worst_attack"]) - float(result_without["ber_worst_attack"]),
+            "ber_transform_worst": float(result_with["ber_transform_worst"]) - float(result_without["ber_transform_worst"]),
+            "avg_psnr": float(result_with["avg_psnr"]) - float(result_without["avg_psnr"]),
+            "encode_time_per_image": float(result_with["encode_time_per_image"]) - float(result_without["encode_time_per_image"]),
+            "decode_time_per_call": float(result_with["decode_time_per_call"]) - float(result_without["decode_time_per_call"]),
+            "total_runtime": total_runtime_with - total_runtime_without,
         }
 
     return out
 
 
-def print_default_nvf_efficiency_report(report: dict[str, Any]) -> None:
-    print("\n=== Default NVF Efficiency Check ===")
+def print_default_transform_robustness_report(report: dict[str, Any]) -> None:
+    print("\n=== Default Transform Robustness Check ===")
 
     if report.get("status") != "ok":
         print(f"Skipped: {report.get('reason', 'unknown reason')}")
         return
 
-    no_nvf = report.get("default_no_nvf", {})
-    with_nvf = report.get("default_with_nvf", {})
+    without = report.get("default_without_transform_robustness", {})
+    with_robust = report.get("default_with_transform_robustness", {})
 
-    if no_nvf.get("status") != "ok" or with_nvf.get("status") != "ok":
+    if without.get("status") != "ok" or with_robust.get("status") != "ok":
         print("Could not complete default comparison due to runtime/init errors.")
-        print(f"- no_nvf status: {no_nvf.get('status')} | error: {no_nvf.get('error', 'none')}")
-        print(f"- with_nvf status: {with_nvf.get('status')} | error: {with_nvf.get('error', 'none')}")
+        print(f"- without robust_to_transforms status: {without.get('status')} | error: {without.get('error', 'none')}")
+        print(f"- with robust_to_transforms status: {with_robust.get('status')} | error: {with_robust.get('error', 'none')}")
         return
 
-    headers = ["profile", "score", "ber", "worst", "psnr", "enc s/img", "dec s/call"]
+    headers = ["profile", "score", "ber", "ber_tf", "worst", "worst_tf", "psnr", "enc s/img", "dec s/call"]
     rows = [
         [
-            "default use_nvf=False",
-            fmt(float(no_nvf["score"])),
-            fmt(float(no_nvf["ber_mean"])),
-            fmt(float(no_nvf["ber_worst_attack"])),
-            fmt(float(no_nvf["avg_psnr"]), 2),
-            fmt(float(no_nvf["encode_time_per_image"]), 5),
-            fmt(float(no_nvf["decode_time_per_call"]), 5),
+            "default robust_to_transforms=False",
+            fmt(float(without["score"])),
+            fmt(float(without["ber_mean"])),
+            fmt(float(without["ber_transform_mean"])),
+            fmt(float(without["ber_worst_attack"])),
+            fmt(float(without["ber_transform_worst"])),
+            fmt(float(without["avg_psnr"]), 2),
+            fmt(float(without["encode_time_per_image"]), 5),
+            fmt(float(without["decode_time_per_call"]), 5),
         ],
         [
-            "default use_nvf=True",
-            fmt(float(with_nvf["score"])),
-            fmt(float(with_nvf["ber_mean"])),
-            fmt(float(with_nvf["ber_worst_attack"])),
-            fmt(float(with_nvf["avg_psnr"]), 2),
-            fmt(float(with_nvf["encode_time_per_image"]), 5),
-            fmt(float(with_nvf["decode_time_per_call"]), 5),
+            "default robust_to_transforms=True",
+            fmt(float(with_robust["score"])),
+            fmt(float(with_robust["ber_mean"])),
+            fmt(float(with_robust["ber_transform_mean"])),
+            fmt(float(with_robust["ber_worst_attack"])),
+            fmt(float(with_robust["ber_transform_worst"])),
+            fmt(float(with_robust["avg_psnr"]), 2),
+            fmt(float(with_robust["encode_time_per_image"]), 5),
+            fmt(float(with_robust["decode_time_per_call"]), 5),
         ],
     ]
     print(render_table(headers, rows))
@@ -938,28 +922,36 @@ def print_default_nvf_efficiency_report(report: dict[str, Any]) -> None:
     if not isinstance(delta, dict):
         return
 
-    print("\nDelta (use_nvf=True minus use_nvf=False):")
+    print("\nDelta (robust_to_transforms=True minus robust_to_transforms=False):")
     print(
-        "score={score}, ber={ber}, worst={worst}, psnr={psnr}, total_runtime={runtime}".format(
+        "score={score}, ber={ber}, ber_tf={ber_tf}, worst={worst}, worst_tf={worst_tf}, "
+        "psnr={psnr}, total_runtime={runtime}".format(
             score=fmt(float(delta["score"])),
             ber=fmt(float(delta["ber_mean"])),
+            ber_tf=fmt(float(delta["ber_transform_mean"])),
             worst=fmt(float(delta["ber_worst_attack"])),
+            worst_tf=fmt(float(delta["ber_transform_worst"])),
             psnr=fmt(float(delta["avg_psnr"]), 2),
             runtime=fmt(float(delta["total_runtime"]), 5),
         )
     )
 
-    improves_quality = float(delta["score"]) < 0.0
-    faster_runtime = float(delta["total_runtime"]) < 0.0
+    delta_tf = float(delta["ber_transform_mean"])
+    delta_score = float(delta["score"])
+    delta_runtime = float(delta["total_runtime"])
 
-    if improves_quality and faster_runtime:
-        verdict = "NVF is more efficient overall for default settings (better score and faster runtime)."
-    elif improves_quality and not faster_runtime:
-        verdict = "NVF improves robustness-quality score at default settings, but increases runtime."
-    elif (not improves_quality) and faster_runtime:
-        verdict = "NVF is faster at default settings, but worsens robustness-quality score."
+    improves_transform = math.isfinite(delta_tf) and delta_tf < 0.0
+    improves_score = delta_score < 0.0
+    faster_runtime = delta_runtime < 0.0
+
+    if improves_transform and improves_score and faster_runtime:
+        verdict = "Enabling robust_to_transforms is better on transform BER, overall score, and runtime."
+    elif improves_transform and improves_score and not faster_runtime:
+        verdict = "Enabling robust_to_transforms improves robustness and score, but increases runtime."
+    elif improves_transform and (not improves_score):
+        verdict = "Enabling robust_to_transforms helps transform BER, but does not improve the weighted score."
     else:
-        verdict = "NVF is less efficient at default settings for both score and runtime."
+        verdict = "Enabling robust_to_transforms is not beneficial under current attacks/weights."
     print(f"Verdict: {verdict}")
 
 
@@ -1029,12 +1021,12 @@ def main() -> int:
 
     print_summary(valid_results, attack_names, top_k=max(1, int(args.top_k)))
 
-    default_nvf_report: dict[str, Any] | None = None
-    if args.skip_default_efficiency_check:
-        print("\n=== Default NVF Efficiency Check ===")
-        print("Skipped by --skip-default-efficiency-check")
+    default_transform_report: dict[str, Any] | None = None
+    if args.skip_default_transform_check:
+        print("\n=== Default Transform Robustness Check ===")
+        print("Skipped by --skip-default-transform-check")
     else:
-        default_nvf_report = evaluate_default_nvf_efficiency(
+        default_transform_report = evaluate_default_transform_robustness(
             model_class,
             supported,
             images,
@@ -1043,7 +1035,7 @@ def main() -> int:
             int(min_capacity),
             watermark_cache,
         )
-        print_default_nvf_efficiency_report(default_nvf_report)
+        print_default_transform_robustness_report(default_transform_report)
 
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     all_csv = out_dir / f"benchmark_all_{timestamp}.csv"
@@ -1066,7 +1058,7 @@ def main() -> int:
                 "valid_count": len(valid_results),
                 "failed_count": len(failed_results),
                 "best_global": valid_results[0] if valid_results else None,
-                "default_nvf_efficiency": default_nvf_report,
+                "default_transform_robustness": default_transform_report,
                 "results": all_results,
             },
             handle,
