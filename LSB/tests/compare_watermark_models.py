@@ -7,13 +7,17 @@ Key capabilities
 ----------------
 1. Parameter sweeps for current watermark settings:
    message_length, alpha, msg_repeat, neighborhood_size,
-   robust_to_transforms, confidence_threshold, key.
+    robust_to_transforms, robust_to_rotation,
+    confidence_threshold, rotation_fft_n_angles, key.
 2. Explicit geometric robustness attacks:
-   hflip, vflip, rot90, rot180, rot270.
-3. Built-in default robustness check:
-   compares default parameters with robust_to_transforms=False vs True.
+    hflip, vflip, rot90, rot180, rot270, rotation_affine.
+3. Built-in default robustness checks:
+    compares default parameters with robust_to_transforms=False vs True,
+    and robust_to_rotation=False vs True.
 4. Attack-aware scoring and reporting:
-   BER, transform BER, worst-attack BER, PSNR, encode/decode runtime.
+    BER, transform BER, worst-attack BER, PSNR, encode/decode runtime,
+    transform-detection accuracy, and affine-rotation correction error
+    (when decode_verbose is available).
 
 Images are loaded recursively from LSB/img with paths containing "_old"
 explicitly excluded.
@@ -66,6 +70,15 @@ TRANSFORM_ATTACK_NAMES = (
     "rot180",
     "rot270",
 )
+
+EXPECTED_INVERSE_TRANSFORM = {
+    "none": "identity",
+    "hflip": "hflip",
+    "vflip": "vflip",
+    "rot90": "rot270",
+    "rot180": "rot180",
+    "rot270": "rot90",
+}
 
 
 def parse_int_list(value: str) -> list[int]:
@@ -150,15 +163,25 @@ def parse_args() -> argparse.Namespace:
         help="Comma-separated booleans for robust_to_transforms.",
     )
     parser.add_argument(
+        "--robust-to-rotation",
+        default="false,true",
+        help="Comma-separated booleans for robust_to_rotation.",
+    )
+    parser.add_argument(
         "--confidence-thresholds",
         default="0.80,0.90,0.97",
         help="Comma-separated confidence_threshold values in (0.5, 1.0].",
+    )
+    parser.add_argument(
+        "--rotation-fft-n-angles",
+        default="180,360",
+        help="Comma-separated rotation_fft_n_angles values (positive integers).",
     )
     parser.add_argument("--key", type=int, default=42, help="Model key seed.")
 
     parser.add_argument(
         "--attacks",
-        default="none,hflip,vflip,rot90,rot180,rot270,jpeg,blur,gaussian_noise",
+        default="none,hflip,vflip,rot90,rot180,rot270,jpeg,blur,gaussian_noise,rotation_affine",
         help="Comma-separated attack names. Available: " + ", ".join(ATTACK_NAMES),
     )
     parser.add_argument("--jpeg-quality", type=int, default=55, help="JPEG quality in [1, 100].")
@@ -196,6 +219,11 @@ def parse_args() -> argparse.Namespace:
         "--skip-default-transform-check",
         action="store_true",
         help="Disable default robust_to_transforms=False vs True comparison.",
+    )
+    parser.add_argument(
+        "--skip-default-rotation-check",
+        action="store_true",
+        help="Disable default robust_to_rotation=False vs True comparison.",
     )
     parser.add_argument("--quiet", action="store_true", help="Reduce progress logging.")
 
@@ -466,10 +494,17 @@ def config_text(config: dict[str, Any]) -> str:
         "msg_repeat",
         "neighborhood_size",
         "robust_to_transforms",
+        "robust_to_rotation",
         "confidence_threshold",
+        "rotation_fft_n_angles",
         "key",
     )
     return ", ".join(f"{key}={config[key]}" for key in ordered if key in config)
+
+
+def circular_abs_error_deg(estimated: float, expected: float) -> float:
+    delta = (float(estimated) - float(expected) + 180.0) % 360.0 - 180.0
+    return abs(delta)
 
 
 def payload_bits(message_length: int, msg_repeat: int) -> int:
@@ -502,51 +537,73 @@ def generate_configs(
     robust_values = (
         parse_bool_list(args.robust_to_transforms) if has("robust_to_transforms") else [False]
     )
+    robust_rotation_values = (
+        parse_bool_list(args.robust_to_rotation) if has("robust_to_rotation") else [False]
+    )
     confidence_thresholds = (
         parse_float_list(args.confidence_thresholds) if has("confidence_threshold") else [0.90]
+    )
+    rotation_fft_bins = (
+        parse_int_list(args.rotation_fft_n_angles) if has("rotation_fft_n_angles") else [360]
     )
 
     configs: list[dict[str, Any]] = []
     seen: set[str] = set()
 
-    for msg_len, alpha, msg_repeat, neighborhood_size, robust_to_transforms in itertools.product(
+    for (
+        msg_len,
+        alpha,
+        msg_repeat,
+        neighborhood_size,
+        robust_to_transforms,
+        robust_to_rotation,
+    ) in itertools.product(
         message_lengths,
         alphas,
         msg_repeats,
         neighborhood_sizes,
         robust_values,
+        robust_rotation_values,
     ):
         if msg_len <= 0 or msg_repeat <= 0:
             continue
         if neighborhood_size < 3 or neighborhood_size % 2 == 0:
             continue
 
-        thresholds_iter = confidence_thresholds if robust_to_transforms else [confidence_thresholds[0]]
+        threshold_is_relevant = robust_to_transforms or robust_to_rotation
+        thresholds_iter = confidence_thresholds if threshold_is_relevant else [confidence_thresholds[0]]
+        fft_iter = rotation_fft_bins if robust_to_rotation else [rotation_fft_bins[0]]
 
         for confidence_threshold in thresholds_iter:
             if confidence_threshold <= 0.5 or confidence_threshold > 1.0:
                 continue
 
-            candidate: dict[str, Any] = {
-                "message_length": int(msg_len),
-                "alpha": float(alpha),
-                "msg_repeat": int(msg_repeat),
-                "neighborhood_size": int(neighborhood_size),
-                "robust_to_transforms": bool(robust_to_transforms),
-                "confidence_threshold": float(confidence_threshold),
-                "key": int(args.key),
-            }
+            for rotation_fft_n_angles in fft_iter:
+                if int(rotation_fft_n_angles) <= 0:
+                    continue
 
-            candidate = {key: value for key, value in candidate.items() if key in supported}
-            if not config_fits_capacity(candidate, min_capacity):
-                continue
+                candidate: dict[str, Any] = {
+                    "message_length": int(msg_len),
+                    "alpha": float(alpha),
+                    "msg_repeat": int(msg_repeat),
+                    "neighborhood_size": int(neighborhood_size),
+                    "robust_to_transforms": bool(robust_to_transforms),
+                    "robust_to_rotation": bool(robust_to_rotation),
+                    "confidence_threshold": float(confidence_threshold),
+                    "rotation_fft_n_angles": int(rotation_fft_n_angles),
+                    "key": int(args.key),
+                }
 
-            frozen = json.dumps(candidate, sort_keys=True)
-            if frozen in seen:
-                continue
+                candidate = {key: value for key, value in candidate.items() if key in supported}
+                if not config_fits_capacity(candidate, min_capacity):
+                    continue
 
-            seen.add(frozen)
-            configs.append(candidate)
+                frozen = json.dumps(candidate, sort_keys=True)
+                if frozen in seen:
+                    continue
+
+                seen.add(frozen)
+                configs.append(candidate)
 
     if args.max_configs > 0:
         return configs[: args.max_configs]
@@ -577,6 +634,10 @@ def evaluate_config(
     decode_times: list[float] = []
     psnr_values: list[float] = []
     attack_bers: dict[str, list[float]] = {name: [] for name in attacks}
+    transform_detection_hits: list[float] = []
+    rotation_affine_errors: list[float] = []
+
+    decode_verbose_fn = getattr(model, "decode_verbose", None)
 
     try:
         for image_name, image in images:
@@ -603,14 +664,43 @@ def evaluate_config(
                 attacked = ensure_decode_ready(attacked)
 
                 decode_start = time.perf_counter()
-                decoded = model.decode(attacked)
+                decode_result: Any
+                if callable(decode_verbose_fn):
+                    decode_result = decode_verbose_fn(attacked)
+                else:
+                    decode_result = model.decode(attacked)
                 decode_times.append(time.perf_counter() - decode_start)
 
+                decoded_meta = None
+                if isinstance(decode_result, np.ndarray):
+                    decoded = decode_result
+                else:
+                    decoded = getattr(decode_result, "bits", None)
+                    decoded_meta = decode_result
+                    if decoded is None:
+                        raise TypeError("decode_verbose() must return bits or an object exposing .bits")
+
                 if not isinstance(decoded, np.ndarray):
-                    raise TypeError("decode() must return a numpy.ndarray")
+                    decoded = np.asarray(decoded)
 
                 decoded_bits = normalize_bits(decoded, message_length)
                 attack_bers[attack_name].append(bit_error_rate(watermark, decoded_bits))
+
+                if decoded_meta is not None:
+                    expected_transform = EXPECTED_INVERSE_TRANSFORM.get(attack_name)
+                    observed_transform = getattr(decoded_meta, "transform", None)
+                    if expected_transform is not None and isinstance(observed_transform, str):
+                        transform_detection_hits.append(
+                            1.0 if observed_transform == expected_transform else 0.0
+                        )
+
+                    if attack_name == "rotation_affine":
+                        observed_angle = getattr(decoded_meta, "rotation_angle", None)
+                        if isinstance(observed_angle, (int, float, np.floating)):
+                            expected_angle = (-float(args.rotation_degrees)) % 360.0
+                            rotation_affine_errors.append(
+                                circular_abs_error_deg(float(observed_angle), expected_angle)
+                            )
     except Exception as exc:
         return {
             "status": "runtime_error",
@@ -657,6 +747,12 @@ def evaluate_config(
         "ber_transform_mean": ber_transform_mean,
         "ber_worst_attack": ber_worst_attack,
         "ber_transform_worst": ber_transform_worst,
+        "transform_detection_acc": (
+            float(np.mean(transform_detection_hits)) if transform_detection_hits else float("nan")
+        ),
+        "rotation_affine_abs_error_deg": (
+            float(np.mean(rotation_affine_errors)) if rotation_affine_errors else float("nan")
+        ),
         "avg_psnr": avg_psnr,
         "encode_time_per_image": float(np.mean(encode_times)) if encode_times else float("nan"),
         "decode_time_per_call": float(np.mean(decode_times)) if decode_times else float("nan"),
@@ -674,15 +770,23 @@ def _sortable_float(value: Any, default: float = float("inf")) -> float:
     return out
 
 
-def sort_key(result: dict[str, Any]) -> tuple[float, float, float, float, float, float, float]:
+def sort_key(
+    result: dict[str, Any],
+) -> tuple[float, float, float, float, float, float, float, float, float]:
     avg_psnr = _sortable_float(result.get("avg_psnr"), default=float("nan"))
+    transform_detection_acc = _sortable_float(result.get("transform_detection_acc"), default=float("nan"))
     psnr_key = -avg_psnr if math.isfinite(avg_psnr) else float("inf")
+    transform_detection_key = (
+        -transform_detection_acc if math.isfinite(transform_detection_acc) else float("inf")
+    )
     return (
         _sortable_float(result.get("score")),
         _sortable_float(result.get("ber_transform_mean")),
         _sortable_float(result.get("ber_mean")),
         _sortable_float(result.get("ber_transform_worst")),
         _sortable_float(result.get("ber_worst_attack")),
+        _sortable_float(result.get("rotation_affine_abs_error_deg")),
+        transform_detection_key,
         psnr_key,
         _sortable_float(result.get("decode_time_per_call")),
     )
@@ -719,6 +823,8 @@ def save_csv(path: Path, rows: list[dict[str, Any]], attack_names: list[str]) ->
         "ber_transform_mean",
         "ber_worst_attack",
         "ber_transform_worst",
+        "transform_detection_acc",
+        "rotation_affine_abs_error_deg",
         "avg_psnr",
         "encode_time_per_image",
         "decode_time_per_call",
@@ -739,7 +845,12 @@ def save_csv(path: Path, rows: list[dict[str, Any]], attack_names: list[str]) ->
             writer.writerow(item)
 
 
-def print_summary(valid_results: list[dict[str, Any]], attack_names: list[str], top_k: int) -> None:
+def print_summary(
+    valid_results: list[dict[str, Any]],
+    attack_names: list[str],
+    top_k: int,
+    rotation_degrees: float,
+) -> None:
     if not valid_results:
         print("No successful configuration to summarize.")
         return
@@ -749,12 +860,15 @@ def print_summary(valid_results: list[dict[str, Any]], attack_names: list[str], 
     print(best["config_text"])
     print(
         "score={score}, ber_mean={ber}, ber_transform_mean={ber_tf}, ber_worst_attack={worst}, "
-        "ber_transform_worst={worst_tf}, psnr={psnr}, enc_s/img={enc}, dec_s/call={dec}".format(
+        "ber_transform_worst={worst_tf}, tf_detect={tf_detect}, rot_aff_err_deg={rot_err}, "
+        "psnr={psnr}, enc_s/img={enc}, dec_s/call={dec}".format(
             score=fmt(best["score"]),
             ber=fmt(best["ber_mean"]),
             ber_tf=fmt(best["ber_transform_mean"]),
             worst=fmt(best["ber_worst_attack"]),
             worst_tf=fmt(best["ber_transform_worst"]),
+            tf_detect=fmt(best.get("transform_detection_acc", float("nan"))),
+            rot_err=fmt(best.get("rotation_affine_abs_error_deg", float("nan")), 3),
             psnr=fmt(best["avg_psnr"], 2),
             enc=fmt(best["encode_time_per_image"], 5),
             dec=fmt(best["decode_time_per_call"], 5),
@@ -772,6 +886,17 @@ def print_summary(valid_results: list[dict[str, Any]], attack_names: list[str], 
         tf_rows = [[attack, fmt(best.get(f"ber_{attack}", float("nan")))] for attack in transform_attacks]
         print(render_table(["attack", "ber"], tf_rows))
 
+    if "rotation_affine" in attack_names:
+        expected_correction = (-float(rotation_degrees)) % 360.0
+        print("\n=== Rotation Detection (Best Config) ===")
+        print(f"expected_correction_deg={expected_correction:.3f}")
+        print(
+            "rotation_affine_abs_error_deg={rot_err}, transform_detection_acc={tf_detect}".format(
+                rot_err=fmt(best.get("rotation_affine_abs_error_deg", float("nan")), 3),
+                tf_detect=fmt(best.get("transform_detection_acc", float("nan")), 4),
+            )
+        )
+
     top_n = max(1, int(top_k))
     print(f"\n=== Top {top_n} Configurations ===")
     headers = [
@@ -781,6 +906,8 @@ def print_summary(valid_results: list[dict[str, Any]], attack_names: list[str], 
         "ber_tf",
         "worst",
         "worst_tf",
+        "tf_det",
+        "rot_err",
         "psnr",
         "enc s/img",
         "dec s/call",
@@ -797,6 +924,8 @@ def print_summary(valid_results: list[dict[str, Any]], attack_names: list[str], 
                 fmt(result.get("ber_transform_mean", float("nan"))),
                 fmt(result["ber_worst_attack"]),
                 fmt(result.get("ber_transform_worst", float("nan"))),
+                fmt(result.get("transform_detection_acc", float("nan"))),
+                fmt(result.get("rotation_affine_abs_error_deg", float("nan")), 3),
                 fmt(result["avg_psnr"], 2),
                 fmt(result["encode_time_per_image"], 5),
                 fmt(result["decode_time_per_call"], 5),
@@ -866,6 +995,8 @@ def evaluate_default_transform_robustness(
             "ber_transform_mean": float(result_with["ber_transform_mean"]) - float(result_without["ber_transform_mean"]),
             "ber_worst_attack": float(result_with["ber_worst_attack"]) - float(result_without["ber_worst_attack"]),
             "ber_transform_worst": float(result_with["ber_transform_worst"]) - float(result_without["ber_transform_worst"]),
+            "transform_detection_acc": float(result_with["transform_detection_acc"]) - float(result_without["transform_detection_acc"]),
+            "rotation_affine_abs_error_deg": float(result_with["rotation_affine_abs_error_deg"]) - float(result_without["rotation_affine_abs_error_deg"]),
             "avg_psnr": float(result_with["avg_psnr"]) - float(result_without["avg_psnr"]),
             "encode_time_per_image": float(result_with["encode_time_per_image"]) - float(result_without["encode_time_per_image"]),
             "decode_time_per_call": float(result_with["decode_time_per_call"]) - float(result_without["decode_time_per_call"]),
@@ -891,7 +1022,19 @@ def print_default_transform_robustness_report(report: dict[str, Any]) -> None:
         print(f"- with robust_to_transforms status: {with_robust.get('status')} | error: {with_robust.get('error', 'none')}")
         return
 
-    headers = ["profile", "score", "ber", "ber_tf", "worst", "worst_tf", "psnr", "enc s/img", "dec s/call"]
+    headers = [
+        "profile",
+        "score",
+        "ber",
+        "ber_tf",
+        "worst",
+        "worst_tf",
+        "tf_det",
+        "rot_err",
+        "psnr",
+        "enc s/img",
+        "dec s/call",
+    ]
     rows = [
         [
             "default robust_to_transforms=False",
@@ -900,6 +1043,8 @@ def print_default_transform_robustness_report(report: dict[str, Any]) -> None:
             fmt(float(without["ber_transform_mean"])),
             fmt(float(without["ber_worst_attack"])),
             fmt(float(without["ber_transform_worst"])),
+            fmt(float(without["transform_detection_acc"])),
+            fmt(float(without["rotation_affine_abs_error_deg"]), 3),
             fmt(float(without["avg_psnr"]), 2),
             fmt(float(without["encode_time_per_image"]), 5),
             fmt(float(without["decode_time_per_call"]), 5),
@@ -911,6 +1056,8 @@ def print_default_transform_robustness_report(report: dict[str, Any]) -> None:
             fmt(float(with_robust["ber_transform_mean"])),
             fmt(float(with_robust["ber_worst_attack"])),
             fmt(float(with_robust["ber_transform_worst"])),
+            fmt(float(with_robust["transform_detection_acc"])),
+            fmt(float(with_robust["rotation_affine_abs_error_deg"]), 3),
             fmt(float(with_robust["avg_psnr"]), 2),
             fmt(float(with_robust["encode_time_per_image"]), 5),
             fmt(float(with_robust["decode_time_per_call"]), 5),
@@ -925,12 +1072,14 @@ def print_default_transform_robustness_report(report: dict[str, Any]) -> None:
     print("\nDelta (robust_to_transforms=True minus robust_to_transforms=False):")
     print(
         "score={score}, ber={ber}, ber_tf={ber_tf}, worst={worst}, worst_tf={worst_tf}, "
-        "psnr={psnr}, total_runtime={runtime}".format(
+        "tf_det={tf_det}, rot_err={rot_err}, psnr={psnr}, total_runtime={runtime}".format(
             score=fmt(float(delta["score"])),
             ber=fmt(float(delta["ber_mean"])),
             ber_tf=fmt(float(delta["ber_transform_mean"])),
             worst=fmt(float(delta["ber_worst_attack"])),
             worst_tf=fmt(float(delta["ber_transform_worst"])),
+            tf_det=fmt(float(delta["transform_detection_acc"])),
+            rot_err=fmt(float(delta["rotation_affine_abs_error_deg"]), 3),
             psnr=fmt(float(delta["avg_psnr"]), 2),
             runtime=fmt(float(delta["total_runtime"]), 5),
         )
@@ -952,6 +1101,175 @@ def print_default_transform_robustness_report(report: dict[str, Any]) -> None:
         verdict = "Enabling robust_to_transforms helps transform BER, but does not improve the weighted score."
     else:
         verdict = "Enabling robust_to_transforms is not beneficial under current attacks/weights."
+    print(f"Verdict: {verdict}")
+
+
+def evaluate_default_rotation_robustness(
+    model_class: type,
+    supported: set[str],
+    images: list[tuple[str, np.ndarray]],
+    attacks: dict[str, AttackFn],
+    args: argparse.Namespace,
+    min_capacity: int,
+    watermark_cache: dict[int, dict[str, np.ndarray]],
+) -> dict[str, Any]:
+    if "robust_to_rotation" not in supported:
+        return {
+            "status": "skipped",
+            "reason": "robust_to_rotation is not supported by WatermarkModel.",
+        }
+
+    defaults = default_constructor_config(model_class)
+    if not defaults:
+        return {
+            "status": "skipped",
+            "reason": "Could not extract default constructor parameters.",
+        }
+
+    base = {key: value for key, value in defaults.items() if key in supported}
+    config_without = dict(base)
+    config_without["robust_to_rotation"] = False
+    config_with = dict(base)
+    config_with["robust_to_rotation"] = True
+
+    if not config_fits_capacity(config_without, min_capacity) or not config_fits_capacity(config_with, min_capacity):
+        return {
+            "status": "skipped",
+            "reason": "Default robust_to_rotation comparison does not fit image payload capacity.",
+            "default_without": config_without,
+            "default_with": config_with,
+        }
+
+    msg_len = int(config_without.get("message_length", 32))
+    if msg_len not in watermark_cache:
+        watermark_cache[msg_len] = build_watermark_map(images, msg_len, args.seed)
+    watermarks = watermark_cache[msg_len]
+
+    result_without = evaluate_config(model_class, config_without, images, watermarks, attacks, args)
+    result_with = evaluate_config(model_class, config_with, images, watermarks, attacks, args)
+
+    out: dict[str, Any] = {
+        "status": "ok",
+        "default_without_rotation_robustness": result_without,
+        "default_with_rotation_robustness": result_with,
+    }
+
+    if result_without.get("status") == "ok" and result_with.get("status") == "ok":
+        total_runtime_without = float(result_without["encode_time_per_image"]) + float(result_without["decode_time_per_call"])
+        total_runtime_with = float(result_with["encode_time_per_image"]) + float(result_with["decode_time_per_call"])
+
+        out["delta_with_minus_without"] = {
+            "score": float(result_with["score"]) - float(result_without["score"]),
+            "ber_mean": float(result_with["ber_mean"]) - float(result_without["ber_mean"]),
+            "ber_transform_mean": float(result_with["ber_transform_mean"]) - float(result_without["ber_transform_mean"]),
+            "ber_worst_attack": float(result_with["ber_worst_attack"]) - float(result_without["ber_worst_attack"]),
+            "ber_transform_worst": float(result_with["ber_transform_worst"]) - float(result_without["ber_transform_worst"]),
+            "transform_detection_acc": float(result_with["transform_detection_acc"]) - float(result_without["transform_detection_acc"]),
+            "rotation_affine_abs_error_deg": float(result_with["rotation_affine_abs_error_deg"]) - float(result_without["rotation_affine_abs_error_deg"]),
+            "avg_psnr": float(result_with["avg_psnr"]) - float(result_without["avg_psnr"]),
+            "encode_time_per_image": float(result_with["encode_time_per_image"]) - float(result_without["encode_time_per_image"]),
+            "decode_time_per_call": float(result_with["decode_time_per_call"]) - float(result_without["decode_time_per_call"]),
+            "total_runtime": total_runtime_with - total_runtime_without,
+        }
+
+    return out
+
+
+def print_default_rotation_robustness_report(report: dict[str, Any]) -> None:
+    print("\n=== Default Rotation Robustness Check ===")
+
+    if report.get("status") != "ok":
+        print(f"Skipped: {report.get('reason', 'unknown reason')}")
+        return
+
+    without = report.get("default_without_rotation_robustness", {})
+    with_robust = report.get("default_with_rotation_robustness", {})
+
+    if without.get("status") != "ok" or with_robust.get("status") != "ok":
+        print("Could not complete default comparison due to runtime/init errors.")
+        print(f"- without robust_to_rotation status: {without.get('status')} | error: {without.get('error', 'none')}")
+        print(f"- with robust_to_rotation status: {with_robust.get('status')} | error: {with_robust.get('error', 'none')}")
+        return
+
+    headers = [
+        "profile",
+        "score",
+        "ber",
+        "ber_tf",
+        "worst",
+        "worst_tf",
+        "tf_det",
+        "rot_err",
+        "psnr",
+        "enc s/img",
+        "dec s/call",
+    ]
+    rows = [
+        [
+            "default robust_to_rotation=False",
+            fmt(float(without["score"])),
+            fmt(float(without["ber_mean"])),
+            fmt(float(without["ber_transform_mean"])),
+            fmt(float(without["ber_worst_attack"])),
+            fmt(float(without["ber_transform_worst"])),
+            fmt(float(without["transform_detection_acc"])),
+            fmt(float(without["rotation_affine_abs_error_deg"]), 3),
+            fmt(float(without["avg_psnr"]), 2),
+            fmt(float(without["encode_time_per_image"]), 5),
+            fmt(float(without["decode_time_per_call"]), 5),
+        ],
+        [
+            "default robust_to_rotation=True",
+            fmt(float(with_robust["score"])),
+            fmt(float(with_robust["ber_mean"])),
+            fmt(float(with_robust["ber_transform_mean"])),
+            fmt(float(with_robust["ber_worst_attack"])),
+            fmt(float(with_robust["ber_transform_worst"])),
+            fmt(float(with_robust["transform_detection_acc"])),
+            fmt(float(with_robust["rotation_affine_abs_error_deg"]), 3),
+            fmt(float(with_robust["avg_psnr"]), 2),
+            fmt(float(with_robust["encode_time_per_image"]), 5),
+            fmt(float(with_robust["decode_time_per_call"]), 5),
+        ],
+    ]
+    print(render_table(headers, rows))
+
+    delta = report.get("delta_with_minus_without")
+    if not isinstance(delta, dict):
+        return
+
+    print("\nDelta (robust_to_rotation=True minus robust_to_rotation=False):")
+    print(
+        "score={score}, ber={ber}, ber_tf={ber_tf}, worst={worst}, worst_tf={worst_tf}, "
+        "tf_det={tf_det}, rot_err={rot_err}, psnr={psnr}, total_runtime={runtime}".format(
+            score=fmt(float(delta["score"])),
+            ber=fmt(float(delta["ber_mean"])),
+            ber_tf=fmt(float(delta["ber_transform_mean"])),
+            worst=fmt(float(delta["ber_worst_attack"])),
+            worst_tf=fmt(float(delta["ber_transform_worst"])),
+            tf_det=fmt(float(delta["transform_detection_acc"])),
+            rot_err=fmt(float(delta["rotation_affine_abs_error_deg"]), 3),
+            psnr=fmt(float(delta["avg_psnr"]), 2),
+            runtime=fmt(float(delta["total_runtime"]), 5),
+        )
+    )
+
+    delta_rot_err = float(delta["rotation_affine_abs_error_deg"])
+    delta_score = float(delta["score"])
+    delta_runtime = float(delta["total_runtime"])
+
+    improves_rot = math.isfinite(delta_rot_err) and delta_rot_err < 0.0
+    improves_score = delta_score < 0.0
+    faster_runtime = delta_runtime < 0.0
+
+    if improves_rot and improves_score and faster_runtime:
+        verdict = "Enabling robust_to_rotation improves affine-rotation correction, weighted score, and runtime."
+    elif improves_rot and improves_score and not faster_runtime:
+        verdict = "Enabling robust_to_rotation improves affine-rotation correction and score, but increases runtime."
+    elif improves_rot and (not improves_score):
+        verdict = "Enabling robust_to_rotation improves affine-rotation correction, but does not improve the weighted score."
+    else:
+        verdict = "Enabling robust_to_rotation is not beneficial under current attacks/weights."
     print(f"Verdict: {verdict}")
 
 
@@ -1019,7 +1337,12 @@ def main() -> int:
             text = config_text(failed.get("config", {}))
             print(f"- {failed.get('status', 'error')}: {failed.get('error', 'unknown error')} | {text}")
 
-    print_summary(valid_results, attack_names, top_k=max(1, int(args.top_k)))
+    print_summary(
+        valid_results,
+        attack_names,
+        top_k=max(1, int(args.top_k)),
+        rotation_degrees=float(args.rotation_degrees),
+    )
 
     default_transform_report: dict[str, Any] | None = None
     if args.skip_default_transform_check:
@@ -1036,6 +1359,22 @@ def main() -> int:
             watermark_cache,
         )
         print_default_transform_robustness_report(default_transform_report)
+
+    default_rotation_report: dict[str, Any] | None = None
+    if args.skip_default_rotation_check:
+        print("\n=== Default Rotation Robustness Check ===")
+        print("Skipped by --skip-default-rotation-check")
+    else:
+        default_rotation_report = evaluate_default_rotation_robustness(
+            model_class,
+            supported,
+            images,
+            attacks,
+            args,
+            int(min_capacity),
+            watermark_cache,
+        )
+        print_default_rotation_robustness_report(default_rotation_report)
 
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     all_csv = out_dir / f"benchmark_all_{timestamp}.csv"
@@ -1059,6 +1398,7 @@ def main() -> int:
                 "failed_count": len(failed_results),
                 "best_global": valid_results[0] if valid_results else None,
                 "default_transform_robustness": default_transform_report,
+                "default_rotation_robustness": default_rotation_report,
                 "results": all_results,
             },
             handle,
