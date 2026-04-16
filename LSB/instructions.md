@@ -221,3 +221,63 @@ Deliver a **state-of-the-art watermarking implementation** that is:
 * Robust
 * Cleanly written
 * Fully vectorized with NumPy
+
+
+Heyyy !!! I have a working implementation of watermark embedding inside image.
+Actually, it's not robust to rotations, and I want to make it robust to that.
+
+To make the watermarking robust to rotations, I want that you add the option to test all rotations (from 0 to 360 degrees) according to a given step (e.g., every 15 degrees) during the decoding process...
+I want that if some result is found before the end of the brute force rotations, the decoding process can stop immediately and return the result.
+
+The code must:
+* Be fully vectorized using NumPy
+* Avoid Python loops as much as possible
+* Be optimized for performance
+* Be clean and well-structured
+* Be fully documented using NumPy-style docstrings
+* Be the simplest possible implementation to achieve the required functionality
+
+
+Heyyy !!! This is a working implementation of watermark embedding inside image.
+
+I want that you modify it: instead of computing a list of index, I prefer that you compute a mask of the same shape as the image (W, H)...
+
+Heyyy !!! I have a matrix of size H x W.
+
+I want that you create randomly a binary mask of the same shape (H, W) with a given number of True values (e.g., 104).
+
+This mask will be a boolean array where True values indicate the pixels where the watermark will be embedded, and False values indicate the pixels that will remain unchanged.
+For each channel, change the mask accordingly to hide the watermark across all channels.
+Then, you must compute for a given mask a new mask that is a boolean array with True for neighborhood pixels of the original mask (i.e., for each True pixel in the original mask, the corresponding neighborhood pixels in the new mask will also be set to True), and False for the other pixels and the pixels of interest (i.e., the original True pixels) that will be used for the decision in the decoding process to avoid biasing the decision (i.e., the center pixel of the neighborhood must not be included in the statistic computation for the mean, only for the final comparison).
+
+The code must be:
+* Fully vectorized using NumPy
+* Avoid Python loops as much as possible
+* Optimized for performance
+* Clean and well-structured
+* Fully documented using NumPy-style docstrings
+* The simplest possible implementation to achieve the required functionality
+
+Heyyy !!! I have a matrix of size H x W.
+
+I want that you create randomly (from a given seed) a binary mask of the same shape (H, W) with a given number of True values (e.g., 104).
+
+Then, you must compute for a given mask a new mask that is a boolean array with True for neighborhood pixels of the original mask (i.e., for each True pixel in the original mask, the corresponding neighborhood pixels in the new mask will also be set to True), and False for the other pixels and the pixels of interest (i.e., the original True pixels) that will be used for the decision in the decoding process to avoid biasing the decision (i.e., the center pixel of the neighborhood must not be included in the statistic computation for the mean, only for the final comparison).
+
+Then, I want a very efficient function that compute the impact of a rotation on the mask (i.e., compute the new mask after applying the rotation to the original mask... Mask must always be a boolean array with shape (H, W)) in a fully vectorized way using NumPy.
+When the rotation has been applied, compute also the neighborhood mask for the new mask. (note that the neighborhood mask can be computed once and then rotated as well, instead of recomputing it from scratch for each rotation, depending on the efficiency of the rotation operation).
+
+Note that the neighborhood can be of size 3x3, 5x5, etc. and the rotation step can be of 15 degrees, 30 degrees, 31.23 degrees, etc. depending on the configuration of the model.
+
+You must produce a notebook that implement different method of mask generation and rotation, and compare their performance to choose the best one for the final implementation in the model.
+
+The code must include plots of results and performance metrics to justify the choice of the final method.
+Note that I want at least one method with rotation of neighborhood mask and one method with rotation of the original mask and then computation of the neighborhood mask for each rotation.
+
+The code must be:
+* Fully vectorized using NumPy
+* Avoid Python loops as much as possible
+* Optimized for performance
+* Clean and well-structured
+* Fully documented using NumPy-style docstrings
+* The simplest possible implementation to achieve the required functionality
