@@ -4,9 +4,12 @@ model.py
 Vectorized blind watermarking — confidence-weighted decoding,
 optional robustness to lossless geometric transforms (flips, 90° rotations).
 
+For color images, embedding and decoding are performed on the Y (luminance)
+channel of YCbCr (OpenCV YCrCb). Chroma channels are preserved.
+
 Embedding rule
 --------------
-Each watermark bit shifts one randomly-selected pixel by ±alpha::
+Each watermark bit shifts one randomly-selected Y-channel sample by ±alpha::
 
     bit = 1  →  pixel += alpha
     bit = 0  →  pixel -= alpha
@@ -81,14 +84,14 @@ are active the best result across *all* candidates is returned.
 
 Dependencies
 ------------
-numpy, opencv-python (cv2 re-exported for callers; not used internally).
+numpy, opencv-python.
 """
 
 from __future__ import annotations
 
 from typing import List, NamedTuple, Optional, Tuple
 
-import cv2          # noqa: F401 — re-exported for callers (e.g. PSNR checks)
+import cv2
 import numpy as np
 
 
@@ -176,11 +179,15 @@ def _rotate_image(img: np.ndarray, angle: float) -> np.ndarray:
     H, W = img.shape[:2]
     center = (W / 2.0, H / 2.0)
     M = cv2.getRotationMatrix2D(center, angle, scale=1.0)
-    return cv2.warpAffine(
+    rotated = cv2.warpAffine(
         img, M, (W, H),
         flags=cv2.INTER_LINEAR,
         borderMode=cv2.BORDER_REFLECT,
     )
+    # OpenCV may squeeze (H, W, 1) to (H, W); restore the explicit channel axis.
+    if img.ndim == 3 and img.shape[2] == 1 and rotated.ndim == 2:
+        rotated = rotated[:, :, np.newaxis]
+    return rotated
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -220,6 +227,12 @@ class WatermarkModel:
     Vectorized blind watermarking — confidence-weighted decoding,
     optionally robust to lossless geometric transforms.
 
+    Color handling
+    --------------
+    For 3-channel inputs, watermarking is applied only to Y in YCbCr (YCrCb in
+    OpenCV). Cb/Cr are left unchanged, then the image is converted back to BGR.
+    Grayscale inputs are treated as luminance directly.
+
     Parameters
     ----------
     message_length : int, default 32
@@ -227,7 +240,7 @@ class WatermarkModel:
     key : int, default 42
         PRNG seed for deterministic pixel selection.
         **Must be identical at encode and decode time.**
-    alpha : float, default 75.0
+    alpha : float, default 80.0
         Embedding strength.  Larger → more robust, lower PSNR.
     msg_repeat : int, default 35
         Number of message copies embedded.  SNR ∝ √msg_repeat;
@@ -247,7 +260,7 @@ class WatermarkModel:
         of ``rotation_step`` degrees over the full [0°, 360°) range and
         returns the highest-confidence result.  Combines additively with
         ``robust_to_transforms``; enable both for maximum coverage.
-    rotation_step : float, default 15.0
+    rotation_step : float, default 1.0
         Angular resolution of the rotation search in degrees.
         Smaller values → finer search, more decode attempts.
         Must satisfy ``0 < rotation_step ≤ 360``.
@@ -261,13 +274,13 @@ class WatermarkModel:
         self,
         message_length:       int   = 32,
         key:                  int   = 42,
-        alpha:                float = 75.0,
-        msg_repeat:           int   = 35,
+        alpha:                float = 70.0,
+        msg_repeat:           int   = 30,
         neighborhood_size:    int   = 5,
         robust_to_transforms: bool  = True,
         confidence_threshold: float = 0.90,
         robust_to_rotations:  bool  = True,
-        rotation_step:        float = 15.0,
+        rotation_step:        float = 1.0,
     ) -> None:
         if neighborhood_size % 2 == 0 or neighborhood_size < 3:
             raise ValueError("neighborhood_size must be an odd integer ≥ 3.")
@@ -297,6 +310,56 @@ class WatermarkModel:
         self._pad: int        = half
 
     # ── Internal helpers ──────────────────────────────────────────────────
+
+    def _split_luma(
+        self, image: np.ndarray
+    ) -> Tuple[np.ndarray, Optional[np.ndarray], bool]:
+        """
+        Convert input image to float32 luma data used for watermarking.
+
+        Returns
+        -------
+        y_plane : np.ndarray, shape (H, W, 1), float32
+            Luminance channel (Y) where embedding/decoding happens.
+        ycrcb : Optional[np.ndarray], shape (H, W, 3), float32
+            Full YCrCb representation for color images; None for grayscale.
+        squeeze_output : bool
+            True only when input was 2D grayscale (H, W), so encode can return
+            the same shape.
+        """
+        img = image.astype(np.float32)
+        if img.ndim == 2:
+            return img[:, :, np.newaxis], None, True
+        if img.ndim == 3 and img.shape[2] == 1:
+            return img, None, False
+        if img.ndim == 3 and img.shape[2] == 3:
+            ycrcb = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
+            return ycrcb[:, :, :1], ycrcb, False
+        raise ValueError(
+            "image must have shape (H, W), (H, W, 1), or (H, W, 3)."
+        )
+
+    def _merge_luma(
+        self,
+        y_plane: np.ndarray,
+        ycrcb: Optional[np.ndarray],
+        squeeze_output: bool,
+    ) -> np.ndarray:
+        """
+        Rebuild an image from watermarked luma data.
+
+        For grayscale inputs this returns the luma plane directly.
+        For color inputs this writes Y back into YCrCb then converts to BGR.
+        """
+        np.clip(y_plane, 0.0, 255.0, out=y_plane)
+
+        if ycrcb is None:
+            return y_plane[:, :, 0] if squeeze_output else y_plane
+
+        ycrcb[:, :, 0] = y_plane[:, :, 0]
+        bgr = cv2.cvtColor(ycrcb, cv2.COLOR_YCrCb2BGR)
+        np.clip(bgr, 0.0, 255.0, out=bgr)
+        return bgr
 
     def _pixel_indices(
         self, H: int, W: int, C: int
@@ -413,9 +476,9 @@ class WatermarkModel:
 
     def encode(self, image: np.ndarray, watermark: np.ndarray) -> np.ndarray:
         """
-        Embed *watermark* into *image* via additive pixel modulation.
+        Embed *watermark* into *image* via additive modulation on luminance.
 
-        Each selected pixel is shifted by::
+        Each selected Y-channel sample is shifted by::
 
             Δ = alpha × (2 × bit − 1)     # +alpha for bit=1, −alpha for bit=0
 
@@ -425,7 +488,8 @@ class WatermarkModel:
 
         Parameters
         ----------
-        image     : np.ndarray, shape (H, W) or (H, W, C), uint8 or float
+        image     : np.ndarray, shape (H, W), (H, W, 1), or (H, W, 3)
+                3-channel inputs are treated as BGR and converted to YCbCr.
         watermark : np.ndarray, shape (message_length,), dtype uint8
 
         Returns
@@ -433,20 +497,15 @@ class WatermarkModel:
         np.ndarray — watermarked image, **same shape and dtype** as *image*.
         """
         orig_dtype = image.dtype
-        grayscale  = image.ndim == 2
-        img        = image.astype(np.float32)
-        if grayscale:
-            img = img[:, :, np.newaxis]
-        H, W, C = img.shape
+        y_plane, ycrcb, squeeze_output = self._split_luma(image)
+        H, W, C = y_plane.shape
 
-        payload                   = np.tile(np.asarray(watermark, dtype=np.uint8), self.msg_repeat)
-        rows, cols, chans         = self._pixel_indices(H, W, C)
-        img[rows, cols, chans]   += self.alpha * (2.0 * payload.astype(np.float32) - 1.0)
-        np.clip(img, 0.0, 255.0, out=img)
+        payload                        = np.tile(np.asarray(watermark, dtype=np.uint8), self.msg_repeat)
+        rows, cols, chans              = self._pixel_indices(H, W, C)
+        y_plane[rows, cols, chans]    += self.alpha * (2.0 * payload.astype(np.float32) - 1.0)
 
-        if grayscale:
-            img = img[:, :, 0]
-        return img.astype(orig_dtype)
+        encoded = self._merge_luma(y_plane, ycrcb, squeeze_output)
+        return encoded.astype(orig_dtype)
 
     def decode(self, image: np.ndarray) -> np.ndarray:
         """
@@ -457,7 +516,7 @@ class WatermarkModel:
 
         Parameters
         ----------
-        image : np.ndarray, shape (H, W) or (H, W, C)
+        image : np.ndarray, shape (H, W), (H, W, 1), or (H, W, 3)
 
         Returns
         -------
@@ -497,20 +556,17 @@ class WatermarkModel:
 
         Parameters
         ----------
-        image : np.ndarray, shape (H, W) or (H, W, C)
+        image : np.ndarray, shape (H, W), (H, W, 1), or (H, W, 3)
 
         Returns
         -------
         DecodeResult — bits, embedding_strength, overall_confidence, transform
         """
-        grayscale = image.ndim == 2
-        img       = image.astype(np.float32)
-        if grayscale:
-            img = img[:, :, np.newaxis]
+        y_plane, _, _ = self._split_luma(image)
 
         # ── Fast path: no search ──────────────────────────────────────────
         if not self.robust_to_transforms and not self.robust_to_rotations:
-            return self._decode_once(img, transform="identity")
+            return self._decode_once(y_plane, transform="identity")
 
         best: Optional[DecodeResult] = None
 
@@ -524,7 +580,7 @@ class WatermarkModel:
         # ── Lossless-transform search ─────────────────────────────────────
         if self.robust_to_transforms:
             for name in _CANDIDATE_TRANSFORMS:
-                transformed = _apply_transform(img, name)
+                transformed = _apply_transform(y_plane, name)
                 try:
                     result = self._decode_once(transformed, transform=name)
                 except ValueError:
@@ -538,7 +594,7 @@ class WatermarkModel:
             # np.arange is fully vectorised; the loop only drives early-exit logic.
             angles = np.arange(0.0, 360.0, self.rotation_step)
             for angle in angles:
-                rotated = _rotate_image(img, -angle)
+                rotated = _rotate_image(y_plane, -angle)
                 label   = f"rot{angle:.4g}deg"
                 try:
                     result = self._decode_once(rotated, transform=label)
