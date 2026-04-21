@@ -213,26 +213,27 @@ def build_reference_patch(
 
 def extract_bits_from_lsb(
     lsb_image: np.ndarray,
-    image_shape: tuple[int, int],
     patch_size: int,
     n_bits: int,
     key: int,
     tile_mode: str = "normal",
-) -> tuple[np.ndarray, float]:
+):
     """
-    Recover watermark bits from *lsb_image* via majority voting over 2×2 blocks.
+    Extract watermark bits using cumulative voting with optional symmetric tiling.
 
-    Each watermark bit is represented by a 2×2 block in the upsampled patch.
-    For every complete tile and every bit, all 4 pixels of the 2×2 block are
-    converted to {-1, +1} and accumulated into a vote.  The sign of the
-    aggregate vote determines the decoded bit; its normalised absolute value
-    is the per-bit confidence.
+    Pipeline
+    --------
+    1. Convert {0,1} → {-1,+1} (NaNs preserved)
+    2. Pad image to full tiles of size (2*patch_size)
+    3. Reshape into tiles (up, up, Ty, Tx)
+    4. Apply symmetric mirroring if required
+    5. Sum all tiles
+    6. Sum each 2×2 block → (patch_size, patch_size)
+    7. Sample bit positions and vote
 
     Parameters
     ----------
-    lsb_image : ndarray of shape (H, W), dtype uint8
-        LSB plane of the (possibly transformed) image.
-    image_shape : (H, W)
+    lsb_image : (H, W) with {0,1} and NaNs
     patch_size : int
     n_bits : int
     key : int
@@ -240,52 +241,149 @@ def extract_bits_from_lsb(
 
     Returns
     -------
-    bits : ndarray of shape (n_bits,), dtype uint8
-        Decoded bits in {0, 1}.
+    bits : (n_bits,)
     confidence : float
-        Mean normalised absolute vote across all bits (∈ [0, 1]).
     """
-    H, W    = image_shape
-    pos     = get_bit_positions(patch_size, n_bits, key)
-    up_size = patch_size * 2          # upsampled tile side length
 
-    # Upsampled top-left corner of each bit's 2×2 block
-    up_pos = pos * 2                  # shape (n_bits, 2)
+    H, W = lsb_image.shape
+    up = patch_size * 2
 
-    # Offsets to the four pixels in a 2×2 block
-    dr = np.array([0, 0, 1, 1], dtype=np.intp)
-    dc = np.array([0, 1, 0, 1], dtype=np.intp)
+    # --- 1. Convert to {-1,+1}, keep NaNs ---
+    img = 2.0 * lsb_image.astype(np.float32) - 1.0
 
-    votes = np.zeros(n_bits, dtype=np.float64)
-    count = 0
+    # --- 2. Pad to full tiles ---
+    pad_H = (-H) % up
+    pad_W = (-W) % up
 
-    for row_start in range(0, H, up_size):
-        for col_start in range(0, W, up_size):
-            # Skip partial tiles at image borders
-            if row_start + up_size > H or col_start + up_size > W:
-                continue
+    img = np.pad(
+        img,
+        ((0, pad_H), (0, pad_W)),
+        mode="constant",
+        constant_values=np.nan,
+    )
 
-            # Row / col indices for all bits' 2×2 blocks in this tile
-            r_idx = up_pos[:, 0:1] + row_start + dr   # (n_bits, 4)
-            c_idx = up_pos[:, 1:2] + col_start + dc   # (n_bits, 4)
+    H2, W2 = img.shape
+    Ty, Tx = H2 // up, W2 // up
 
-            # Read all 4 pixels per bit, convert {0,1}→{-1,+1}, accumulate
-            block_vals = lsb_image[r_idx, c_idx].astype(np.float64)
-            votes += np.sum(2.0 * block_vals - 1.0, axis=1)
-            count += 1
+    # --- 3. Reshape → (up, up, Ty, Tx) ---
+    tiles = img.reshape(Ty, up, Tx, up).transpose(1, 3, 0, 2)
 
-    if count == 0:
-        # Fallback: single-tile read without border check
-        r_idx = (up_pos[:, 0:1] % H) + dr   # wrap to image bounds
-        c_idx = (up_pos[:, 1:2] % W) + dc
-        r_idx = np.clip(r_idx, 0, H - 1)
-        c_idx = np.clip(c_idx, 0, W - 1)
-        block_vals = lsb_image[r_idx, c_idx].astype(np.float64)
-        votes = np.sum(2.0 * block_vals - 1.0, axis=1)
-        count = 1
+    # --- 4. Apply symmetric tiling ---
+    if tile_mode == "symmetric":
+        # flip tiles on odd rows (vertical flip inside tile)
+        tiles[:, :, 1::2, :] = tiles[::-1, :, 1::2, :]
 
-    # Each tile contributes 4 values per bit
-    norm_votes = votes / (count * 4)
-    bits       = (norm_votes > 0).astype(np.uint8)
-    confidence = float(np.mean(np.abs(norm_votes)))
+        # flip tiles on odd columns (horizontal flip inside tile)
+        tiles[:, :, :, 1::2] = tiles[:, ::-1, :, 1::2]
+
+    # --- 5. Sum tiles ---
+    summed = np.nansum(tiles, axis=(2, 3))  # (up, up)
+
+    # --- 6. Sum 2×2 blocks ---
+    small = summed.reshape(patch_size, 2, patch_size, 2)
+    small = small.sum(axis=(1, 3))  # (patch_size, patch_size)
+
+    # --- 7. Extract bits ---
+    pos = get_bit_positions(patch_size, n_bits, key)
+    values = small[pos[:, 0], pos[:, 1]]  # sum of votes
+
+    # --- Compute weights (number of valid contributions per bit) ---
+    valid_mask = ~np.isnan(img)
+
+    tiles_mask = valid_mask.reshape(Ty, up, Tx, up).transpose(1, 3, 0, 2)
+    weights_map = np.sum(tiles_mask, axis=(2, 3))  # (up, up)
+
+    weights_small = weights_map.reshape(patch_size, 2, patch_size, 2)
+    weights_small = weights_small.sum(axis=(1, 3))  # (patch_size, patch_size)
+
+    weights = weights_small[pos[:, 0], pos[:, 1]]  # per-bit weights
+
+    # --- Bits ---
+    bits = (values > 0).astype(np.uint8)
+
+    # --- Confidence (normalized properly) ---
+    weights[weights == 0] = 1  # avoid division by zero
+    norm_values = values / weights
+
+    confidence = float(np.mean(np.abs(norm_values)))
+
     return bits, confidence
+
+# def extract_bits_from_lsb(
+#     lsb_image: np.ndarray,
+#     image_shape: tuple[int, int],
+#     patch_size: int,
+#     n_bits: int,
+#     key: int,
+#     tile_mode: str = "normal",
+# ) -> tuple[np.ndarray, float]:
+#     """
+#     Recover watermark bits from *lsb_image* via majority voting over 2×2 blocks.
+
+#     Each watermark bit is represented by a 2×2 block in the upsampled patch.
+#     For every complete tile and every bit, all 4 pixels of the 2×2 block are
+#     converted to {-1, +1} and accumulated into a vote.  The sign of the
+#     aggregate vote determines the decoded bit; its normalised absolute value
+#     is the per-bit confidence.
+
+#     Parameters
+#     ----------
+#     lsb_image : ndarray of shape (H, W), dtype uint8
+#         LSB plane of the (possibly transformed) image.
+#     image_shape : (H, W)
+#     patch_size : int
+#     n_bits : int
+#     key : int
+#     tile_mode : {"normal", "symmetric"}
+
+#     Returns
+#     -------
+#     bits : ndarray of shape (n_bits,), dtype uint8
+#         Decoded bits in {0, 1}.
+#     confidence : float
+#         Mean normalised absolute vote across all bits (∈ [0, 1]).
+#     """
+#     H, W    = image_shape
+#     pos     = get_bit_positions(patch_size, n_bits, key)
+#     up_size = patch_size * 2          # upsampled tile side length
+
+#     # Upsampled top-left corner of each bit's 2×2 block
+#     up_pos = pos * 2                  # shape (n_bits, 2)
+
+#     # Offsets to the four pixels in a 2×2 block
+#     dr = np.array([0, 0, 1, 1], dtype=np.intp)
+#     dc = np.array([0, 1, 0, 1], dtype=np.intp)
+
+#     votes = np.zeros(n_bits, dtype=np.float64)
+#     count = 0
+
+#     for row_start in range(0, H, up_size):
+#         for col_start in range(0, W, up_size):
+#             # Skip partial tiles at image borders
+#             if row_start + up_size > H or col_start + up_size > W:
+#                 continue
+
+#             # Row / col indices for all bits' 2×2 blocks in this tile
+#             r_idx = up_pos[:, 0:1] + row_start + dr   # (n_bits, 4)
+#             c_idx = up_pos[:, 1:2] + col_start + dc   # (n_bits, 4)
+
+#             # Read all 4 pixels per bit, convert {0,1}→{-1,+1}, accumulate
+#             block_vals = lsb_image[r_idx, c_idx].astype(np.float64)
+#             votes += np.sum(2.0 * block_vals - 1.0, axis=1)
+#             count += 1
+
+#     if count == 0:
+#         # Fallback: single-tile read without border check
+#         r_idx = (up_pos[:, 0:1] % H) + dr   # wrap to image bounds
+#         c_idx = (up_pos[:, 1:2] % W) + dc
+#         r_idx = np.clip(r_idx, 0, H - 1)
+#         c_idx = np.clip(c_idx, 0, W - 1)
+#         block_vals = lsb_image[r_idx, c_idx].astype(np.float64)
+#         votes = np.sum(2.0 * block_vals - 1.0, axis=1)
+#         count = 1
+
+#     # Each tile contributes 4 values per bit
+#     norm_votes = votes / (count * 4)
+#     bits       = (norm_votes > 0).astype(np.uint8)
+#     confidence = float(np.mean(np.abs(norm_votes)))
+#     return bits, confidence

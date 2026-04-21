@@ -13,8 +13,9 @@ Pipeline
 """
 
 import numpy as np
-from skimage.transform import warp, AffineTransform, warp_polar
+from skimage.transform import rescale, rotate, warp, AffineTransform, SimilarityTransform, warp_polar
 from skimage.registration import phase_cross_correlation
+from utils.patch import build_reference_patch
 
 
 # ---------------------------------------------------------------------------
@@ -71,8 +72,10 @@ def _to_log_polar(spectrum: np.ndarray) -> np.ndarray:
 
 def estimate_rotation_scale(
     lsb_image: np.ndarray,
-    reference: np.ndarray,
-    upsample_factor: int = 1,
+    upsample_factor: int = 10,
+    key: int = 0,
+    patch_size: int = 32,
+    tile_mode: str = "normal",
 ) -> tuple[float, float]:
     """
     Estimate rotation (degrees) and scale factor between *lsb_image* and
@@ -88,6 +91,12 @@ def estimate_rotation_scale(
     upsample_factor : int, optional
         Sub-pixel precision factor passed to :func:`phase_cross_correlation`
         (default 1 = pixel precision, higher = more precise but slower).
+    patch_size : int, optional
+        Patch size used for translation correction (default 32; should match the reference patch size).
+    key : int, optional
+        Random seed for generating the reference patch (default 0).
+    tile_mode : str, optional
+        Mode for tiling the reference patch (default "normal").
 
     Returns
     -------
@@ -96,6 +105,7 @@ def estimate_rotation_scale(
     scale : float
         Estimated scale factor (> 1 means image was zoomed in).
     """
+    reference = build_reference_patch(lsb_image.shape, patch_size=patch_size, key=key, tile_mode=tile_mode)
     # Use raw float64 — values stay in {0.0, 1.0}, not divided by 255
     img_f  = lsb_image.astype(np.float64)
     ref_f  = reference.astype(np.float64)
@@ -147,29 +157,36 @@ def correct_rotation_scale(
     -------
     corrected : ndarray of shape (H, W), dtype uint8
     """
-    H, W = image.shape
-    cx, cy = W / 2.0, H / 2.0
+    inv_scale = scale
 
-    # Inverse transform directly (clearer than inverting later)
-    tform = (
-        AffineTransform(translation=(-cx, -cy))
-        + AffineTransform(
-            rotation=np.deg2rad(-angle),   # invert rotation
-            scale=(1.0 / scale, 1.0 / scale),  # invert scale
-        )
-        + AffineTransform(translation=(cx, cy))
+    scaled = rescale(
+        image, inv_scale, order=0,
+        preserve_range=True, anti_aliasing=False, channel_axis=None
     )
 
-    corrected = warp(
-        image.astype(np.float32),
-        tform,
-        preserve_range=True,
-        order=0,          # IMPORTANT for binary / label images
-        mode="constant",
-        cval=0,
+    rotated = rotate(
+        scaled, -angle, resize=True,
+        order=0, mode="constant", cval=0, preserve_range=True
     )
 
-    return corrected.astype(image.dtype)
+    h, w = scaled.shape
+    a = np.deg2rad(abs(angle)) % (np.pi / 2)
+    s, c = np.sin(a), np.cos(a)
+
+    if min(h, w) <= 2 * s * c * max(h, w):
+        crop_w = crop_h = int(min(h, w) / (2 * max(s, c)))
+    else:
+        d = c*c - s*s
+        crop_w = int((w * c - h * s) / d)
+        crop_h = int((h * c - w * s) / d)
+
+    H, W = rotated.shape
+    cy, cx = H // 2, W // 2
+
+    return rotated[
+        cy - crop_h // 2: cy + crop_h // 2,
+        cx - crop_w // 2: cx + crop_w // 2
+    ].astype(image.dtype)
 
 
 # ---------------------------------------------------------------------------
@@ -178,8 +195,10 @@ def correct_rotation_scale(
 
 def estimate_translation(
     lsb_image: np.ndarray,
-    reference: np.ndarray,
     upsample_factor: int = 10,
+    key: int = 0,
+    patch_size: int = 32,
+    tile_mode: str = "normal",
 ) -> tuple[float, float]:
     """
     Estimate sub-pixel translation via Cartesian phase correlation.
@@ -190,12 +209,19 @@ def estimate_translation(
     reference : ndarray of shape (H, W)
     upsample_factor : int, optional
         Sub-pixel precision factor (default 10; use higher for finer shifts).
+    patch_size : int, optional
+        Patch size used for translation correction (default 32; should match the reference patch size).
+    key : int, optional
+        Random seed for generating the reference patch (default 0).
+    tile_mode : str, optional
+        Mode for tiling the reference patch (default "normal").
 
     Returns
     -------
     shift_row : float
     shift_col : float
     """
+    reference = build_reference_patch(lsb_image.shape, patch_size=patch_size, key=key, tile_mode=tile_mode)
     shift, _, _ = phase_cross_correlation(
         reference.astype(np.float64),
         lsb_image.astype(np.float64),
@@ -205,29 +231,67 @@ def estimate_translation(
     return float(shift[0]), float(shift[1])
 
 
+# def correct_translation(
+#     image: np.ndarray,
+#     shift_row: float,
+#     shift_col: float,
+#     patch_size: int = 32,
+# ) -> np.ndarray:
+#     """
+#     Shift *image* by (-shift_row, -shift_col), wrapping with ``np.roll``.
+
+#     Parameters
+#     ----------
+#     image : ndarray of shape (H, W)
+#     shift_row : float
+#     shift_col : float
+#     patch_size : int
+
+#     Returns
+#     -------
+#     shifted : ndarray of shape (H, W), same dtype
+#     """
+#     shift_row %= (patch_size * 2)
+#     shift_col %= (patch_size * 2)
+#     shift_row = shift_row + patch_size * 2 if shift_row < 0 else shift_row
+#     shift_col = shift_col + patch_size * 2 if shift_col < 0 else shift_col
+#     return image[np.rint(shift_row).astype(int):, np.rint(shift_col).astype(int):]
+
 def correct_translation(
     image: np.ndarray,
     shift_row: float,
     shift_col: float,
 ) -> np.ndarray:
     """
-    Shift *image* by (-shift_row, -shift_col), wrapping with ``np.roll``.
+    Apply translation using geometric transform (no wrap).
+
+    Padding is NaN (neutral for downstream voting).
+    No value remapping is applied.
 
     Parameters
     ----------
-    image : ndarray of shape (H, W)
+    image : ndarray (H, W), values in {0,1}
     shift_row : float
     shift_col : float
 
     Returns
     -------
-    shifted : ndarray of shape (H, W), same dtype
+    shifted : ndarray (H, W), float32 with NaNs
     """
-    return np.roll(
-        image,
-        (int(round(-shift_row)), int(round(-shift_col))),
-        axis=(0, 1),
+
+    # IMPORTANT: inverse mapping (warp applies inverse transform)
+    tform = SimilarityTransform(translation=(-shift_col, -shift_row))
+
+    shifted = warp(
+        image.astype(np.float32),
+        tform,
+        order=0,                 # no interpolation
+        mode="constant",
+        cval=np.nan,             # <-- key point
+        preserve_range=True,
     )
+
+    return shifted
 
 
 # ---------------------------------------------------------------------------
@@ -236,10 +300,12 @@ def correct_translation(
 
 def synchronise(
     lsb_image: np.ndarray,
-    reference: np.ndarray,
-    upsample_factor_rs: int = 1,
+    upsample_factor_rs: int = 10,
     upsample_factor_t: int = 10,
-) -> tuple[np.ndarray, np.ndarray]:
+    patch_size: int = 32,
+    key: int = 0,
+    tile_mode: str = "normal",
+) -> np.ndarray:
     """
     Align *lsb_image* to *reference* using a two-stage pipeline.
 
@@ -257,23 +323,26 @@ def synchronise(
         Sub-pixel factor for rotation/scale phase correlation (default 1).
     upsample_factor_t : int, optional
         Sub-pixel factor for translation phase correlation (default 10).
+    patch_size : int, optional
+        Patch size used for translation correction (default 32; should match the reference patch size).
+    key : int, optional
+        Random seed for generating the reference patch (default 0).
+    tile_mode : str, optional
+        Mode for tiling the reference patch (default "normal").
 
     Returns
     -------
     aligned_lsb : ndarray of shape (H, W), uint8
         LSB plane realigned to the reference patch grid.
-    aligned_reference : ndarray of shape (H, W), uint8
-        Same as *reference* (returned for API consistency).
     """
     # Stage 1 — rotation + scale
     angle, scale = estimate_rotation_scale(
-        lsb_image, reference, upsample_factor=upsample_factor_rs
+        lsb_image, upsample_factor=upsample_factor_rs, key=key, patch_size=patch_size, tile_mode=tile_mode
     )
-    print(f"Estimated rotation: {angle}°, scale: {scale}")
     lsb_rs = correct_rotation_scale(lsb_image, angle, scale)
 
     # Stage 2 — translation
-    dr, dc    = estimate_translation(lsb_rs, reference, upsample_factor=upsample_factor_t)
+    dr, dc    = estimate_translation(lsb_rs, upsample_factor=upsample_factor_t, key=key, patch_size=patch_size, tile_mode=tile_mode)
     lsb_final = correct_translation(lsb_rs, dr, dc)
 
-    return lsb_final, reference
+    return lsb_final
