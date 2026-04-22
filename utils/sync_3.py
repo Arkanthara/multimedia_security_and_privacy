@@ -7,22 +7,9 @@ Pipeline
 --------
 1. Fourier-Mellin transform (FFT magnitude → log-polar) on image and reference
 2. Phase correlation in log-polar space  → estimate rotation + scale
-3. 180° ambiguity resolution            → score both angle candidates, keep best
-4. Correct rotation / scale             → cropped (no resize artefacts)
-5. Cartesian phase correlation          → estimate translation
-6. Correct translation                  → final aligned image (NaN-padded)
-
-Why the 180° ambiguity?
------------------------
-The FFT magnitude spectrum satisfies |F(-u,-v)| = |F(u,v)|, so it is
-centrosymmetric.  After log-polar resampling, a rotation of θ and a rotation
-of θ+180° produce identical spectra.  Phase correlation therefore has two
-equally valid solutions; picking the wrong one completely misaligns the image.
-This manifests most visibly on attacks that introduce **no rotation** (e.g.
-crop-and-resize), where the true angle is 0° but the algorithm may return 180°.
-
-Resolution: apply both candidates, score each by the Cartesian phase-
-correlation error, keep the candidate with the lower error.
+3. Correct rotation / scale             → cropped (no resize artefacts)
+4. Cartesian phase correlation          → estimate translation
+5. Correct translation                  → final aligned image (NaN-padded)
 """
 
 import numpy as np
@@ -72,7 +59,8 @@ def _fourier_mellin_spectrum(image: np.ndarray) -> np.ndarray:
     f = np.fft.fftshift(np.fft.fft2(windowed))
     magnitude = np.abs(f)
 
-    # 3. Zero DC component — avoids its large value skewing the correlation peak
+    # 3. Zero DC component (centre pixel) — avoids its large value skewing
+    #    the phase correlation peak
     magnitude[H // 2, W // 2] = 0.0
 
     # 4. Log-magnitude — compresses dynamic range so high-frequency content
@@ -85,7 +73,7 @@ def _fourier_mellin_spectrum(image: np.ndarray) -> np.ndarray:
         log_mag = (log_mag - lo) / (hi - lo)
 
     # 6. Log-polar resampling — maps rotation → row shift, scale → col shift
-    return warp_polar(log_mag, scaling="log", order=0)
+    return warp_polar(log_mag, scaling="log", order=3)
 
 
 # ---------------------------------------------------------------------------
@@ -102,12 +90,6 @@ def estimate_rotation_scale(
     """
     Estimate rotation (degrees) and scale factor between *lsb_image* and a
     tiled reference patch using Fourier-Mellin phase correlation.
-
-    .. note::
-        Due to the centrosymmetry of the FFT magnitude spectrum, the returned
-        angle is ambiguous modulo 180°.  The caller should resolve this
-        ambiguity by trying both ``angle`` and ``angle + 180°``; see
-        :func:`synchronise`.
 
     Parameters
     ----------
@@ -127,7 +109,6 @@ def estimate_rotation_scale(
     -------
     angle : float
         Estimated rotation angle in degrees (counter-clockwise positive).
-        Ambiguous modulo 180°.
     scale : float
         Estimated scale factor (> 1 means the image was zoomed in).
     """
@@ -204,7 +185,7 @@ def correct_rotation_scale(
     )
 
     # --- largest inner rectangle after rotation ------------------------------
-    # Formula: https://stackoverflow.com/a/16778797
+    # Formula from: https://stackoverflow.com/a/16778797
     h, w = scaled.shape
     a = np.deg2rad(abs(angle)) % (np.pi / 2)
     s, c = np.sin(a), np.cos(a)
@@ -223,52 +204,13 @@ def correct_rotation_scale(
         cy - crop_h // 2: cy + crop_h // 2,
         cx - crop_w // 2: cx + crop_w // 2,
     ]
+
     return corrected.astype(image.dtype)
 
 
 # ---------------------------------------------------------------------------
 # Translation estimation + correction
 # ---------------------------------------------------------------------------
-
-def _estimate_translation_full(
-    lsb_image: np.ndarray,
-    upsample_factor: int = 10,
-    key: int = 0,
-    patch_size: int = 32,
-    tile_mode: str = "normal",
-) -> tuple[float, float, float]:
-    """
-    Estimate sub-pixel translation and return the phase-correlation error.
-
-    This internal helper exposes the alignment quality score used by
-    :func:`synchronise` to resolve the 180° rotation ambiguity.
-
-    Parameters
-    ----------
-    lsb_image : ndarray of shape (H, W)
-    upsample_factor : int, optional
-    key : int, optional
-    patch_size : int, optional
-    tile_mode : str, optional
-
-    Returns
-    -------
-    shift_row : float
-    shift_col : float
-    error : float
-        Normalised RMS phase error in [0, √2].  **Lower = better alignment.**
-    """
-    reference = build_reference_patch(
-        lsb_image.shape, patch_size=patch_size, key=key, tile_mode=tile_mode
-    )
-    shift, error, _ = phase_cross_correlation(
-        reference.astype(np.float64),
-        lsb_image.astype(np.float64),
-        normalization=None,
-        upsample_factor=upsample_factor,
-    )
-    return float(shift[0]), float(shift[1]), float(error)
-
 
 def estimate_translation(
     lsb_image: np.ndarray,
@@ -300,11 +242,18 @@ def estimate_translation(
     shift_row : float
     shift_col : float
     """
-    dr, dc, _ = _estimate_translation_full(
-        lsb_image, upsample_factor=upsample_factor,
-        key=key, patch_size=patch_size, tile_mode=tile_mode,
+    reference = build_reference_patch(
+        lsb_image.shape, patch_size=patch_size, key=key, tile_mode=tile_mode
     )
-    return dr, dc
+
+    shift, _, _ = phase_cross_correlation(
+        reference.astype(np.float64),
+        lsb_image.astype(np.float64),
+        normalization=None,
+        upsample_factor=upsample_factor,
+    )
+
+    return float(shift[0]), float(shift[1])
 
 
 def correct_translation(
@@ -358,11 +307,8 @@ def synchronise(
     Align *lsb_image* to the tiled reference patch in two stages.
 
     Stage 1 — Fourier-Mellin phase correlation
-        Estimates rotation + scale via log-polar phase correlation on the FFT
-        magnitude spectra.  Because the FFT magnitude is centrosymmetric, two
-        rotation candidates are always valid: ``angle`` and ``angle + 180°``.
-        Both are applied and scored; the one that minimises the Cartesian
-        phase-correlation error is kept.
+        Estimates and corrects rotation + scale via log-polar phase
+        correlation on the FFT magnitude spectra.
 
     Stage 2 — Cartesian phase correlation
         Estimates and corrects the residual translation on the
@@ -389,7 +335,7 @@ def synchronise(
         LSB plane realigned to the reference patch grid.
         NaN values indicate pixels outside the original image boundary.
     """
-    # ── Stage 1: Fourier-Mellin → rotation + scale ──────────────────────────
+    # Stage 1 — rotation + scale
     angle, scale = estimate_rotation_scale(
         lsb_image,
         upsample_factor=upsample_factor_rs,
@@ -397,31 +343,15 @@ def synchronise(
         patch_size=patch_size,
         tile_mode=tile_mode,
     )
+    print(f"Estimated rotation: {angle:.2f}°, scale: {scale:.4f}")
+    lsb_rs = correct_rotation_scale(lsb_image, angle, scale)
 
-    # Resolve the inherent 180° rotation ambiguity.
-    # The FFT magnitude spectrum is centrosymmetric → phase correlation cannot
-    # distinguish angle θ from θ+180°.  We test both and keep the candidate
-    # whose corrected image aligns better with the reference (lower phase
-    # error in the subsequent Cartesian correlation).
-    best_lsb_rs: np.ndarray | None = None
-    best_dr = best_dc = 0.0
-    best_error = np.inf
-
-    for candidate_angle in [angle, angle + 180.0]:
-        lsb_rs = correct_rotation_scale(lsb_image, candidate_angle, scale)
-        dr, dc, error = _estimate_translation_full(
-            lsb_rs,
-            upsample_factor=upsample_factor_t,
-            key=key,
-            patch_size=patch_size,
-            tile_mode=tile_mode,
-        )
-        if error < best_error:
-            best_error = error
-            best_lsb_rs = lsb_rs
-            best_dr, best_dc = dr, dc
-
-    print(f"Estimated scale={scale:.4f}, angle={angle:.2f}° (±180° ambiguity resolved)")
-
-    # ── Stage 2: Cartesian phase correlation → translation ───────────────────
-    return correct_translation(best_lsb_rs, best_dr, best_dc)
+    # Stage 2 — translation (reference is regenerated at the new crop shape)
+    dr, dc = estimate_translation(
+        lsb_rs,
+        upsample_factor=upsample_factor_t,
+        key=key,
+        patch_size=patch_size,
+        tile_mode=tile_mode,
+    )
+    return correct_translation(lsb_rs, dr, dc)
