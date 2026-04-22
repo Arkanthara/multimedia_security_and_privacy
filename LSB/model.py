@@ -1,607 +1,211 @@
 """
-model.py
-========
-Vectorized blind watermarking — confidence-weighted decoding,
-optional robustness to lossless geometric transforms (flips, 90° rotations).
+lsb/model.py
+============
+LSB watermark — encode and decode entry points.
 
-For color images, embedding and decoding are performed on the Y (luminance)
-channel of YCbCr (OpenCV YCrCb). Chroma channels are preserved.
+Encode pipeline
+---------------
+    image  →  build patch  →  replace LSB  →  watermarked image
 
-Embedding rule
---------------
-Each watermark bit shifts one randomly-selected Y-channel sample by ±alpha::
-
-    bit = 1  →  pixel += alpha
-    bit = 0  →  pixel -= alpha
-
-Decoding — two complementary quality metrics
---------------------------------------------
-
-**Metric 1 — Embedding strength** (``embedding_strength``)::
-
-    strength = mean_i( |pixel_i − mean(k×k ring neighbourhood_i)| )
-
-Measures how much the sampled pixels deviate from their local surroundings.
-If those pixels were shifted by ±alpha at encode time, strength ≈ alpha,
-regardless of the bit values (0 or 1 both give |Δ| = alpha).
-Near zero → wrong pixel positions sampled (wrong orientation) or nothing
-embedded.
-
-**Metric 2 — Overall confidence** (``overall_confidence``)::
-
-    For each bit position i ∈ [0, message_length):
-        frac_i  = fraction of msg_repeat copies that decode bit i as 1
-        conf_i  = max(frac_i, 1 − frac_i)       ∈ [0.5, 1.0]
-
-    overall_confidence = mean_i( conf_i )        ∈ [0.5, 1.0]
-
-Measures copy agreement at each bit position, then averages across bits.
-  1.0 → every copy agrees on every bit — no copy was altered (perfect).
-  0.5 → completely random (50/50 coin toss per bit across copies).
-
-Key property: confidence is computed from copy *agreement*, not from bit
-*values*.  It therefore works correctly for any watermark message, including
-uniformly random ones (≈ 50 % ones) whose mean signed score is ≈ 0 — a case
-that would fool a plain "mean-score magnitude" coherence test.
-
-Lossless-transform search strategy
+Decode pipeline (sync_enabled=True)
 ------------------------------------
-When ``robust_to_transforms=True``, the decoder tries six lossless candidate
-inverse transforms ordered cheapest-first::
-
-    identity → hflip → vflip → rot270 → rot90 → rot180
-
-All transforms are lossless (numpy views or ``numpy.rot90``): no interpolation,
-no resolution change, and — for ±90° rotations — H and W simply swap so
-``_pixel_indices`` adapts automatically.
-
-For each candidate:
-  1. Apply the inverse-transform candidate to the received image.
-  2. Recompute pixel indices from the (possibly swapped) image shape.
-  3. Rank by ``overall_confidence`` (primary criterion).
-  4. **Early exit** if ``overall_confidence ≥ confidence_threshold``.
-  5. After all candidates, return the highest-confidence result.
-
-Arbitrary-rotation search strategy
-------------------------------------
-When ``robust_to_rotations=True``, the decoder additionally brute-forces
-inverse rotations over the full [0°, 360°) range in steps of ``rotation_step``
-degrees (e.g. every 15°).  This extends robustness to arbitrary-angle attacks
-at the cost of ``ceil(360 / rotation_step)`` decode attempts in the worst case.
-
-Rotation uses ``cv2.warpAffine`` with bilinear interpolation and reflect
-border-padding to minimise boundary artefacts.  Image dimensions are preserved
-(same H × W as the input).
-
-For each candidate angle θ ∈ {0, step, 2·step, …, 360−step}:
-  1. Rotate the image by −θ degrees (inverse of a CW-by-θ attack).
-  2. Decode and compute ``overall_confidence``.
-  3. **Early exit** if ``overall_confidence ≥ confidence_threshold``.
-  4. After all angles, return the highest-confidence result found.
-
-Both search modes are independent: enable one, both, or neither.  When both
-are active the best result across *all* candidates is returned.
-
-Dependencies
-------------
-numpy, opencv-python.
+    Step 1  direct decode               → return if confidence ≥ threshold
+    Step 2  rotation/scale correction   → return if confidence ≥ threshold
+    Step 3  translation correction      → return best result
 """
 
 from __future__ import annotations
 
-from typing import List, NamedTuple, Optional, Tuple
-
-import cv2
 import numpy as np
+from skimage.util import img_as_ubyte
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Lossless transform catalogue
-# ─────────────────────────────────────────────────────────────────────────────
-# Each entry is the *inverse* of one possible attack transform.
-# Ordered cheapest-first so the early-exit fires quickly for common cases.
-#
-#   Attack applied to image    Inverse tried here
-#   ──────────────────────     ──────────────────
-#   (none)                     identity
-#   horizontal flip            hflip     (self-inverse)
-#   vertical flip              vflip     (self-inverse)
-#   90° CW rotation            rot270    (= 90° CCW)
-#   90° CCW rotation           rot90     (= 90° CW)
-#   180° rotation              rot180    (self-inverse)
-# ─────────────────────────────────────────────────────────────────────────────
+from utils.patch import (
+    build_patch_image,
+    extract_bits_from_lsb,
+)
+from utils.sync import synchronise
 
-_CANDIDATE_TRANSFORMS: List[str] = [
-    "identity",
-    "hflip",
-    "vflip",
-    "rot270",
-    "rot90",
-    "rot180",
-]
-
-
-def _apply_transform(img: np.ndarray, name: str) -> np.ndarray:
-    """
-    Apply a named lossless geometric transform to a (H, W, C) float32 array.
-
-    All operations are zero-copy views or single ``numpy.rot90`` calls —
-    no interpolation, no quality loss.  For rot90 / rot270, H and W swap;
-    for all others the shape is unchanged.
-
-    Parameters
-    ----------
-    img  : np.ndarray, shape (H, W, C), float32
-    name : str — one of the entries in ``_CANDIDATE_TRANSFORMS``
-
-    Returns
-    -------
-    np.ndarray, shape (H', W', C), float32
-    """
-    if name == "identity":
-        return img
-    if name == "hflip":
-        return img[:, ::-1, :]
-    if name == "vflip":
-        return img[::-1, :, :]
-    if name == "rot90":                      # 90° CCW
-        return np.rot90(img, k=1, axes=(0, 1))
-    if name == "rot180":
-        return np.rot90(img, k=2, axes=(0, 1))
-    if name == "rot270":                     # 90° CW
-        return np.rot90(img, k=3, axes=(0, 1))
-    raise ValueError(f"Unknown transform: {name!r}")
-
-
-def _rotate_image(img: np.ndarray, angle: float) -> np.ndarray:
-    """
-    Rotate *img* counter-clockwise by *angle* degrees using bilinear
-    interpolation and reflect border-padding.
-
-    The output shape is identical to the input (same H × W).  Reflect
-    padding avoids the black border artefacts that ``BORDER_CONSTANT``
-    would introduce near the image edges, which would otherwise corrupt
-    the neighbourhood scores for pixels close to the boundary.
-
-    Parameters
-    ----------
-    img   : np.ndarray, shape (H, W, C), float32
-        Image to rotate.
-    angle : float
-        Counter-clockwise rotation angle in degrees.
-        Pass ``-θ`` to undo a clockwise-by-θ attack.
-
-    Returns
-    -------
-    np.ndarray, shape (H, W, C), float32
-        Rotated image with the same spatial dimensions as the input.
-    """
-    H, W = img.shape[:2]
-    center = (W / 2.0, H / 2.0)
-    M = cv2.getRotationMatrix2D(center, angle, scale=1.0)
-    rotated = cv2.warpAffine(
-        img, M, (W, H),
-        flags=cv2.INTER_LINEAR,
-        borderMode=cv2.BORDER_REFLECT,
-    )
-    # OpenCV may squeeze (H, W, 1) to (H, W); restore the explicit channel axis.
-    if img.ndim == 3 and img.shape[2] == 1 and rotated.ndim == 2:
-        rotated = rotated[:, :, np.newaxis]
-    return rotated
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Public result type
-# ─────────────────────────────────────────────────────────────────────────────
-
-class DecodeResult(NamedTuple):
-    """
-    Full watermark decode result, returned by :meth:`WatermarkModel.decode_verbose`.
-
-    Attributes
-    ----------
-    bits : np.ndarray, shape (message_length,), uint8
-        Hard-decoded watermark bits (majority vote across ``msg_repeat`` copies).
-    embedding_strength : float
-        Mean |pixel − ring_mean| at selected positions (Metric 1).
-        Scales with alpha; near zero → wrong orientation or nothing embedded.
-    overall_confidence : float
-        Mean per-bit copy-agreement fraction (Metric 2), in [0.5, 1.0].
-        1.0 → every copy agrees on every bit (perfect decode).
-        0.5 → fully random (wrong orientation or no watermark).
-    transform : str
-        Name of the candidate inverse transform that produced this result.
-    """
-    bits:               np.ndarray
-    embedding_strength: float
-    overall_confidence: float
-    transform:          str
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# WatermarkModel
-# ─────────────────────────────────────────────────────────────────────────────
 
 class WatermarkModel:
-    """
-    Vectorized blind watermarking — confidence-weighted decoding,
-    optionally robust to lossless geometric transforms.
-
-    Color handling
-    --------------
-    For 3-channel inputs, watermarking is applied only to Y in YCbCr (YCrCb in
-    OpenCV). Cb/Cr are left unchanged, then the image is converted back to BGR.
-    Grayscale inputs are treated as luminance directly.
-
-    Parameters
-    ----------
-    message_length : int, default 32
-        Number of bits in the watermark message.
-    key : int, default 42
-        PRNG seed for deterministic pixel selection.
-        **Must be identical at encode and decode time.**
-    alpha : float, default 80.0
-        Embedding strength.  Larger → more robust, lower PSNR.
-    msg_repeat : int, default 35
-        Number of message copies embedded.  SNR ∝ √msg_repeat;
-        raise (e.g. 50–100) for more robustness against post-processing.
-    neighborhood_size : int, default 5
-        Side length of the square neighbourhood used for confidence scores.
-        Must be an odd integer ≥ 3 (e.g. 3 for 3×3, 5 for 5×5).
-    robust_to_transforms : bool, default True
-        When True, :meth:`decode` searches over all lossless candidate
-        inverse transforms and returns the highest-confidence result.
-    confidence_threshold : float, default 0.90
-        Early-exit threshold for the transform search.
-        A result with ``overall_confidence ≥ confidence_threshold`` is
-        accepted immediately (range (0.5, 1.0]; 0.90 → 90 % copy agreement).
-    robust_to_rotations : bool, default True
-        When True, :meth:`decode` brute-forces inverse rotations in steps
-        of ``rotation_step`` degrees over the full [0°, 360°) range and
-        returns the highest-confidence result.  Combines additively with
-        ``robust_to_transforms``; enable both for maximum coverage.
-    rotation_step : float, default 1.0
-        Angular resolution of the rotation search in degrees.
-        Smaller values → finer search, more decode attempts.
-        Must satisfy ``0 < rotation_step ≤ 360``.
-
-    Total embedded bits
-    -------------------
-    ``message_length × msg_repeat``
-    """
-
     def __init__(
-        self,
-        message_length:       int   = 32,
-        key:                  int   = 42,
-        alpha:                float = 70.0,
-        msg_repeat:           int   = 30,
-        neighborhood_size:    int   = 5,
-        robust_to_transforms: bool  = True,
-        confidence_threshold: float = 0.90,
-        robust_to_rotations:  bool  = True,
-        rotation_step:        float = 1.0,
-    ) -> None:
-        if neighborhood_size % 2 == 0 or neighborhood_size < 3:
-            raise ValueError("neighborhood_size must be an odd integer ≥ 3.")
-        if not (0 < rotation_step <= 360):
-            raise ValueError("rotation_step must be in the range (0, 360].")
+		self,
+		message_length: int = 32,
+        n_repeats: int = 3,
+		psnr_threshold: float = 30.0,
+		max_encode_time: float = 5.0,
+		max_decode_time: float = 1.0,
+        patch_size: int = 32,
+        key: int = 42,
+        tile_mode: str = "symmetric",
+        confidence_threshold: float = 0.8,
+        sync_enabled: bool = True,
+        upsample_factor_rs: int = 10,
+        upsample_factor_t: int = 10,
 
-        self.message_length       = message_length
-        self.key                  = key
-        self.alpha                = float(alpha)
-        self.msg_repeat           = msg_repeat
-        self.neighborhood_size    = neighborhood_size
-        self.robust_to_transforms = robust_to_transforms
+	):
+        self.message_length = message_length
+        self.n_repeats = n_repeats
+        self.psnr_threshold = psnr_threshold
+        self.max_encode_time = max_encode_time
+        self.max_decode_time = max_decode_time
+        self.patch_size = patch_size
+        self.key = key
+        self.tile_mode = tile_mode
         self.confidence_threshold = confidence_threshold
-        self.robust_to_rotations  = robust_to_rotations
-        self.rotation_step        = float(rotation_step)
+        self.sync_enabled = sync_enabled
+        self.upsample_factor_rs = upsample_factor_rs
+        self.upsample_factor_t = upsample_factor_t
+    # ---------------------------------------------------------------------------
+    # Encode
+    # ---------------------------------------------------------------------------
 
-        self._total_embedded: int = message_length * msg_repeat
-
-        # ── Neighbourhood ring offsets — precomputed once ─────────────────
-        # All (Δrow, Δcol) pairs in the k×k window except the center (0, 0).
-        half   = neighborhood_size // 2
-        dr, dc = np.mgrid[-half : half + 1, -half : half + 1]
-        dr, dc = dr.ravel(), dc.ravel()
-        ring   = (dr != 0) | (dc != 0)
-        self._DR:  np.ndarray = dr[ring].astype(np.intp)   # (k²−1,)
-        self._DC:  np.ndarray = dc[ring].astype(np.intp)   # (k²−1,)
-        self._pad: int        = half
-
-    # ── Internal helpers ──────────────────────────────────────────────────
-
-    def _split_luma(
-        self, image: np.ndarray
-    ) -> Tuple[np.ndarray, Optional[np.ndarray], bool]:
-        """
-        Convert input image to float32 luma data used for watermarking.
-
-        Returns
-        -------
-        y_plane : np.ndarray, shape (H, W, 1), float32
-            Luminance channel (Y) where embedding/decoding happens.
-        ycrcb : Optional[np.ndarray], shape (H, W, 3), float32
-            Full YCrCb representation for color images; None for grayscale.
-        squeeze_output : bool
-            True only when input was 2D grayscale (H, W), so encode can return
-            the same shape.
-        """
-        img = image.astype(np.float32)
-        if img.ndim == 2:
-            return img[:, :, np.newaxis], None, True
-        if img.ndim == 3 and img.shape[2] == 1:
-            return img, None, False
-        if img.ndim == 3 and img.shape[2] == 3:
-            ycrcb = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
-            return ycrcb[:, :, :1], ycrcb, False
-        raise ValueError(
-            "image must have shape (H, W), (H, W, 1), or (H, W, 3)."
-        )
-
-    def _merge_luma(
+    def encode(
         self,
-        y_plane: np.ndarray,
-        ycrcb: Optional[np.ndarray],
-        squeeze_output: bool,
+        image: np.ndarray,
+        watermark: np.ndarray,
     ) -> np.ndarray:
         """
-        Rebuild an image from watermarked luma data.
+        Embed *watermark* bits into the LSB plane of *image*.
 
-        For grayscale inputs this returns the luma plane directly.
-        For color inputs this writes Y back into YCrCb then converts to BGR.
+        Parameters
+        ----------
+        image : ndarray of shape (H, W) or (H, W, C), any dtype
+            Input image.  Converted to uint8 internally.
+        watermark : ndarray of shape (n_bits,), dtype int
+            Bits in {0, 1} to embed.
+        patch_size : int
+            Side length of the square base patch (before ×2 upsample).
+        key : int
+            Secret key — controls patch content and bit positions.
+        tile_mode : {"normal", "symmetric"}
+            How the patch is tiled over the image.
+
+        Returns
+        -------
+        watermarked : ndarray, same shape as *image*, dtype uint8
+            Image with watermark bits written into the LSB.
         """
-        np.clip(y_plane, 0.0, 255.0, out=y_plane)
+        img_u8  = img_as_ubyte(image)
+        H, W    = img_u8.shape[:2]
 
-        if ycrcb is None:
-            return y_plane[:, :, 0] if squeeze_output else y_plane
+        watermark = np.asarray(watermark, dtype=np.uint8)
+        watermark = np.tile(watermark, self.n_repeats)
 
-        ycrcb[:, :, 0] = y_plane[:, :, 0]
-        bgr = cv2.cvtColor(ycrcb, cv2.COLOR_YCrCb2BGR)
-        np.clip(bgr, 0.0, 255.0, out=bgr)
-        return bgr
+        patch = build_patch_image(watermark, (H, W), self.patch_size, self.key, self.tile_mode)
 
-    def _pixel_indices(
-        self, H: int, W: int, C: int
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """
-        Draw ``_total_embedded`` unique pixel positions from H×W×C using
-        a seeded RNG — identical seed → identical positions every call.
+        if img_u8.ndim == 3:
+            # Apply to luminance channel (green, index 1) only for colour images
+            result         = img_u8.copy()
+            result[..., 1] = (img_u8[..., 1] & np.uint8(0xFE)) | patch
+        else:
+            result = (img_u8 & np.uint8(0xFE)) | patch
 
-        Callers that have applied a geometric transform must pass the
-        *post-transform* (H, W).  For lossless ±90° rotations H and W
-        simply swap, so the same seeded draw addresses the correct pixels
-        in the transformed image — no special handling required.
+        return result
 
-        Raises
-        ------
-        ValueError if the image is too small to host the payload.
-        """
-        n   = self._total_embedded
-        cap = H * W * C
-        if n > cap:
-            raise ValueError(
-                f"Image too small: need {n} pixel positions, "
-                f"capacity is {cap} ({H}×{W}×{C})."
-            )
-        flat = np.random.default_rng(self.key).choice(cap, size=n, replace=False)
-        return np.unravel_index(flat, (H, W, C))   # type: ignore[return-value]
 
-    def _confidence_scores(
+    # ---------------------------------------------------------------------------
+    # Internal: single-pass decode
+    # ---------------------------------------------------------------------------
+
+    def _decode_pass(
         self,
-        img:   np.ndarray,
-        rows:  np.ndarray,
-        cols:  np.ndarray,
-        chans: np.ndarray,
+        lsb_plane: np.ndarray,
+    ) -> tuple[np.ndarray, float]:
+        """
+        Extract bits + confidence from a (possibly pre-aligned) *lsb_plane*.
+
+        Parameters
+        ----------
+        lsb_plane : ndarray of shape (H, W), uint8
+        patch_size : int
+        n_bits : int
+        key : int
+        tile_mode : str
+
+        Returns
+        -------
+        bits : ndarray of shape (n_bits,), uint8
+        confidence : float
+        """
+        return extract_bits_from_lsb(
+            lsb_plane, self.patch_size, self.message_length * self.n_repeats, self.key, self.tile_mode
+        )
+
+
+    # ---------------------------------------------------------------------------
+    # Decode
+    # ---------------------------------------------------------------------------
+
+    def decode(
+        self,
+        image: np.ndarray,
     ) -> np.ndarray:
         """
-        Compute a real-valued score at each embedded pixel position::
+        Recover watermark bits from *image*.
 
-            score_i = img[row_i, col_i, chan_i]
-                    − mean( k×k neighbourhood, center excluded )
-
-        Reflect-padding (width = ``_pad``) handles border pixels without
-        introducing artificial edges.  Sign encodes the decoded bit;
-        magnitude encodes confidence.  Both metrics are derived from these.
-
-        Returns
-        -------
-        np.ndarray, shape (_total_embedded,), float32
-        """
-        padded = np.pad(
-            img,
-            ((self._pad, self._pad), (self._pad, self._pad), (0, 0)),
-            mode="reflect",
-        )
-        nr  = rows[:, None] + self._pad + self._DR          # (n, k²−1)
-        nc  = cols[:, None] + self._pad + self._DC
-        nch = np.broadcast_to(chans[:, None], nr.shape).astype(np.intp)
-
-        return img[rows, cols, chans] - padded[nr, nc, nch].mean(axis=1)
-
-    def _decode_once(
-        self, img: np.ndarray, transform: str = "identity"
-    ) -> DecodeResult:
-        """
-        Decode the watermark from a single (H, W, C) float32 image and
-        compute both quality metrics.
-
-        Pixel indices are derived from ``img.shape`` — caller is responsible
-        for passing the already-transformed image.
+        When *sync_enabled* is ``True`` the decoder tries three alignments
+        in order, returning early on the first whose confidence exceeds
+        ``CONFIDENCE_THRESHOLD``, then falls back to the best overall result.
 
         Parameters
         ----------
-        img       : np.ndarray, shape (H, W, C), float32
-        transform : str — echoed into the returned DecodeResult
+        image : ndarray of shape (H, W) or (H, W, C)
+            Possibly transformed watermarked image.
+        n_bits : int
+            Number of watermark bits to recover.
+        patch_size : int
+            Must match the value used in :func:`encode`.
+        key : int
+            Must match the value used in :func:`encode`.
+        tile_mode : {"normal", "symmetric"}
+        sync_enabled : bool
+            Enable rotation/scale and translation correction.
+        upsample_factor_rs : int
+            Sub-pixel factor for rotation/scale phase correlation.
+        upsample_factor_t : int
+            Sub-pixel factor for translation phase correlation.
 
         Returns
         -------
-        DecodeResult
+        bits : ndarray of shape (n_bits,), dtype uint8
+            Decoded bits in {0, 1}.
         """
-        H, W, C = img.shape
-        rows, cols, chans = self._pixel_indices(H, W, C)
-        scores = self._confidence_scores(img, rows, cols, chans)
+        img_u8 = img_as_ubyte(image)
 
-        # ── Metric 1: embedding strength ──────────────────────────────────
-        # mean |score| over all selected pixels.
-        # ≈ alpha if those pixels were actually shifted by ±alpha at encode time.
-        embedding_strength = float(np.abs(scores).mean())
+        # Extract LSB plane (green channel for colour images)
+        channel = img_u8[..., 1] if img_u8.ndim == 3 else img_u8
+        lsb     = (channel & np.uint8(1)).astype(np.uint8)
 
-        # ── Metric 2: per-bit copy agreement → overall confidence ─────────
-        # Reshape raw scores into (msg_repeat, message_length): one row per copy.
-        scores_2d = scores.reshape(self.msg_repeat, self.message_length)
+        # -----------------------------------------------------------------------
+        # Step 1 — direct decode (no alignment)
+        # -----------------------------------------------------------------------
+        bits, conf = extract_bits_from_lsb(lsb, self.patch_size, self.message_length * self.n_repeats, self.key, self.tile_mode)
+        bits = np.mean(bits.reshape(self.n_repeats, -1), axis=0) > 0.5  # Majority vote over repeats
+        if not self.sync_enabled or conf >= self.confidence_threshold:
+            return bits
 
-        # Hard bit decision for every (copy, bit-position) pair.
-        bits_2d  = scores_2d >= 0.0                          # (msg_repeat, msg_len)
+        best_bits, best_conf = bits, conf
 
-        # Fraction of copies voting "1" at each bit position.
-        frac_one = bits_2d.mean(axis=0)                      # (message_length,)
-
-        # Per-bit confidence = how strongly copies agree with majority.
-        # max(p, 1−p) is 1.0 when all copies agree, 0.5 when perfectly split.
-        bit_conf = np.maximum(frac_one, 1.0 - frac_one)      # (message_length,)
-        overall_confidence = float(bit_conf.mean())
-
-        # Final bits: majority vote (equivalent to rounding frac_one).
-        bits = (frac_one >= 0.5).astype(np.uint8)
-
-        return DecodeResult(
-            bits=bits,
-            embedding_strength=embedding_strength,
-            overall_confidence=overall_confidence,
-            transform=transform,
+        # -----------------------------------------------------------------------
+        # Step 2 — rotation + scale + translation correction
+        # -----------------------------------------------------------------------
+        lsb_rs = synchronise(
+            lsb,
+            upsample_factor_rs=self.upsample_factor_rs,
+            upsample_factor_t=self.upsample_factor_t,
+            patch_size=self.patch_size,
+            key=self.key,
+            tile_mode=self.tile_mode,
         )
 
-    # ── Public API ────────────────────────────────────────────────────────
+        bits_rs, conf_rs = extract_bits_from_lsb(
+            lsb_rs, self.patch_size, self.message_length * self.n_repeats, self.key, self.tile_mode
+        )
+        bits_rs = np.mean(bits_rs.reshape(self.n_repeats, -1), axis=0) > 0.5  # Majority vote over repeats
+        if conf_rs > best_conf:
+            best_bits, best_conf = bits_rs, conf_rs
+        if best_conf >= self.confidence_threshold:
+            return best_bits
 
-    def encode(self, image: np.ndarray, watermark: np.ndarray) -> np.ndarray:
-        """
-        Embed *watermark* into *image* via additive modulation on luminance.
-
-        Each selected Y-channel sample is shifted by::
-
-            Δ = alpha × (2 × bit − 1)     # +alpha for bit=1, −alpha for bit=0
-
-        Payload ``= tile(watermark, msg_repeat)`` — all copies use the same
-        seeded pixel positions so they can be averaged at decode time.
-        Output is clipped to [0, 255] and cast to the original dtype.
-
-        Parameters
-        ----------
-        image     : np.ndarray, shape (H, W), (H, W, 1), or (H, W, 3)
-                3-channel inputs are treated as BGR and converted to YCbCr.
-        watermark : np.ndarray, shape (message_length,), dtype uint8
-
-        Returns
-        -------
-        np.ndarray — watermarked image, **same shape and dtype** as *image*.
-        """
-        orig_dtype = image.dtype
-        y_plane, ycrcb, squeeze_output = self._split_luma(image)
-        H, W, C = y_plane.shape
-
-        payload                        = np.tile(np.asarray(watermark, dtype=np.uint8), self.msg_repeat)
-        rows, cols, chans              = self._pixel_indices(H, W, C)
-        y_plane[rows, cols, chans]    += self.alpha * (2.0 * payload.astype(np.float32) - 1.0)
-
-        encoded = self._merge_luma(y_plane, ycrcb, squeeze_output)
-        return encoded.astype(orig_dtype)
-
-    def decode(self, image: np.ndarray) -> np.ndarray:
-        """
-        Extract the watermark from *image*; return bits only.
-
-        Thin wrapper around :meth:`decode_verbose` — use that method to
-        also obtain quality metrics and the winning transform name.
-
-        Parameters
-        ----------
-        image : np.ndarray, shape (H, W), (H, W, 1), or (H, W, 3)
-
-        Returns
-        -------
-        np.ndarray, shape (message_length,), dtype uint8
-        """
-        return self.decode_verbose(image).bits
-
-    def decode_verbose(self, image: np.ndarray) -> DecodeResult:
-        """
-        Extract the watermark from *image* with full diagnostic information.
-
-        Without geometric robustness (both flags False)
-            Single decode pass on the image as-is.
-
-        With lossless-transform robustness (``robust_to_transforms=True``)
-            For each candidate in ``_CANDIDATE_TRANSFORMS`` (cheapest first):
-
-            1. Apply the candidate inverse transform — H and W swap for
-               rot90 / rot270, handled automatically by ``_pixel_indices``.
-            2. Compute ``overall_confidence`` (primary ranking criterion).
-            3. **Early exit** if ``overall_confidence ≥ confidence_threshold``.
-            4. After all candidates, return the highest-confidence result.
-
-        With arbitrary-rotation robustness (``robust_to_rotations=True``)
-            For each angle θ in ``np.arange(0, 360, rotation_step)``
-            (e.g. 0°, 15°, 30°, … for the default step of 15°):
-
-            1. Rotate the image by −θ degrees (inverse of a CW-by-θ attack)
-               using bilinear interpolation and reflect border-padding.
-            2. Compute ``overall_confidence``.
-            3. **Early exit** if ``overall_confidence ≥ confidence_threshold``.
-            4. After all angles, return the highest-confidence result.
-
-        When both flags are True both searches run; the single best result
-        across all candidates is returned.  If an early-exit fires inside the
-        first search the second search is skipped entirely.
-
-        Parameters
-        ----------
-        image : np.ndarray, shape (H, W), (H, W, 1), or (H, W, 3)
-
-        Returns
-        -------
-        DecodeResult — bits, embedding_strength, overall_confidence, transform
-        """
-        y_plane, _, _ = self._split_luma(image)
-
-        # ── Fast path: no search ──────────────────────────────────────────
-        if not self.robust_to_transforms and not self.robust_to_rotations:
-            return self._decode_once(y_plane, transform="identity")
-
-        best: Optional[DecodeResult] = None
-
-        def _update(result: DecodeResult) -> bool:
-            """Update *best* in-place; return True if early-exit threshold met."""
-            nonlocal best
-            if best is None or result.overall_confidence > best.overall_confidence:
-                best = result
-            return result.overall_confidence >= self.confidence_threshold
-
-        # ── Lossless-transform search ─────────────────────────────────────
-        if self.robust_to_transforms:
-            for name in _CANDIDATE_TRANSFORMS:
-                transformed = _apply_transform(y_plane, name)
-                try:
-                    result = self._decode_once(transformed, transform=name)
-                except ValueError:
-                    continue  # transformed image too small (rare edge case)
-                if _update(result):
-                    return best  # type: ignore[return-value]
-
-        # ── Arbitrary-rotation search ─────────────────────────────────────
-        if self.robust_to_rotations:
-            # Candidate inverse-rotation angles: negate each to undo a CW attack.
-            # np.arange is fully vectorised; the loop only drives early-exit logic.
-            angles = np.arange(0.0, 360.0, self.rotation_step)
-            for angle in angles:
-                rotated = _rotate_image(y_plane, -angle)
-                label   = f"rot{angle:.4g}deg"
-                try:
-                    result = self._decode_once(rotated, transform=label)
-                except ValueError:
-                    continue  # rotated image too small (should never happen)
-                if _update(result):
-                    return best  # type: ignore[return-value]
-
-        assert best is not None, "All candidate transforms failed (image too small?)."
-        return best
+        return best_bits
