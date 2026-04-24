@@ -1,35 +1,40 @@
 """
 utils/sync.py
 =============
-Frequency-domain synchronisation for LSB watermark decoding.
+Frequency-domain synchronisation for watermark decoding.
 
 Pipeline
 --------
-1. Spatial autocorrelation via Wiener-Khinchin (ifft(F·F*))
-2. Log-polar phase correlation  → estimate rotation + scale
-3. Correct rotation / scale     → cropped (no resize artefacts)
-4. Cartesian phase correlation  → estimate translation
-5. Correct translation          → final aligned image
+1. Spatial autocorrelation via Wiener-Khinchin on both image and reference
+2. Non-maximum suppression (NMS) to isolate lattice peaks
+3. Match image peaks to reference peaks → estimate affine transform
+4. Apply inverse affine (crop, no padding artefacts)
+5. Sum all patch-sized blocks into one block (symmetric-aware)
+6. Correlate summed block against reference patch → estimate translation
+7. Apply circular shift to align block with reference
+8. Return aligned, summed block of shape (patch_size * upsample_factor,
+   patch_size * upsample_factor)
+
+The ``upsample_factor`` parameter must match the value used in patch.py at
+encode time.  It controls the pixel-block size: each logical patch cell is
+represented by ``upsample_factor × upsample_factor`` image pixels.
 """
 
 import numpy as np
-from skimage.transform import rescale, rotate, warp, AffineTransform, SimilarityTransform, warp_polar
-from skimage.registration import phase_cross_correlation
-from utils.patch import build_reference_patch
+import cv2
+from scipy.ndimage import maximum_filter
+from utils.patch import build_reference_patch, generate_base_patch, upsample_patch
 
 
 # ---------------------------------------------------------------------------
-# Internal helpers
+# Autocorrelation
 # ---------------------------------------------------------------------------
 
-def _autocorr_spectrum(image: np.ndarray) -> np.ndarray:
+def autocorrelation_fft(image: np.ndarray) -> np.ndarray:
     """
-    Compute the spatial autocorrelation of *image* via the Wiener-Khinchin
-    theorem: ``autocorr = ifft2(F · conj(F))``, shifted to centre.
+    Compute the spatial autocorrelation via the Wiener-Khinchin theorem.
 
-    The result captures the periodic structure of the watermark tiling
-    and is rotation-equivariant, making it suitable for log-polar
-    phase correlation.
+    ``autocorr = ifft2(F · conj(F))``, shifted so DC is at the centre.
 
     Parameters
     ----------
@@ -38,233 +43,255 @@ def _autocorr_spectrum(image: np.ndarray) -> np.ndarray:
     Returns
     -------
     autocorr : ndarray of shape (H, W), dtype float64
-        Log-scaled spatial autocorrelation, DC at centre.
     """
-    # Mean-center so non-period autocorrelation lags collapse to ≈ 0,
-    # leaving clear peaks only at tile-period offsets.
-    img     = image - image.mean()
-    f       = np.fft.fft2(img)
-    # Multiply by conjugate — keep complex product, take real part after ifft
-    ac      = np.fft.ifft2(f * np.conj(f)).real
-    ac      = np.fft.fftshift(ac)
-    # Log-scale for phase correlation; clip negatives (numerical noise)
-    return np.log1p(np.maximum(ac, 0.0))
-
-
-def _to_log_polar(spectrum: np.ndarray) -> np.ndarray:
-    """
-    Convert a centred 2-D representation to log-polar coordinates.
-
-    Parameters
-    ----------
-    spectrum : ndarray of shape (H, W)
-
-    Returns
-    -------
-    log_polar : ndarray of shape (H, W)
-    """
-    return warp_polar(spectrum, scaling="log")
+    normalized = (image - image.min()) / (image.max() - image.min() + 1e-9)
+    f = np.fft.fft2(normalized.astype(np.float64))
+    return np.fft.fftshift(np.real(np.fft.ifft2(f * np.conj(f))))
 
 
 # ---------------------------------------------------------------------------
-# Rotation + scale estimation
+# Non-maximum suppression
 # ---------------------------------------------------------------------------
 
-def estimate_rotation_scale(
-    lsb_image: np.ndarray,
-    upsample_factor: int = 10,
-    key: int = 0,
-    patch_size: int = 32,
-    tile_mode: str = "normal",
-) -> tuple[float, float]:
+def non_maximum_suppression(image: np.ndarray, size: int = 31) -> np.ndarray:
     """
-    Estimate rotation (degrees) and scale factor between *lsb_image* and
-    *reference* using log-polar phase correlation on the spatial
-    autocorrelations.
-
-    Parameters
-    ----------
-    lsb_image : ndarray of shape (H, W), uint8
-        LSB plane extracted from the watermarked image.
-    reference : ndarray of shape (H, W), uint8
-        Reference patch tiled to the same size.
-    upsample_factor : int, optional
-        Sub-pixel precision factor passed to :func:`phase_cross_correlation`
-        (default 1 = pixel precision, higher = more precise but slower).
-    patch_size : int, optional
-        Patch size used for translation correction (default 32; should match the reference patch size).
-    key : int, optional
-        Random seed for generating the reference patch (default 0).
-    tile_mode : str, optional
-        Mode for tiling the reference patch (default "normal").
-
-    Returns
-    -------
-    angle : float
-        Estimated rotation angle in degrees (counter-clockwise).
-    scale : float
-        Estimated scale factor (> 1 means image was zoomed in).
-    """
-    reference = build_reference_patch(lsb_image.shape, patch_size=patch_size, key=key, tile_mode=tile_mode)
-    # Use raw float64 — values stay in {0.0, 1.0}, not divided by 255
-    img_f  = lsb_image.astype(np.float64)
-    ref_f  = reference.astype(np.float64)
-
-    img_lp = _to_log_polar(_autocorr_spectrum(img_f))
-    ref_lp = _to_log_polar(_autocorr_spectrum(ref_f))
-
-    shift, _, _ = phase_cross_correlation(
-        ref_lp, img_lp,
-        normalization=None,
-        upsample_factor=upsample_factor,
-    )
-
-    H, W   = img_lp.shape
-    angle  = shift[0] / H * 360.0
-
-    # warp_polar(scaling='log') maps cols to natural-log-spaced radii
-    # r_j = exp(j / W * log(output_radius)).  Recover scale from col shift.
-    output_radius = np.sqrt(H ** 2 + W ** 2) / 2.0
-    scale = np.exp(shift[1] / W * np.log(max(output_radius, 2.0)))
-
-    return float(angle), float(scale)
-
-
-# ---------------------------------------------------------------------------
-# Rotation + scale correction
-# ---------------------------------------------------------------------------
-
-def correct_rotation_scale(
-    image: np.ndarray,
-    angle: float,
-    scale: float,
-) -> np.ndarray:
-    """
-    Apply inverse rotation and scale to *image*.
-
-    The image is cropped to its original size — no resize artefacts.
+    Retain only local maxima within a ``size × size`` neighbourhood.
 
     Parameters
     ----------
     image : ndarray of shape (H, W)
-    angle : float
-        Rotation angle in degrees (as returned by
-        :func:`estimate_rotation_scale`).
-    scale : float
-        Scale factor.
+    size  : int
 
     Returns
     -------
-    corrected : ndarray of shape (H, W), dtype uint8
+    nms : ndarray of shape (H, W)
     """
-    inv_scale = scale
+    return (image == maximum_filter(image, size=size)) * image
 
-    scaled = rescale(
-        image, inv_scale, order=0,
-        preserve_range=True, anti_aliasing=False, channel_axis=None
+
+# ---------------------------------------------------------------------------
+# Interest point detection
+# ---------------------------------------------------------------------------
+
+def detect_interest_points(nms: np.ndarray) -> np.ndarray:
+    """
+    Select three interest points from NMS peaks via a proximity chain.
+
+    Steps
+    -----
+    1. Find the center peak: NMS peak closest to the image center.
+    2. Center all peak coordinates relative to this peak (center → origin).
+    3. p1 = center peak = (0, 0).
+    4. p2 = non-center peak closest to p1.
+    5. p3 = non-center peak closest to p2.
+
+    Parameters
+    ----------
+    nms : ndarray of shape (H, W)
+
+    Returns
+    -------
+    points : ndarray of shape (3, 2)
+        [p1, p2, p3] as (row, col) in centered coordinates.
+    """
+    H, W = nms.shape
+    ys, xs = np.nonzero(nms)
+    coords = np.stack([ys, xs], axis=1).astype(np.float64)  # (N, 2)
+
+    # Center peak: NMS peak closest to the image center
+    center_idx = np.argmin(np.linalg.norm(coords - [H / 2.0, W / 2.0], axis=1))
+    centered = coords - coords[center_idx]              # center peak → (0, 0)
+
+    # Non-center peaks
+    others = centered[np.arange(len(centered)) != center_idx]
+
+    p1 = np.zeros(2)                                            # (0, 0)
+    p2 = others[np.argmin(np.linalg.norm(others - p1, axis=1))]
+    p3 = others[np.argmin(np.linalg.norm(others - p2, axis=1))]
+
+    return np.stack([p1, p2, p3])
+
+
+# ---------------------------------------------------------------------------
+# Affine estimation
+# ---------------------------------------------------------------------------
+
+def estimate_affine(img_ac: np.ndarray, ref_ac: np.ndarray, nms_size: int = 31) -> np.ndarray:
+    """
+    Estimate the 2-D affine matrix mapping image lattice peaks to reference peaks.
+
+    Interest points are detected independently in each autocorrelation map,
+    then matched by position in the proximity chain (p1↔p1, p2↔p2, p3↔p3).
+
+    Parameters
+    ----------
+    img_ac   : ndarray of shape (H, W)
+    ref_ac   : ndarray of shape (H, W)
+    nms_size : int
+
+    Returns
+    -------
+    M : ndarray of shape (2, 3) — OpenCV affine matrix
+    """
+    img_pts = detect_interest_points(non_maximum_suppression(img_ac, nms_size))
+    ref_pts = detect_interest_points(non_maximum_suppression(ref_ac, nms_size))
+
+    # cv2.getAffineTransform expects (x, y) = (col, row)
+    src = img_pts[:, ::-1].astype(np.float32)
+    dst = ref_pts[:, ::-1].astype(np.float32)
+    return cv2.getAffineTransform(src, dst)
+
+
+# ---------------------------------------------------------------------------
+# Affine correction
+# ---------------------------------------------------------------------------
+
+def correct_affine(
+    image: np.ndarray,
+    M: np.ndarray,
+    interpolation: int = cv2.INTER_LINEAR,
+) -> np.ndarray:
+    """
+    Apply an affine warp and crop to the largest centred rectangle with no
+    padding artefacts.
+
+    Parameters
+    ----------
+    image         : ndarray of shape (H, W) — uint8 (LSB) or float32 (residual)
+    M             : ndarray of shape (2, 3)
+    interpolation : int — OpenCV interpolation flag
+
+    Returns
+    -------
+    cropped : ndarray, same dtype as image
+    """
+    H, W = image.shape
+    warped = cv2.warpAffine(
+        image.astype(np.float32), M, (W, H),
+        flags=interpolation, borderMode=cv2.BORDER_CONSTANT, borderValue=0,
     )
 
-    rotated = rotate(
-        scaled, -angle, resize=True,
-        order=0, mode="constant", cval=0, preserve_range=True
-    )
+    angle = abs(np.arctan2(M[1, 0], M[0, 0])) % (np.pi / 2)
+    s, c = np.sin(angle), np.cos(angle)
 
-    h, w = scaled.shape
-    a = np.deg2rad(abs(angle)) % (np.pi / 2)
-    s, c = np.sin(a), np.cos(a)
-
-    if min(h, w) <= 2 * s * c * max(h, w):
-        crop_w = crop_h = int(min(h, w) / (2 * max(s, c)))
+    if min(H, W) <= 2 * s * c * max(H, W):
+        crop_h = crop_w = int(min(H, W) / (2 * max(s, c) + 1e-9))
     else:
-        d = c*c - s*s
-        crop_w = int((w * c - h * s) / d)
-        crop_h = int((h * c - w * s) / d)
+        d = c * c - s * s + 1e-9
+        crop_h = int((H * c - W * s) / d)
+        crop_w = int((W * c - H * s) / d)
 
-    H, W = rotated.shape
     cy, cx = H // 2, W // 2
-
-    return rotated[
-        cy - crop_h // 2: cy + crop_h // 2,
-        cx - crop_w // 2: cx + crop_w // 2
+    crop_h, crop_w = max(crop_h, 1), max(crop_w, 1)
+    return warped[
+        cy - crop_h // 2 : cy + crop_h // 2,
+        cx - crop_w // 2 : cx + crop_w // 2,
     ].astype(image.dtype)
 
 
 # ---------------------------------------------------------------------------
-# Translation estimation + correction
+# Block summation
 # ---------------------------------------------------------------------------
 
-def estimate_translation(
-    lsb_image: np.ndarray,
-    upsample_factor: int = 10,
-    key: int = 0,
-    patch_size: int = 32,
-    tile_mode: str = "normal",
-) -> tuple[float, float]:
-    """
-    Estimate sub-pixel translation via Cartesian phase correlation.
-
-    Parameters
-    ----------
-    lsb_image : ndarray of shape (H, W)
-    reference : ndarray of shape (H, W)
-    upsample_factor : int, optional
-        Sub-pixel precision factor (default 10; use higher for finer shifts).
-    patch_size : int, optional
-        Patch size used for translation correction (default 32; should match the reference patch size).
-    key : int, optional
-        Random seed for generating the reference patch (default 0).
-    tile_mode : str, optional
-        Mode for tiling the reference patch (default "normal").
-
-    Returns
-    -------
-    shift_row : float
-    shift_col : float
-    """
-    reference = build_reference_patch(lsb_image.shape, patch_size=patch_size, key=key, tile_mode=tile_mode)
-    shift, _, _ = phase_cross_correlation(
-        reference.astype(np.float64),
-        lsb_image.astype(np.float64),
-        normalization=None,
-        upsample_factor=upsample_factor,
-    )
-    return float(shift[0]), float(shift[1])
-
-def correct_translation(
+def sum_blocks(
     image: np.ndarray,
-    shift_row: float,
-    shift_col: float,
+    patch_size: int,
+    tile_mode: str = "normal",
+    upsample_factor: int = 2,
 ) -> np.ndarray:
     """
-    Apply translation using geometric transform (no wrap).
+    Divide image into non-overlapping blocks and sum them into a single block.
 
-    Padding is NaN (neutral for downstream voting).
-    No value remapping is applied.
+    When ``tile_mode == "symmetric"``, every other tile is flipped before
+    summation to undo the symmetric tiling applied during encoding.
 
     Parameters
     ----------
-    image : ndarray (H, W), values in {0,1}
-    shift_row : float
-    shift_col : float
+    image           : ndarray of shape (H, W)
+    patch_size      : int — logical patch side length (before upsampling)
+    tile_mode       : {"normal", "symmetric"}
+    upsample_factor : int — must match the value used during encoding
 
     Returns
     -------
-    shifted : ndarray (H, W), float32 with NaNs
+    block : ndarray of shape (up, up), dtype float64
+        where ``up = patch_size * upsample_factor``
     """
+    up = patch_size * upsample_factor
+    H, W = image.shape
 
-    # IMPORTANT: inverse mapping (warp applies inverse transform)
-    tform = SimilarityTransform(translation=(-shift_col, -shift_row))
-
-    shifted = warp(
-        image.astype(np.float32),
-        tform,
-        order=0,                 # no interpolation
+    img = np.pad(
+        image.astype(np.float64),
+        ((0, (-H) % up), (0, (-W) % up)),
         mode="constant",
-        cval=np.nan,             # <-- key point
-        preserve_range=True,
     )
+    H2, W2 = img.shape
+    tiles = img.reshape(H2 // up, up, W2 // up, up).transpose(1, 3, 0, 2)  # (up, up, Ty, Tx)
 
-    return shifted
+    if tile_mode == "symmetric":
+        tiles[:, :, 1::2, :] = tiles[::-1, :, 1::2, :]
+        tiles[:, :, :, 1::2] = tiles[:, ::-1, :, 1::2]
+
+    return np.sum(tiles, axis=(2, 3))
+
+
+# ---------------------------------------------------------------------------
+# Translation via correlation on summed block
+# ---------------------------------------------------------------------------
+
+def estimate_translation_block(
+    summed_block: np.ndarray,
+    patch_size: int,
+    key: int,
+    nms_size: int = 5,
+    upsample_factor: int = 2,
+) -> tuple[int, int]:
+    """
+    Estimate integer translation between summed_block and the reference patch
+    via cross-correlation + NMS.
+
+    Parameters
+    ----------
+    summed_block    : ndarray of shape (up, up)
+    patch_size      : int
+    key             : int
+    nms_size        : int
+    upsample_factor : int
+
+    Returns
+    -------
+    shift_row, shift_col : int
+    """
+    ref_up = upsample_patch(generate_base_patch(patch_size, key),
+                            factor=upsample_factor).astype(np.float64)
+
+    corr = np.fft.fftshift(np.real(np.fft.ifft2(
+        np.fft.fft2(summed_block.astype(np.float64)) * np.conj(np.fft.fft2(ref_up))
+    )))
+
+    peak_y, peak_x = np.unravel_index(
+        np.argmax(non_maximum_suppression(corr, size=nms_size)), corr.shape
+    )
+    cy, cx = corr.shape[0] // 2, corr.shape[1] // 2
+    return int(peak_y) - cy, int(peak_x) - cx
+
+
+def correct_translation_block(
+    summed_block: np.ndarray, shift_row: int, shift_col: int
+) -> np.ndarray:
+    """
+    Apply a circular shift to summed_block to align it with the reference.
+
+    Parameters
+    ----------
+    summed_block       : ndarray of shape (up, up)
+    shift_row, shift_col : int
+
+    Returns
+    -------
+    aligned : ndarray of shape (up, up)
+    """
+    return np.roll(summed_block, (-shift_row, -shift_col), axis=(0, 1))
 
 
 # ---------------------------------------------------------------------------
@@ -272,50 +299,59 @@ def correct_translation(
 # ---------------------------------------------------------------------------
 
 def synchronise(
-    lsb_image: np.ndarray,
-    upsample_factor_rs: int = 10,
-    upsample_factor_t: int = 10,
+    img: np.ndarray,
     patch_size: int = 32,
     key: int = 0,
-    tile_mode: str = "normal",
+    tile_mode: str = "symmetric",
+    nms_size_ac: int = 31,
+    nms_size_corr: int = 5,
+    upsample_factor: int = 2,
 ) -> np.ndarray:
     """
-    Align *lsb_image* to *reference* using a two-stage pipeline.
+    Align img to the reference watermark grid and return the summed,
+    translation-corrected block.
 
-    Stage 1 — Log-polar phase correlation on spatial autocorrelations
-        → rotation + scale correction.
-    Stage 2 — Cartesian phase correlation on corrected image
-        → translation correction.
+    Pipeline
+    --------
+    1. Compute autocorrelations of image and reference via FFT.
+    2. Detect three lattice peaks in each → estimate affine transform.
+    3. Warp image with affine + safe centre-crop.
+    4. Sum all (patch_size * upsample_factor)² blocks of the corrected image.
+    5. Cross-correlate summed block with reference patch → translation.
+    6. Circular-shift to align.
 
     Parameters
     ----------
-    lsb_image : ndarray of shape (H, W), uint8
-    reference : ndarray of shape (H, W), uint8
-        Reference patch tiled to the same size as *lsb_image*.
-    upsample_factor_rs : int, optional
-        Sub-pixel factor for rotation/scale phase correlation (default 1).
-    upsample_factor_t : int, optional
-        Sub-pixel factor for translation phase correlation (default 10).
-    patch_size : int, optional
-        Patch size used for translation correction (default 32; should match the reference patch size).
-    key : int, optional
-        Random seed for generating the reference patch (default 0).
-    tile_mode : str, optional
-        Mode for tiling the reference patch (default "normal").
+    img            : ndarray of shape (H, W) — uint8 {0,1} or float32 residual
+    patch_size     : int
+    key            : int
+    tile_mode      : {"normal", "symmetric"}
+    nms_size_ac    : int — NMS window for autocorrelation peak detection
+    nms_size_corr  : int — NMS window for correlation peak detection
+    upsample_factor: int
 
     Returns
     -------
-    aligned_lsb : ndarray of shape (H, W), uint8
-        LSB plane realigned to the reference patch grid.
+    aligned_block : ndarray of shape (patch_size * upsample_factor,
+                                      patch_size * upsample_factor), float64
     """
-    # Stage 1 — rotation + scale
-    angle, scale = estimate_rotation_scale(
-        lsb_image, upsample_factor=upsample_factor_rs, key=key, patch_size=patch_size, tile_mode=tile_mode
+    interp = cv2.INTER_NEAREST if img.dtype == np.uint8 else cv2.INTER_LINEAR
+
+    reference = build_reference_patch(
+        img.shape, patch_size=patch_size, key=key,
+        tile_mode=tile_mode, upsample_factor=upsample_factor,
     )
-    lsb_rs = correct_rotation_scale(lsb_image, angle, scale)
 
-    # Stage 2 — translation
-    dr, dc    = estimate_translation(lsb_rs, upsample_factor=upsample_factor_t, key=key, patch_size=patch_size, tile_mode=tile_mode)
-    lsb_final = correct_translation(lsb_rs, dr, dc)
+    img_ac = autocorrelation_fft(img.astype(np.float64) - img.mean())
+    ref_ac = autocorrelation_fft(reference.astype(np.float64) - reference.mean())
 
-    return lsb_final
+    M = estimate_affine(img_ac, ref_ac, nms_size=nms_size_ac)
+    img_corrected = correct_affine(img, M, interpolation=interp)
+
+    summed = sum_blocks(img_corrected, patch_size=patch_size,
+                        tile_mode=tile_mode, upsample_factor=upsample_factor)
+    shift_row, shift_col = estimate_translation_block(
+        summed, patch_size=patch_size, key=key,
+        nms_size=nms_size_corr, upsample_factor=upsample_factor,
+    )
+    return correct_translation_block(summed, shift_row, shift_col)

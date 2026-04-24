@@ -39,3 +39,63 @@ Chaque fois que tu as besoin de faire par exemple une transformation affine qui 
 
 Tu peux utiliser OpenCV ou scikit-image pour les transformations et les corrélations.
 Assure-toi que le code est clair, bien structuré, commenté utilisant numpy style, aussi simple que possible et optimisé.
+
+
+Je veux maintenant que tu modifies 'model.py' (actuellement, LSB watermarking) pour faire du watermarking spatial (Garde la classe et les 2 méthodes encode et decode).
+Tu peux modifier patch.py selon tes besoins. (besoin d'updater patch en -1, +1 pour le watermarking spatial par exemple, ou l'extraction des bits du watermark pour le decoding...)
+
+La méthode de watermarking spatial que je veux que tu implémentes est la suivante:
+
+Encode: 
+
+- Préprocessing du watermark
+    - Si le watermark doit être répété, faire en sorte que ce soit le cas.
+    - Si un code de correction d'erreur doit être utilisé, l'appliquer au watermark. (Note: le nombre de répétitions du watermark et du code de correction d'erreur sont à déterminer expérimentalement pour trouver le meilleur compromis entre robustesse et imperceptibilité)
+    - Retourner le watermark préprocessé
+- Embedding du watermark dans le patch et padding du patch pour qu'il ait la même taille que l'image d'origine. (utilise les fonctions existantes de patch.py pour ça !!! Note: défaut est mode symétrique)
+- Convert patch en -1, + 1 (au lieu de 0, 1)
+- Compute la NVF (noise visibility function) de l'image d'origine (instructions ci-dessous)
+- Embedding du watermark: img = img + alpha_1 * NVF * w + alpha_2 * (1 - NVF) * w
+
+Decoding:
+
+- Create reference patch (utiliser les fonctions existantes de patch.py pour ça)
+- Calculer la NVF de l'image d'origine
+- Creer reference avec alpha_1 * NVF * ref + alpha_2 * (1 - NVF) * ref
+- Denoise image (utiliser wiener filter avec noise variance estimée à partir de la ref)
+- image - denoised image
+- synchronisation
+- extraction du watermark (La synchronisation renvoie déjà un patch aligné avec la référence contenant l'addition de tous les blocks, donc tu peux directement procéder à l'extraction du watermark: > 0 1, sinon 0)
+- Post-processing du watermark extrait (par exemple, si un code de correction d'erreur a été utilisé, l'appliquer pour corriger les erreurs dans le watermark extrait, ou si répétition du watermark, faire un vote majoritaire pour déterminer les bits du watermark final)
+
+La classe doit accepter les paramètres suivants:
+- alpha_1: poids du watermark dans les zones à forte variance
+- alpha_2: poids du watermark dans les zones à faible variance
+- D: paramètre de contrôle de la NVF
+- use_nvf: booléen indiquant si la NVF doit être utilisée pour le watermarking (si False, alors img = img + alpha_1 * w)
+- nvf_window_size: taille de la fenêtre utilisée pour calculer la NVF
+- msg_length: longueur du message à encoder dans le watermark
+- use_ecc: booléen indiquant si un code de correction d'erreur doit être utilisé
+- ecc_repetitions: nombre de répétitions du code de correction d'erreur
+- msg_repetitions: nombre de répétitions du watermark
+- patch_size: taille des patches utilisés pour l'embedding et la synchronisation
+- upsampling_factor: facteur d'upsampling pour les patches
+- key: clé utilisée pour toutes les générations aléatoires pour la reproductibilité
+
+
+
+NVF: 
+
+local_variance = compute_local_variance(image , WINDOW_SIZE)
+max_variance = np. max (local_variance)
+nvf = 1 / (1 + D * local_variance / max_variance)
+Les paramètres alpha_1, alpha_2 et D et nvf_window_size sont à déterminer expérimentalement pour trouver le meilleur compromis entre robustesse et imperceptibilité.
+
+Error correction code:
+
+Tu dois créer un nouveau module `error_correction.py` dans utils qui implémente des utilitaires pour les codes de correction d'erreur.
+Je veux que tu utilises la librairie `ldpc` pour utiliser des codes LDPC (Low-Density Parity-Check) pour la correction d'erreur.
+
+Le code doit être minimal, optimisé (utilisant les fonctions existantes et numpy vectorization), clair, bien structuré et commenté, documenté en style numpy. Tu peux utiliser OpenCV ou scikit-image selon tes besoins, évite de réimplémenter des fonctions déjà existantes dans ces bibliothèques.
+
+Code, documentation et commentaires doivent être en anglais. Je veux qu'il soit facile à comprendre et à maintenir.
