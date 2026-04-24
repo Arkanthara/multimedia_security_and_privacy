@@ -27,14 +27,14 @@ from utils.patch import build_reference_patch, generate_base_patch, upsample_pat
 
 
 # ---------------------------------------------------------------------------
-# Autocorrelation
+# Cross-correlation
 # ---------------------------------------------------------------------------
 
-def autocorrelation_fft(image: np.ndarray) -> np.ndarray:
+def correlation_fft(img_1: np.ndarray, img_2: np.ndarray) -> np.ndarray:
     """
-    Compute the spatial autocorrelation via the Wiener-Khinchin theorem.
+    Compute the cross-correlation between two images via the Wiener-Khinchin theorem.
 
-    ``autocorr = ifft2(F · conj(F))``, shifted so DC is at the centre.
+    ``crosscorr = ifft2(F1 · conj(F2))``, shifted so DC is at the centre.
 
     The input is expected to already have its mean removed (DC = 0) so that
     the central peak does not dominate.  No additional min-max normalisation
@@ -42,54 +42,60 @@ def autocorrelation_fft(image: np.ndarray) -> np.ndarray:
 
     Parameters
     ----------
-    image : ndarray of shape (H, W), real-valued, zero-mean
+    img_1 : ndarray of shape (H, W), real-valued, zero-mean
+    img_2 : ndarray of shape (h, w), real-valued, zero-mean
 
     Returns
     -------
-    autocorr : ndarray of shape (H, W), dtype float64
+    crosscorr : ndarray of shape (H, W), dtype float64
     """
     # FIX 1 – removed the internal min-max normalisation that was undoing the
     # mean-subtraction performed in `synchronise`.  The caller already removes
     # the DC component; a second rescaling scrambles the zero-mean property.
-    f = np.fft.fft2(image.astype(np.float64))
-    return np.fft.fftshift(np.real(np.fft.ifft2(f * np.conj(f))))
+    f1 = np.fft.fft2(img_1.astype(np.float64))
+    f2 = np.fft.fft2(img_2.astype(np.float64), s=img_1.shape)
+    return np.fft.fftshift(np.real(np.fft.ifft2(f1 * np.conj(f2))))
 
 
 # ---------------------------------------------------------------------------
 # Non-maximum suppression
 # ---------------------------------------------------------------------------
 
-def non_maximum_suppression(image: np.ndarray, size: int = 31) -> np.ndarray:
+# ---------------------------------------------------------------------------
+# Non-maximum suppression
+# ---------------------------------------------------------------------------
+ 
+def non_maximum_suppression(image: np.ndarray, size: int = 31, k: float = 1.0) -> np.ndarray:
     """
     Retain only local maxima within a ``size × size`` neighbourhood.
-
+ 
     Parameters
     ----------
     image : ndarray of shape (H, W)
     size  : int
-
+ 
     Returns
     -------
     nms : ndarray of shape (H, W)
     """
-    return (image == maximum_filter(image, size=size)) * image
-
-
+    return threshold_and_binarize((image == maximum_filter(image, size=size)) * image, k=k)
+ 
+ 
 # ---------------------------------------------------------------------------
 # Thresholding + binarisation  (NEW)
 # ---------------------------------------------------------------------------
-
+ 
 def threshold_and_binarize(nms: np.ndarray, k: float = 3.0) -> np.ndarray:
     """
     Keep only statistically significant NMS peaks and binarize them.
-
+ 
     Steps
     -----
     1. Consider only strictly positive NMS values (actual local maxima).
     2. Compute their mean ``μ`` and standard deviation ``σ``.
     3. Threshold: keep peaks with value > μ + k·σ.
     4. Binarize: set surviving peaks to 1.
-
+ 
     Why this matters
     ----------------
     Raw NMS returns *every* local maximum, including hundreds of noise bumps.
@@ -97,12 +103,12 @@ def threshold_and_binarize(nms: np.ndarray, k: float = 3.0) -> np.ndarray:
     instead of a true lattice peak.  Binarizing ensures that peak amplitude
     does not bias the proximity chain (all genuine lattice peaks should look
     equally strong after autocorrelation).
-
+ 
     Parameters
     ----------
     nms : ndarray of shape (H, W) – output of non_maximum_suppression
     k   : float – number of standard deviations above the mean
-
+ 
     Returns
     -------
     binary : ndarray of shape (H, W), dtype bool  (True at surviving peaks)
@@ -111,7 +117,8 @@ def threshold_and_binarize(nms: np.ndarray, k: float = 3.0) -> np.ndarray:
     if positive.size == 0:
         return np.zeros_like(nms, dtype=bool)
     threshold = positive.mean() + k * positive.std()
-    return nms > threshold
+    nms[nms <= threshold] = 0
+    return nms
 
 
 # ---------------------------------------------------------------------------
@@ -362,9 +369,7 @@ def estimate_translation_block(
     ref_up = upsample_patch(generate_base_patch(patch_size, key),
                             factor=upsample_factor).astype(np.float64)
 
-    corr = np.fft.fftshift(np.real(np.fft.ifft2(
-        np.fft.fft2(summed_block.astype(np.float64)) * np.conj(np.fft.fft2(ref_up))
-    )))
+    corr = correlation_fft(summed_block - summed_block.mean(), ref_up - ref_up.mean())
 
     peak_y, peak_x = np.unravel_index(
         np.argmax(non_maximum_suppression(corr, size=nms_size)), corr.shape
@@ -439,8 +444,8 @@ def synchronise(
         tile_mode=tile_mode, upsample_factor=upsample_factor,
     )
 
-    img_ac = autocorrelation_fft(img.astype(np.float64) - img.mean())
-    ref_ac = autocorrelation_fft(reference.astype(np.float64) - reference.mean())
+    img_ac = correlation_fft(img.astype(np.float64) - img.mean(), img.astype(np.float64) - img.mean())
+    ref_ac = correlation_fft(reference.astype(np.float64) - reference.mean(), reference.astype(np.float64) - reference.mean())
 
     M = estimate_affine(img_ac, ref_ac, nms_size=nms_size_ac)
     img_corrected = correct_affine(img, M, interpolation=interp)
