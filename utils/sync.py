@@ -22,9 +22,8 @@ represented by ``upsample_factor × upsample_factor`` image pixels.
 
 import numpy as np
 import cv2
-from scipy.ndimage import gaussian_filter, maximum_filter
-from utils.patch import build_reference_patch, build_reference_patch_bipolar, generate_base_patch, upsample_patch
-from skimage.transform import warp, SimilarityTransform
+from scipy.ndimage import maximum_filter
+from utils.patch import build_reference_patch_bipolar
 
 
 # ---------------------------------------------------------------------------
@@ -50,9 +49,7 @@ def correlation_fft(img_1: np.ndarray, img_2: np.ndarray) -> np.ndarray:
     -------
     crosscorr : ndarray of shape (H, W), dtype float64
     """
-    # FIX 1 – removed the internal min-max normalisation that was undoing the
-    # mean-subtraction performed in `synchronise`.  The caller already removes
-    # the DC component; a second rescaling scrambles the zero-mean property.
+
     f1 = (img_1.astype(np.float64) - img_1.mean()) / (img_1.std() + 1e-8)
     f2 = (img_2.astype(np.float64) - img_2.mean()) / (img_2.std() + 1e-8)
     F1 = np.fft.fft2(f1)

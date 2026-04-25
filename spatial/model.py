@@ -53,7 +53,6 @@ from __future__ import annotations
 import cv2
 from matplotlib import image
 import numpy as np
-from scipy.ndimage import uniform_filter
 from scipy.signal import wiener
 from skimage.util import img_as_float, img_as_ubyte
 
@@ -170,12 +169,6 @@ class WatermarkModel:
         mean = cv2.filter2D(image , -1, kernel)
         variance = cv2.filter2D(image ** 2, -1, kernel) - mean ** 2
         return mean, variance
-
-    def _wiener_filter(self, image: np.ndarray, window_size: int, noise_power: float) -> np.ndarray:
-        local_mean , local_variance = self._compute_local_stats(image, window_size)
-        wiener = local_mean + (local_variance / (local_variance + noise_power)) * (
-        image - local_mean)
-        return wiener
 
     def _compute_nvf(self, image: np.ndarray) -> np.ndarray:
         """
@@ -355,38 +348,6 @@ class WatermarkModel:
         residual = (channel - denoised).astype(np.float32)
 
         # 5. Synchronise residual with the reference.
-        #
-        #    synchronise() signature (utils/sync.py):
-        #        synchronise(
-        #            lsb_image,           ← residual (float32 OK)
-        #            patch_size=...,
-        #            key=...,
-        #            tile_mode=...,
-        #            nms_size_ac=31,      ← NMS window, autocorrelation peaks
-        #            nms_size_corr=5,     ← NMS window, translation correlation
-        #            upsample_factor=..., ← must match encode
-        #        )
-        #
-        #    Returns: aligned_block of shape
-        #        (patch_size * upsample_factor, patch_size * upsample_factor)
-        #    — already affine-corrected, tiled, summed and translation-aligned.
-        #    Do NOT pass the full-size residual to extract_bits_from_spatial;
-        #    pass the aligned_block returned here.
-        # aligned_residual = synchronise(
-        #     residual,
-        #     patch_size=self.patch_size,
-        #     key=self.key,
-        #     tile_mode=self.tile_mode,
-        #     nms_size_ac=31,
-        #     upsample_factor=self.upsample_factor,
-        #     n_peaks=self.n_peaks,
-        # )
-
-        # 6. Extract bits from the aligned accumulated block.
-        #    Because aligned_block has shape (up, up) with up = patch_size *
-        #    upsample_factor, extract_bits_from_spatial sees it as one tile and
-        #    performs only the upsample_factor×upsample_factor sub-block sum
-        #    plus keyed bit sampling — no further tiling accumulation occurs.
         n_bits = self._n_embedded_bits()
         msgs = []
         confidences = []
@@ -403,6 +364,8 @@ class WatermarkModel:
                 upsample_factor=self.upsample_factor,
                 n_peaks=self.n_peaks,
             )
+
+            # 6. Extract bits from the aligned accumulated block.
             for res in aligned_residuals:
                 msg, conf = extract_bits_from_spatial(
                     res,
@@ -413,10 +376,9 @@ class WatermarkModel:
                 )
                 msgs.append(msg)
                 confidences.append(conf)
+
         except ValueError as e:
             print(f"Error during bit extraction: {e}")
-            # Return all-zero bits if extraction fails
-        print(f"Confidences: {confidences}")
         maximum_confidence_index = np.argmax(confidences)
         bits = msgs[maximum_confidence_index]
 
