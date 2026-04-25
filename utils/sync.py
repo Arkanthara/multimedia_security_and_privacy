@@ -24,6 +24,7 @@ import numpy as np
 import cv2
 from scipy.ndimage import gaussian_filter, maximum_filter
 from utils.patch import build_reference_patch, generate_base_patch, upsample_patch
+from skimage.transform import warp, SimilarityTransform
 
 
 # ---------------------------------------------------------------------------
@@ -52,9 +53,11 @@ def correlation_fft(img_1: np.ndarray, img_2: np.ndarray) -> np.ndarray:
     # FIX 1 – removed the internal min-max normalisation that was undoing the
     # mean-subtraction performed in `synchronise`.  The caller already removes
     # the DC component; a second rescaling scrambles the zero-mean property.
-    f1 = np.fft.fft2(img_1.astype(np.float64))
-    f2 = np.fft.fft2(img_2.astype(np.float64), s=img_1.shape)
-    return np.fft.fftshift(np.real(np.fft.ifft2(f1 * np.conj(f2))))
+    f1 = img_1.astype(np.float64) - img_1.mean()
+    f2 = img_2.astype(np.float64) - img_2.mean()
+    F1 = np.fft.fft2(f1)
+    F2 = np.fft.fft2(f2, s=f1.shape)
+    return np.fft.fftshift(np.real(np.fft.ifft2(F1 * np.conj(F2))))
 
 
 # ---------------------------------------------------------------------------
@@ -86,7 +89,7 @@ def non_maximum_suppression(image: np.ndarray, size: int = 31) -> np.ndarray:
 # Thresholding + binarisation  (NEW)
 # ---------------------------------------------------------------------------
  
-def select_lattice_peaks(ac: np.ndarray, n_peaks: int = 50) -> np.ndarray:
+def select_lattice_peaks(ac: np.ndarray, n_peaks: int = 15) -> np.ndarray:
     """
     Select strongest peaks in autocorrelation map.
 
@@ -124,6 +127,26 @@ def expand_peaks(image , expansion_size=3):
         expanded[ max (0, x-expansion_size): min (image.shape[0], x+expansion_size+1), max (0, y-expansion_size): min (image.shape[1], y+expansion_size+1)] = 1
     return expanded
 
+def get_center_peak(peaks: np.ndarray) -> np.ndarray:
+    """
+    Find the peak closest to the center of the image.
+
+    Parameters
+    ----------
+    peaks : ndarray (H, W)
+        Map of detected peaks.
+
+    Returns
+    -------
+    center : ndarray (2,)
+        Coordinates of the center peak.
+    """
+    H, W = peaks.shape
+    ys, xs = np.nonzero(peaks)
+    coords = np.stack((ys, xs), axis=1).astype(float)
+    center = coords[np.argmin(np.linalg.norm(coords - [H // 2, W // 2], axis=1))]
+    return center
+
 def detect_interest_points(peaks: np.ndarray, min_angle_deg: float = 20.0) -> np.ndarray:
     """
     Extract a quadrilateral cell from a lattice using a simple geometric rule.
@@ -160,7 +183,7 @@ def detect_interest_points(peaks: np.ndarray, min_angle_deg: float = 20.0) -> np
         raise ValueError("Not enough peaks.")
 
     coords = np.stack((ys, xs), axis=1).astype(float)
-    center = coords[np.argmin(np.linalg.norm(coords - [H / 2, W / 2], axis=1))]
+    center = get_center_peak(peaks)
 
     others = coords - center
     others = others[(others != 0).any(axis=1)]
@@ -192,7 +215,7 @@ def detect_interest_points(peaks: np.ndarray, min_angle_deg: float = 20.0) -> np
 # Affine estimation
 # ---------------------------------------------------------------------------
 
-def estimate_affine(img_ac: np.ndarray, ref_ac: np.ndarray, nms_size: int = 31, n_peaks: int = 50) -> np.ndarray:
+def estimate_affine(img_ac: np.ndarray, ref_ac: np.ndarray, nms_size: int = 31, n_peaks: int = 15) -> np.ndarray:
     """
     Estimate the 2-D affine matrix mapping image lattice peaks to reference peaks.
 
@@ -388,7 +411,7 @@ def synchronise(
     tile_mode: str = "symmetric",
     nms_size_ac: int = 31,
     upsample_factor: int = 2,
-    n_peaks: int = 20,
+    n_peaks: int = 10,
 ) -> np.ndarray:
     """
     Align img to the reference watermark grid and return the summed,
@@ -424,14 +447,28 @@ def synchronise(
     reference = build_reference_patch(
         img.shape, patch_size=patch_size, key=key,
         tile_mode=tile_mode, upsample_factor=upsample_factor,
-    )
+    ).astype(float) * 2 - 1
 
-    img_ac = correlation_fft(img.astype(np.float64) - img.mean(), img.astype(np.float64) - img.mean())
-    ref_ac = correlation_fft(reference.astype(np.float64) - reference.mean(), reference.astype(np.float64) - reference.mean())
+    img_ac = correlation_fft(img, img)
+    ref_ac = correlation_fft(reference, reference)
 
     M = estimate_affine(img_ac, ref_ac, nms_size=nms_size_ac, n_peaks=n_peaks)
     img_corrected = correct_affine(img, M, interpolation=interp)
 
-    summed = sum_blocks(img_corrected, patch_size=patch_size,
-                        tile_mode=tile_mode, upsample_factor=upsample_factor)
-    return correct_translation_block(summed, patch_size=patch_size, key=key, upsample_factor=upsample_factor)
+    corrected_ac = correlation_fft(img_corrected, reference)
+
+    M_translation = estimate_affine(corrected_ac, ref_ac, nms_size=nms_size_ac, n_peaks=n_peaks//2)
+
+    # center_ref = get_center_peak(select_lattice_peaks(non_maximum_suppression(ref_ac, size=nms_size_ac), n_peaks=n_peaks))
+    # center_corr = get_center_peak(select_lattice_peaks(non_maximum_suppression(corrected_ac, size=nms_size_ac), n_peaks=n_peaks))
+
+    # dx, dy = center_corr - center_ref  # careful: (x, y)
+
+    # M = np.float32([
+    #     [1, 0, dx],
+    #     [0, 1, dy],
+    # ])
+
+    result = correct_affine(img_corrected, M_translation, interpolation=interp)
+
+    return result

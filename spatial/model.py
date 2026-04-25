@@ -125,7 +125,8 @@ class WatermarkModel:
         upsample_factor: int = 2,
         key: int = 42,
         tile_mode: str = "symmetric",
-        n_peaks: int = 50,
+        nms_size_ac: int = 31,
+        n_peaks: int = 15,
     ) -> None:
         self.alpha_1        = alpha_1 / 255.0  # Scale to [0, 1] range for float images
         self.alpha_2        = alpha_2 / 255.0
@@ -140,6 +141,7 @@ class WatermarkModel:
         self.upsample_factor = upsample_factor
         self.key            = key
         self.tile_mode      = tile_mode
+        self.nms_size_ac    = nms_size_ac
         self.n_peaks        = n_peaks
     # -----------------------------------------------------------------------
     # Private helpers
@@ -323,10 +325,11 @@ class WatermarkModel:
         -------
         bits : ndarray of shape (msg_length,), dtype uint8, values {0, 1}
         """
-        img_f = img_as_float(image).astype(np.float32)
+        img_f = img_as_float(image)
         H, W  = img_f.shape[:2]
 
         channel = self._get_channel(img_f)   # (H, W)
+        channel = img_as_float(channel)
 
         # 1. Bipolar reference patch (base pattern without watermark bits)
         ref = build_reference_patch_bipolar(
@@ -340,9 +343,7 @@ class WatermarkModel:
         ref_weighted = strength * ref
 
         # 3. Wiener denoising — noise power ≈ mean energy of the watermark signal
-        noise_power = np.var(ref_weighted)
-        # denoised    = self._wiener_filter(channel, window_size=3, noise_power=noise_power)
-        denoised = wiener(channel, mysize=3)  # SciPy's built-in Wiener filter
+        denoised = wiener(channel, mysize=9, noise=np.var(ref_weighted))  # SciPy's built-in Wiener filter
 
         # 4. Residual ≈ watermark signal (float32, shape (H, W))
         residual = (channel - denoised).astype(np.float32)
@@ -365,15 +366,15 @@ class WatermarkModel:
         #    — already affine-corrected, tiled, summed and translation-aligned.
         #    Do NOT pass the full-size residual to extract_bits_from_spatial;
         #    pass the aligned_block returned here.
-        aligned_block = synchronise(
-            residual,
-            patch_size=self.patch_size,
-            key=self.key,
-            tile_mode=self.tile_mode,
-            nms_size_ac=31,
-            upsample_factor=self.upsample_factor,
-            n_peaks=self.n_peaks,
-        )
+        # aligned_residual = synchronise(
+        #     residual,
+        #     patch_size=self.patch_size,
+        #     key=self.key,
+        #     tile_mode=self.tile_mode,
+        #     nms_size_ac=31,
+        #     upsample_factor=self.upsample_factor,
+        #     n_peaks=self.n_peaks,
+        # )
 
         # 6. Extract bits from the aligned accumulated block.
         #    Because aligned_block has shape (up, up) with up = patch_size *
@@ -381,13 +382,35 @@ class WatermarkModel:
         #    performs only the upsample_factor×upsample_factor sub-block sum
         #    plus keyed bit sampling — no further tiling accumulation occurs.
         n_bits = self._n_embedded_bits()
-        bits, _ = extract_bits_from_spatial(
-            aligned_block,
-            self.patch_size,
-            n_bits,
-            self.key,
-            upsample_factor=self.upsample_factor,
-        )
+        msgs = []
+        confidences = []
+        msg, conf = extract_bits_from_spatial(residual, self.patch_size, n_bits, self.key, upsample_factor=self.upsample_factor)
+        msgs.append(msg)
+        confidences.append(conf)
+        try:
+            aligned_residual = synchronise(
+                residual,
+                patch_size=self.patch_size,
+                key=self.key,
+                tile_mode=self.tile_mode,
+                nms_size_ac=self.nms_size_ac,
+                upsample_factor=self.upsample_factor,
+                n_peaks=self.n_peaks,
+            )
+            msg, conf = extract_bits_from_spatial(
+                aligned_residual,
+                self.patch_size,
+                n_bits,
+                self.key,
+                upsample_factor=self.upsample_factor,
+            )
+            msgs.append(msg)
+            confidences.append(conf)
+        except ValueError as e:
+            print(f"Error during bit extraction: {e}")
+            # Return all-zero bits if extraction fails
+        maximum_confidence_index = np.argmax(confidences)
+        bits = msgs[maximum_confidence_index]
 
         # 7. Post-process: majority vote + LDPC BP decode
         return self._postprocess_watermark(bits)
