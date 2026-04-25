@@ -125,6 +125,7 @@ class WatermarkModel:
         upsample_factor: int = 2,
         key: int = 42,
         tile_mode: str = "symmetric",
+        n_peaks: int = 50,
     ) -> None:
         self.alpha_1        = alpha_1 / 255.0  # Scale to [0, 1] range for float images
         self.alpha_2        = alpha_2 / 255.0
@@ -139,7 +140,7 @@ class WatermarkModel:
         self.upsample_factor = upsample_factor
         self.key            = key
         self.tile_mode      = tile_mode
-
+        self.n_peaks        = n_peaks
     # -----------------------------------------------------------------------
     # Private helpers
     # -----------------------------------------------------------------------
@@ -369,8 +370,8 @@ class WatermarkModel:
             key=self.key,
             tile_mode=self.tile_mode,
             nms_size_ac=31,
-            nms_size_corr=5,
             upsample_factor=self.upsample_factor,
+            n_peaks=self.n_peaks,
         )
 
         # 6. Extract bits from the aligned accumulated block.
@@ -384,7 +385,6 @@ class WatermarkModel:
             self.patch_size,
             n_bits,
             self.key,
-            self.tile_mode,
             upsample_factor=self.upsample_factor,
         )
 

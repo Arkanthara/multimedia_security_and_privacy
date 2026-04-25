@@ -65,7 +65,7 @@ def correlation_fft(img_1: np.ndarray, img_2: np.ndarray) -> np.ndarray:
 # Non-maximum suppression
 # ---------------------------------------------------------------------------
  
-def non_maximum_suppression(image: np.ndarray, size: int = 31, k: float = 1.0) -> np.ndarray:
+def non_maximum_suppression(image: np.ndarray, size: int = 31) -> np.ndarray:
     """
     Retain only local maxima within a ``size × size`` neighbourhood.
  
@@ -78,55 +78,52 @@ def non_maximum_suppression(image: np.ndarray, size: int = 31, k: float = 1.0) -
     -------
     nms : ndarray of shape (H, W)
     """
-    return threshold_and_binarize((image == maximum_filter(image, size=size)) * image, k=k)
+    return (image == maximum_filter(image, size=size)) * image
  
  
 # ---------------------------------------------------------------------------
 # Thresholding + binarisation  (NEW)
 # ---------------------------------------------------------------------------
  
-def threshold_and_binarize(nms: np.ndarray, k: float = 3.0) -> np.ndarray:
+def select_lattice_peaks(ac: np.ndarray, n_peaks: int = 50) -> np.ndarray:
     """
-    Keep only statistically significant NMS peaks and binarize them.
- 
-    Steps
-    -----
-    1. Consider only strictly positive NMS values (actual local maxima).
-    2. Compute their mean ``μ`` and standard deviation ``σ``.
-    3. Threshold: keep peaks with value > μ + k·σ.
-    4. Binarize: set surviving peaks to 1.
- 
-    Why this matters
-    ----------------
-    Raw NMS returns *every* local maximum, including hundreds of noise bumps.
-    Without thresholding, ``detect_interest_points`` anchors on a noise peak
-    instead of a true lattice peak.  Binarizing ensures that peak amplitude
-    does not bias the proximity chain (all genuine lattice peaks should look
-    equally strong after autocorrelation).
- 
+    Select strongest peaks in autocorrelation map.
+
     Parameters
     ----------
-    nms : ndarray of shape (H, W) – output of non_maximum_suppression
-    k   : float – number of standard deviations above the mean
- 
+    ac : ndarray (H, W)
+        Autocorrelation map already processed by NMS.
+    n_peaks : int
+        Number of peaks to keep.
+
     Returns
     -------
-    binary : ndarray of shape (H, W), dtype bool  (True at surviving peaks)
+    peaks : ndarray (H, W) with the k strongest peaks
     """
-    positive = nms[nms > 0]
-    if positive.size == 0:
-        return np.zeros_like(nms, dtype=bool)
-    threshold = positive.mean() + k * positive.std()
-    nms[nms <= threshold] = 0
-    return nms
+    flat = ac.ravel()
+
+    # Find the threshold value (k-th largest)
+    thresh = np.partition(flat, -n_peaks)[-n_peaks]
+
+    # Keep only values >= threshold
+    result = np.where(ac >= thresh, ac, 0)
+
+    return result
 
 
 # ---------------------------------------------------------------------------
 # Interest point detection
 # ---------------------------------------------------------------------------
 
-def detect_interest_points(binary_peaks: np.ndarray,
-                           min_angle_deg: float = 20.0) -> np.ndarray:
+def expand_peaks(image , expansion_size=3):
+    expanded = np.zeros_like(image)
+    peaks = np.argwhere(image > 0)
+    for peak in peaks:
+        x, y = peak
+        expanded[ max (0, x-expansion_size): min (image.shape[0], x+expansion_size+1), max (0, y-expansion_size): min (image.shape[1], y+expansion_size+1)] = 1
+    return expanded
+
+def detect_interest_points(peaks: np.ndarray, min_angle_deg: float = 20.0) -> np.ndarray:
     """
     Extract a quadrilateral cell from a lattice using a simple geometric rule.
 
@@ -142,8 +139,8 @@ def detect_interest_points(binary_peaks: np.ndarray,
 
     Parameters
     ----------
-    binary_peaks : ndarray (H, W)
-        Binary map of detected peaks.
+    peaks : ndarray (H, W)
+        Map of detected peaks.
     min_angle_deg : float
         Minimum angle between p2 and p3 (in degrees).
 
@@ -156,71 +153,58 @@ def detect_interest_points(binary_peaks: np.ndarray,
     ------
     ValueError if a valid configuration cannot be found.
     """
-    H, W = binary_peaks.shape
+    H, W = peaks.shape
 
-    ys, xs = np.nonzero(binary_peaks)
-    if len(ys) < 4:
+    ys, xs = np.nonzero(peaks)
+    if len(ys) < 3:
         raise ValueError("Not enough peaks.")
 
-    coords = np.stack([ys, xs], axis=1).astype(np.float64)
+    coords = np.stack((ys, xs), axis=1).astype(float)
+    vals = peaks[ys, xs]
 
-    # --- p1: center ---
-    center_idx = np.argmin(np.linalg.norm(coords - [H/2, W/2], axis=1))
-    center = coords[center_idx]
+    # --- center (p1) ---
+    center = coords[np.argmin(np.linalg.norm(coords - [H/2, W/2], axis=1))]
 
-    centered = coords - center
-    others = centered[np.arange(len(centered)) != center_idx]
+    # shift to center & remove it
+    others = coords - center
+    mask = (others != 0).any(axis=1)
+    others = others[mask]
+    vals = vals[mask]
 
-    # sort by distance to p1
+    # --- score = intensity / distance ---
     dists = np.linalg.norm(others, axis=1)
-    order = np.argsort(dists)
+    score = vals / (dists + 1e-6)
+
+    order = np.argsort(-score)
     others = others[order]
 
-    p1 = np.zeros(2)
-
-    # --- p2: closest ---
+    # --- p2 ---
     p2 = others[0]
 
-    # --- p3: non-colinear ---
-    min_angle = np.radians(min_angle_deg)
-    p3 = None
+    # --- angle constraint (vectorized) ---
+    norms = np.linalg.norm(others, axis=1)
+    cos = (others @ p2) / (norms * np.linalg.norm(p2) + 1e-8)
+    angles = np.arccos(np.clip(cos, -1, 1))
 
-    for p in others[1:]:
-        cos = np.dot(p, p2) / (np.linalg.norm(p) * np.linalg.norm(p2) + 1e-8)
-        angle = np.arccos(np.clip(cos, -1, 1))
+    tol = np.radians(min_angle_deg)
 
-        if min_angle < angle < (np.pi - min_angle):
-            p3 = p
-            break
+    valid = (angles > tol) & (angles < (np.pi - tol))
+    valid[0] = False
 
-    if p3 is None:
-        raise ValueError("No valid p3 found.")
+    if not np.any(valid):
+        raise ValueError("All strong peaks are collinear.")
 
-    # --- p4: closest to p2 + p3 ---
-    # target = p2 + p3
+    # --- p3 ---
+    p3 = others[np.argmax(valid)]
 
-    # mask = ~(
-    #     (np.linalg.norm(others - p2, axis=1) < 1e-6) |
-    #     (np.linalg.norm(others - p3, axis=1) < 1e-6)
-    # )
-
-    # candidates = others[mask]
-    # if len(candidates) == 0:
-    #     raise ValueError("No candidates for p4.")
-
-    # p4 = candidates[np.argmin(np.linalg.norm(candidates - target, axis=1))]
-
-    # result = np.stack([p1, p2, p4, p3])
-    result = np.stack([p1, p2, p3])  # FIX: removed p4 to handle cases where it can't be found
-    result += center  # convert back to image coordinates
-    return result.astype(np.float64)
+    return (np.stack(([0, 0], p2, p3)) + center).astype(float)
 
 
 # ---------------------------------------------------------------------------
 # Affine estimation
 # ---------------------------------------------------------------------------
 
-def estimate_affine(img_ac: np.ndarray, ref_ac: np.ndarray, nms_size: int = 31) -> np.ndarray:
+def estimate_affine(img_ac: np.ndarray, ref_ac: np.ndarray, nms_size: int = 31, n_peaks: int = 50) -> np.ndarray:
     """
     Estimate the 2-D affine matrix mapping image lattice peaks to reference peaks.
 
@@ -237,8 +221,14 @@ def estimate_affine(img_ac: np.ndarray, ref_ac: np.ndarray, nms_size: int = 31) 
     -------
     M : ndarray of shape (2, 3) — OpenCV affine matrix
     """
-    img_pts = detect_interest_points(non_maximum_suppression(img_ac, nms_size))
-    ref_pts = detect_interest_points(non_maximum_suppression(ref_ac, nms_size))
+    img_peaks = non_maximum_suppression(img_ac, nms_size)
+    img_peaks = select_lattice_peaks(img_peaks, n_peaks=n_peaks)
+
+    ref_peaks = non_maximum_suppression(ref_ac, nms_size)
+    ref_peaks = select_lattice_peaks(ref_peaks, n_peaks=n_peaks)
+
+    img_pts = detect_interest_points(img_peaks)
+    ref_pts = detect_interest_points(ref_peaks)
 
     # cv2.getAffineTransform expects (x, y) = (col, row)
     src = img_pts[:, ::-1].astype(np.float32)
@@ -343,13 +333,12 @@ def sum_blocks(
 # Translation via correlation on summed block
 # ---------------------------------------------------------------------------
 
-def estimate_translation_block(
+def correct_translation_block(
     summed_block: np.ndarray,
     patch_size: int,
     key: int,
-    nms_size: int = 5,
     upsample_factor: int = 2,
-) -> tuple[int, int]:
+) -> np.ndarray:
     """
     Estimate integer translation between summed_block and the reference patch
     via cross-correlation + NMS.
@@ -364,36 +353,40 @@ def estimate_translation_block(
 
     Returns
     -------
-    shift_row, shift_col : int
+    shifted_block : ndarray of shape (up, up)
     """
-    ref_up = upsample_patch(generate_base_patch(patch_size, key),
-                            factor=upsample_factor).astype(np.float64)
+    ref_up = upsample_patch(generate_base_patch(patch_size, key), factor=upsample_factor).astype(np.float64)
 
-    corr = correlation_fft(summed_block - summed_block.mean(), ref_up - ref_up.mean())
+    blocks = summed_block - summed_block.mean()
+    ref = ref_up - ref_up.mean()
 
-    peak_y, peak_x = np.unravel_index(
-        np.argmax(non_maximum_suppression(corr, size=nms_size)), corr.shape
-    )
-    cy, cx = corr.shape[0] // 2, corr.shape[1] // 2
-    return int(peak_y) - cy, int(peak_x) - cx
+    list_blocks = [blocks, blocks[::-1], blocks[:, ::-1], blocks[::-1, ::-1]]
+
+    corr = [correlation_fft(list_blocks[i], ref) for i in range(4)]
+    corr_idx = np.argmax([np.max(corr[j]) for j in range(4)])
+
+    peak_y, peak_x = np.unravel_index(np.argmax(corr[corr_idx]), corr[corr_idx].shape)
+    cy, cx = corr[corr_idx].shape[0] // 2, corr[corr_idx].shape[1] // 2
+
+    return np.roll(list_blocks[corr_idx], shift=(-peak_y + cy, -peak_x + cx), axis=(0, 1))
 
 
-def correct_translation_block(
-    summed_block: np.ndarray, shift_row: int, shift_col: int
-) -> np.ndarray:
-    """
-    Apply a circular shift to summed_block to align it with the reference.
+# def correct_translation_block(
+#     summed_block: np.ndarray, shift_row: int, shift_col: int
+# ) -> np.ndarray:
+#     """
+#     Apply a circular shift to summed_block to align it with the reference.
 
-    Parameters
-    ----------
-    summed_block       : ndarray of shape (up, up)
-    shift_row, shift_col : int
+#     Parameters
+#     ----------
+#     summed_block       : ndarray of shape (up, up)
+#     shift_row, shift_col : int
 
-    Returns
-    -------
-    aligned : ndarray of shape (up, up)
-    """
-    return np.roll(summed_block, (-shift_row, -shift_col), axis=(0, 1))
+#     Returns
+#     -------
+#     aligned : ndarray of shape (up, up)
+#     """
+#     return np.roll(summed_block, (-shift_row, -shift_col), axis=(0, 1))
 
 
 # ---------------------------------------------------------------------------
@@ -406,8 +399,8 @@ def synchronise(
     key: int = 0,
     tile_mode: str = "symmetric",
     nms_size_ac: int = 31,
-    nms_size_corr: int = 5,
     upsample_factor: int = 2,
+    n_peaks: int = 20,
 ) -> np.ndarray:
     """
     Align img to the reference watermark grid and return the summed,
@@ -431,6 +424,7 @@ def synchronise(
     nms_size_ac    : int — NMS window for autocorrelation peak detection
     nms_size_corr  : int — NMS window for correlation peak detection
     upsample_factor: int
+    n_peaks        : int — Number of peaks to select in autocorrelation maps
 
     Returns
     -------
@@ -447,13 +441,9 @@ def synchronise(
     img_ac = correlation_fft(img.astype(np.float64) - img.mean(), img.astype(np.float64) - img.mean())
     ref_ac = correlation_fft(reference.astype(np.float64) - reference.mean(), reference.astype(np.float64) - reference.mean())
 
-    M = estimate_affine(img_ac, ref_ac, nms_size=nms_size_ac)
+    M = estimate_affine(img_ac, ref_ac, nms_size=nms_size_ac, n_peaks=n_peaks)
     img_corrected = correct_affine(img, M, interpolation=interp)
 
     summed = sum_blocks(img_corrected, patch_size=patch_size,
                         tile_mode=tile_mode, upsample_factor=upsample_factor)
-    shift_row, shift_col = estimate_translation_block(
-        summed, patch_size=patch_size, key=key,
-        nms_size=nms_size_corr, upsample_factor=upsample_factor,
-    )
-    return correct_translation_block(summed, shift_row, shift_col)
+    return correct_translation_block(summed, patch_size=patch_size, key=key, upsample_factor=upsample_factor)

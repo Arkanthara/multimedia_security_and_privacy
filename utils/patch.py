@@ -384,11 +384,10 @@ def extract_bits_from_lsb(
 # ---------------------------------------------------------------------------
 
 def extract_bits_from_spatial(
-    residual: np.ndarray,
+    block: np.ndarray,
     patch_size: int,
     n_bits: int,
     key: int,
-    tile_mode: str = "symmetric",
     upsample_factor: int = 2,
 ) -> tuple[np.ndarray, float]:
     """
@@ -426,30 +425,9 @@ def extract_bits_from_spatial(
     bits : ndarray of shape (n_bits,), dtype uint8
     confidence : float
     """
-    H, W = residual.shape
-    up   = patch_size * upsample_factor
-
-    img = residual.astype(np.float32)
-
-    # Pad to full tiles (zero padding)
-    pad_H = (-H) % up
-    pad_W = (-W) % up
-    img   = np.pad(img, ((0, pad_H), (0, pad_W)), mode="constant",
-                   constant_values=0.0)
-
-    H2, W2 = img.shape
-    Ty, Tx  = H2 // up, W2 // up
-
-    tiles = img.reshape(Ty, up, Tx, up).transpose(1, 3, 0, 2)   # (up, up, Ty, Tx)
-
-    if tile_mode == "symmetric":
-        tiles[:, :, 1::2, :] = tiles[::-1, :, 1::2, :]
-        tiles[:, :, :, 1::2] = tiles[:, ::-1, :, 1::2]
-
-    summed = np.sum(tiles, axis=(2, 3))    # (up, up)
 
     # Sum upsample_factor × upsample_factor pixel blocks into logical patch
-    small = summed.reshape(
+    small = block.reshape(
         patch_size, upsample_factor, patch_size, upsample_factor
     ).sum(axis=(1, 3))                     # (patch_size, patch_size)
 
