@@ -397,15 +397,17 @@ class WatermarkModel:
                 upsample_factor=self.upsample_factor,
                 n_peaks=self.n_peaks,
             )
-            msg, conf = extract_bits_from_spatial(
-                aligned_residual,
-                self.patch_size,
-                n_bits,
-                self.key,
-                upsample_factor=self.upsample_factor,
-            )
-            msgs.append(msg)
-            confidences.append(conf)
+            list_results = [aligned_residual, aligned_residual[::-1], aligned_residual[:, ::-1], aligned_residual[::-1, ::-1]]
+            for res in list_results:
+                msg, conf = extract_bits_from_spatial(
+                    res,
+                    self.patch_size,
+                    n_bits,
+                    self.key,
+                    upsample_factor=self.upsample_factor,
+                )
+                msgs.append(msg)
+                confidences.append(conf)
         except ValueError as e:
             print(f"Error during bit extraction: {e}")
             # Return all-zero bits if extraction fails
