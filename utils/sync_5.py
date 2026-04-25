@@ -89,50 +89,30 @@ def non_maximum_suppression(image: np.ndarray, size: int = 31) -> np.ndarray:
 # Thresholding + binarisation  (NEW)
 # ---------------------------------------------------------------------------
  
-def select_lattice_peaks(ac: np.ndarray, n_peaks: int = 15, beta: float = 1.0) -> np.ndarray:
+def select_lattice_peaks(ac: np.ndarray, n_peaks: int = 15) -> np.ndarray:
     """
-    Grid-based adaptive peak selection (port of peaks_fl.m).
-
-    Divides the image into m×n cells (m=n=√n_peaks) and keeps the single
-    pixel exceeding mean + β·σ per cell, or the global cell max when several
-    qualify.  Repeated with a half-cell offset; the two boolean maps are ANDed
-    so only robustly-detected peaks survive.  Fully vectorised — no Python loops.
+    Select strongest peaks in autocorrelation map.
 
     Parameters
     ----------
-    ac      : (H, W) float — NMS-processed autocorrelation map.
-    n_peaks : int          — expected number of lattice peaks.
-    beta    : float        — adaptive threshold multiplier (higher → fewer peaks).
+    ac : ndarray (H, W)
+        Autocorrelation map already processed by NMS.
+    n_peaks : int
+        Number of peaks to keep.
 
     Returns
     -------
-    out : (H, W) float — original values at accepted peaks, 0 elsewhere.
+    peaks : ndarray (H, W) with the k strongest peaks
     """
-    H, W = ac.shape
-    m = n = max(2, int(round(np.sqrt(n_peaks))))
-    e     = min(H, W) // 10                                       # edge exclusion
-    crop  = ac[e: H - e, e: W - e]
-    rs, cs = crop.shape[0] // m, crop.shape[1] // n              # cell size
+    flat = ac.ravel()
 
-    def _scan(off_r: int, off_c: int) -> np.ndarray:
-        # Clamp so off + rs*m never overshoots the crop (happens when the
-        # image is small relative to n_peaks — numpy silently clips the
-        # slice, giving the wrong size and crashing the reshape).
-        r0  = min(off_r, crop.shape[0] - rs * m)
-        c0  = min(off_c, crop.shape[1] - cs * n)
-        sub = crop[r0: r0 + rs * m, c0: c0 + cs * n]
-        B   = sub.reshape(m, rs, n, cs).transpose(0, 2, 1, 3)    # (m, n, rs, cs)
-        mu  = B.mean(axis=(-2, -1), keepdims=True)
-        sig = B.std( axis=(-2, -1), keepdims=True)
-        hot = B > mu + beta * sig
-        multi      = hot.sum(axis=(-2, -1)) > 1                   # (m, n) bool
-        hot[multi] = (B == B.max(axis=(-2, -1), keepdims=True))[multi]
-        out = np.zeros(ac.shape, bool)
-        out[e + r0: e + r0 + rs * m,
-            e + c0: e + c0 + cs * n] = hot.transpose(0, 2, 1, 3).reshape(rs * m, cs * n)
-        return out
+    # Find the threshold value (k-th largest)
+    thresh = np.partition(flat, -n_peaks)[-n_peaks]
 
-    return (_scan(0, 0) & _scan(rs // 2, cs // 2)).astype(float) * ac
+    # Keep only values >= threshold
+    result = np.where(ac >= thresh, ac, 0)
+
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -253,10 +233,10 @@ def estimate_affine(img_ac: np.ndarray, ref_ac: np.ndarray, nms_size: int = 31, 
     M : ndarray of shape (2, 3) — OpenCV affine matrix
     """
     img_peaks = non_maximum_suppression(img_ac, nms_size)
-    # img_peaks = select_lattice_peaks(img_peaks, n_peaks=n_peaks)
+    img_peaks = select_lattice_peaks(img_peaks, n_peaks=n_peaks)
 
     ref_peaks = non_maximum_suppression(ref_ac, nms_size)
-    # ref_peaks = select_lattice_peaks(ref_peaks, n_peaks=n_peaks)
+    ref_peaks = select_lattice_peaks(ref_peaks, n_peaks=n_peaks)
 
     img_pts = detect_interest_points(img_peaks)
     ref_pts = detect_interest_points(ref_peaks)
