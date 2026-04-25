@@ -22,7 +22,7 @@ represented by ``upsample_factor × upsample_factor`` image pixels.
 
 import numpy as np
 import cv2
-from scipy.ndimage import maximum_filter
+from scipy.ndimage import gaussian_filter, maximum_filter
 from utils.patch import build_reference_patch, generate_base_patch, upsample_patch
 
 
@@ -78,7 +78,8 @@ def non_maximum_suppression(image: np.ndarray, size: int = 31) -> np.ndarray:
     -------
     nms : ndarray of shape (H, W)
     """
-    return (image == maximum_filter(image, size=size)) * image
+    blurred = gaussian_filter(image, sigma=0.5)
+    return (blurred == maximum_filter(blurred, size=size)) * image  # original values
  
  
 # ---------------------------------------------------------------------------
@@ -154,50 +155,37 @@ def detect_interest_points(peaks: np.ndarray, min_angle_deg: float = 20.0) -> np
     ValueError if a valid configuration cannot be found.
     """
     H, W = peaks.shape
-
     ys, xs = np.nonzero(peaks)
     if len(ys) < 3:
         raise ValueError("Not enough peaks.")
 
     coords = np.stack((ys, xs), axis=1).astype(float)
-    vals = peaks[ys, xs]
+    center = coords[np.argmin(np.linalg.norm(coords - [H / 2, W / 2], axis=1))]
 
-    # --- center (p1) ---
-    center = coords[np.argmin(np.linalg.norm(coords - [H/2, W/2], axis=1))]
-
-    # shift to center & remove it
     others = coords - center
-    mask = (others != 0).any(axis=1)
-    others = others[mask]
-    vals = vals[mask]
+    others = others[(others != 0).any(axis=1)]
 
-    # --- score = intensity / distance ---
     dists = np.linalg.norm(others, axis=1)
-    score = vals / (dists + 1e-6)
+    others = others[np.argsort(dists)]   # sort by distance, not by score
 
-    order = np.argsort(-score)
-    others = others[order]
-
-    # --- p2 ---
+    # p2 = nearest neighbour
     p2 = others[0]
 
-    # --- angle constraint (vectorized) ---
-    norms = np.linalg.norm(others, axis=1)
-    cos = (others @ p2) / (norms * np.linalg.norm(p2) + 1e-8)
+    # p3 = nearest point with sufficient angular separation from p2
+    cos    = (others @ p2) / (np.linalg.norm(others, axis=1) * np.linalg.norm(p2) + 1e-8)
     angles = np.arccos(np.clip(cos, -1, 1))
-
-    tol = np.radians(min_angle_deg)
-
-    valid = (angles > tol) & (angles < (np.pi - tol))
+    tol    = np.radians(min_angle_deg)
+    valid  = (angles > tol) & (angles < np.pi - tol)
     valid[0] = False
 
     if not np.any(valid):
         raise ValueError("All strong peaks are collinear.")
 
-    # --- p3 ---
-    p3 = others[np.argmax(valid)]
+    # pick the closest valid one (not the highest-scored)
+    p3_idx = np.argmax(valid)   # first True = smallest distance among valid
+    p3 = others[p3_idx]
 
-    return (np.stack(([0, 0], p2, p3)) + center).astype(float)
+    return (np.stack(([[0., 0.], p2, p3])) + center).astype(float)
 
 
 # ---------------------------------------------------------------------------
@@ -260,27 +248,27 @@ def correct_affine(
     cropped : ndarray, same dtype as image
     """
     H, W = image.shape
-    warped = cv2.warpAffine(
+    return cv2.warpAffine(
         image.astype(np.float32), M, (W, H),
         flags=interpolation, borderMode=cv2.BORDER_CONSTANT, borderValue=0,
     )
 
-    angle = abs(np.arctan2(M[1, 0], M[0, 0])) % (np.pi / 2)
-    s, c = np.sin(angle), np.cos(angle)
+    # angle = abs(np.arctan2(M[1, 0], M[0, 0])) % (np.pi / 2)
+    # s, c = np.sin(angle), np.cos(angle)
 
-    if min(H, W) <= 2 * s * c * max(H, W):
-        crop_h = crop_w = int(min(H, W) / (2 * max(s, c) + 1e-9))
-    else:
-        d = c * c - s * s + 1e-9
-        crop_h = int((H * c - W * s) / d)
-        crop_w = int((W * c - H * s) / d)
+    # if min(H, W) <= 2 * s * c * max(H, W):
+    #     crop_h = crop_w = int(min(H, W) / (2 * max(s, c) + 1e-9))
+    # else:
+    #     d = c * c - s * s + 1e-9
+    #     crop_h = int((H * c - W * s) / d)
+    #     crop_w = int((W * c - H * s) / d)
 
-    cy, cx = H // 2, W // 2
-    crop_h, crop_w = max(crop_h, 1), max(crop_w, 1)
-    return warped[
-        cy - crop_h // 2 : cy + crop_h // 2,
-        cx - crop_w // 2 : cx + crop_w // 2,
-    ].astype(image.dtype)
+    # cy, cx = H // 2, W // 2
+    # crop_h, crop_w = max(crop_h, 1), max(crop_w, 1)
+    # return warped[
+    #     cy - crop_h // 2 : cy + crop_h // 2,
+    #     cx - crop_w // 2 : cx + crop_w // 2,
+    # ].astype(image.dtype)
 
 
 # ---------------------------------------------------------------------------
@@ -320,7 +308,7 @@ def sum_blocks(
         mode="constant",
     )
     H2, W2 = img.shape
-    tiles = img.reshape(H2 // up, up, W2 // up, up).transpose(1, 3, 0, 2)  # (up, up, Ty, Tx)
+    tiles = img.reshape(H2 // up, up, W2 // up, up).transpose(1, 3, 0, 2).copy()  # (up, up, Ty, Tx)
 
     if tile_mode == "symmetric":
         tiles[:, :, 1::2, :] = tiles[::-1, :, 1::2, :]

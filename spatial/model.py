@@ -129,7 +129,7 @@ class WatermarkModel:
     ) -> None:
         self.alpha_1        = alpha_1 / 255.0  # Scale to [0, 1] range for float images
         self.alpha_2        = alpha_2 / 255.0
-        self.D              = D / 255.0
+        self.D              = D
         self.use_nvf        = use_nvf
         self.nvf_window_size = nvf_window_size
         self.msg_length     = msg_length
@@ -341,7 +341,8 @@ class WatermarkModel:
 
         # 3. Wiener denoising — noise power ≈ mean energy of the watermark signal
         noise_power = np.var(ref_weighted)
-        denoised    = self._wiener_filter(channel, window_size=3, noise_power=noise_power)
+        # denoised    = self._wiener_filter(channel, window_size=3, noise_power=noise_power)
+        denoised = wiener(channel, mysize=3)  # SciPy's built-in Wiener filter
 
         # 4. Residual ≈ watermark signal (float32, shape (H, W))
         residual = (channel - denoised).astype(np.float32)
