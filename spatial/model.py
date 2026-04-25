@@ -125,8 +125,8 @@ class WatermarkModel:
         upsample_factor: int = 2,
         key: int = 42,
         tile_mode: str = "symmetric",
-        nms_size_ac: int = 31,
         n_peaks: int = 15,
+        nms_size_ac: int | None = None,
     ) -> None:
         self.alpha_1        = alpha_1 / 255.0  # Scale to [0, 1] range for float images
         self.alpha_2        = alpha_2 / 255.0
@@ -141,8 +141,14 @@ class WatermarkModel:
         self.upsample_factor = upsample_factor
         self.key            = key
         self.tile_mode      = tile_mode
-        self.nms_size_ac    = nms_size_ac
+        self.nms_size_ac    = (upsample_factor + 1) * patch_size * 2 - 1
         self.n_peaks        = n_peaks
+
+        if nms_size_ac is None:
+            self.nms_size_ac = (upsample_factor + 1) * patch_size * 2 - 1
+        else:
+            self.nms_size_ac = nms_size_ac
+
     # -----------------------------------------------------------------------
     # Private helpers
     # -----------------------------------------------------------------------
@@ -388,7 +394,7 @@ class WatermarkModel:
         msgs.append(msg)
         confidences.append(conf)
         try:
-            aligned_residual = synchronise(
+            aligned_residuals = synchronise(
                 residual,
                 patch_size=self.patch_size,
                 key=self.key,
@@ -397,8 +403,7 @@ class WatermarkModel:
                 upsample_factor=self.upsample_factor,
                 n_peaks=self.n_peaks,
             )
-            list_results = [aligned_residual, aligned_residual[::-1], aligned_residual[:, ::-1], aligned_residual[::-1, ::-1]]
-            for res in list_results:
+            for res in aligned_residuals:
                 msg, conf = extract_bits_from_spatial(
                     res,
                     self.patch_size,
@@ -411,6 +416,7 @@ class WatermarkModel:
         except ValueError as e:
             print(f"Error during bit extraction: {e}")
             # Return all-zero bits if extraction fails
+        print(f"Confidences: {confidences}")
         maximum_confidence_index = np.argmax(confidences)
         bits = msgs[maximum_confidence_index]
 

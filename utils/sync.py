@@ -23,7 +23,7 @@ represented by ``upsample_factor × upsample_factor`` image pixels.
 import numpy as np
 import cv2
 from scipy.ndimage import gaussian_filter, maximum_filter
-from utils.patch import build_reference_patch, generate_base_patch, upsample_patch
+from utils.patch import build_reference_patch, build_reference_patch_bipolar, generate_base_patch, upsample_patch
 from skimage.transform import warp, SimilarityTransform
 
 
@@ -53,8 +53,8 @@ def correlation_fft(img_1: np.ndarray, img_2: np.ndarray) -> np.ndarray:
     # FIX 1 – removed the internal min-max normalisation that was undoing the
     # mean-subtraction performed in `synchronise`.  The caller already removes
     # the DC component; a second rescaling scrambles the zero-mean property.
-    f1 = img_1.astype(np.float64) - img_1.mean()
-    f2 = img_2.astype(np.float64) - img_2.mean()
+    f1 = (img_1.astype(np.float64) - img_1.mean()) / (img_1.std() + 1e-8)
+    f2 = (img_2.astype(np.float64) - img_2.mean()) / (img_2.std() + 1e-8)
     F1 = np.fft.fft2(f1)
     F2 = np.fft.fft2(f2, s=f1.shape)
     return np.fft.fftshift(np.real(np.fft.ifft2(F1 * np.conj(F2))))
@@ -81,71 +81,14 @@ def non_maximum_suppression(image: np.ndarray, size: int = 31) -> np.ndarray:
     -------
     nms : ndarray of shape (H, W)
     """
-    blurred = gaussian_filter(image, sigma=0.5)
-    return (blurred == maximum_filter(blurred, size=size)) * image  # original values
- 
- 
-# ---------------------------------------------------------------------------
-# Thresholding + binarisation  (NEW)
-# ---------------------------------------------------------------------------
- 
-def select_lattice_peaks(ac: np.ndarray, n_peaks: int = 15, beta: float = 1.0) -> np.ndarray:
-    """
-    Grid-based adaptive peak selection (port of peaks_fl.m).
+    # blurred = gaussian_filter(image, sigma=0.5)
+    return (image == maximum_filter(image, size=size)) * image  # original values
 
-    Divides the image into m×n cells (m=n=√n_peaks) and keeps the single
-    pixel exceeding mean + β·σ per cell, or the global cell max when several
-    qualify.  Repeated with a half-cell offset; the two boolean maps are ANDed
-    so only robustly-detected peaks survive.  Fully vectorised — no Python loops.
-
-    Parameters
-    ----------
-    ac      : (H, W) float — NMS-processed autocorrelation map.
-    n_peaks : int          — expected number of lattice peaks.
-    beta    : float        — adaptive threshold multiplier (higher → fewer peaks).
-
-    Returns
-    -------
-    out : (H, W) float — original values at accepted peaks, 0 elsewhere.
-    """
-    H, W = ac.shape
-    m = n = max(2, int(round(np.sqrt(n_peaks))))
-    e     = min(H, W) // 10                                       # edge exclusion
-    crop  = ac[e: H - e, e: W - e]
-    rs, cs = crop.shape[0] // m, crop.shape[1] // n              # cell size
-
-    def _scan(off_r: int, off_c: int) -> np.ndarray:
-        # Clamp so off + rs*m never overshoots the crop (happens when the
-        # image is small relative to n_peaks — numpy silently clips the
-        # slice, giving the wrong size and crashing the reshape).
-        r0  = min(off_r, crop.shape[0] - rs * m)
-        c0  = min(off_c, crop.shape[1] - cs * n)
-        sub = crop[r0: r0 + rs * m, c0: c0 + cs * n]
-        B   = sub.reshape(m, rs, n, cs).transpose(0, 2, 1, 3)    # (m, n, rs, cs)
-        mu  = B.mean(axis=(-2, -1), keepdims=True)
-        sig = B.std( axis=(-2, -1), keepdims=True)
-        hot = B > mu + beta * sig
-        multi      = hot.sum(axis=(-2, -1)) > 1                   # (m, n) bool
-        hot[multi] = (B == B.max(axis=(-2, -1), keepdims=True))[multi]
-        out = np.zeros(ac.shape, bool)
-        out[e + r0: e + r0 + rs * m,
-            e + c0: e + c0 + cs * n] = hot.transpose(0, 2, 1, 3).reshape(rs * m, cs * n)
-        return out
-
-    return (_scan(0, 0) & _scan(rs // 2, cs // 2)).astype(float) * ac
 
 
 # ---------------------------------------------------------------------------
 # Interest point detection
 # ---------------------------------------------------------------------------
-
-def expand_peaks(image , expansion_size=3):
-    expanded = np.zeros_like(image)
-    peaks = np.argwhere(image > 0)
-    for peak in peaks:
-        x, y = peak
-        expanded[ max (0, x-expansion_size): min (image.shape[0], x+expansion_size+1), max (0, y-expansion_size): min (image.shape[1], y+expansion_size+1)] = 1
-    return expanded
 
 def get_center_peak(peaks: np.ndarray) -> np.ndarray:
     """
@@ -167,7 +110,7 @@ def get_center_peak(peaks: np.ndarray) -> np.ndarray:
     center = coords[np.argmin(np.linalg.norm(coords - [H // 2, W // 2], axis=1))]
     return center
 
-def detect_interest_points(peaks: np.ndarray, min_angle_deg: float = 20.0) -> np.ndarray:
+def detect_interest_points(peaks: np.ndarray, min_angle_deg: float = 25.0) -> np.ndarray:
     """
     Extract a quadrilateral cell from a lattice using a simple geometric rule.
 
@@ -264,6 +207,15 @@ def estimate_affine(img_ac: np.ndarray, ref_ac: np.ndarray, nms_size: int = 31, 
     # cv2.getAffineTransform expects (x, y) = (col, row)
     src = img_pts[:, ::-1].astype(np.float32)
     dst = ref_pts[:, ::-1].astype(np.float32)
+
+    # distances from p2 to p2 and p3 in dst
+    p22 = np.sum((src[1] - dst[1])**2)
+    p23 = np.sum((src[1] - dst[2])**2)
+
+    # If p2 is closer to p3 than to p2, swap p2 and p3 in src to match the order in dst.
+    if p23 < p22:
+        src[[1, 2]] = src[[2, 1]]
+
     return cv2.getAffineTransform(src, dst)
 
 
@@ -295,23 +247,6 @@ def correct_affine(
         image.astype(np.float32), M, (W, H),
         flags=interpolation, borderMode=cv2.BORDER_CONSTANT, borderValue=0,
     )
-
-    # angle = abs(np.arctan2(M[1, 0], M[0, 0])) % (np.pi / 2)
-    # s, c = np.sin(angle), np.cos(angle)
-
-    # if min(H, W) <= 2 * s * c * max(H, W):
-    #     crop_h = crop_w = int(min(H, W) / (2 * max(s, c) + 1e-9))
-    # else:
-    #     d = c * c - s * s + 1e-9
-    #     crop_h = int((H * c - W * s) / d)
-    #     crop_w = int((W * c - H * s) / d)
-
-    # cy, cx = H // 2, W // 2
-    # crop_h, crop_w = max(crop_h, 1), max(crop_w, 1)
-    # return warped[
-    #     cy - crop_h // 2 : cy + crop_h // 2,
-    #     cx - crop_w // 2 : cx + crop_w // 2,
-    # ].astype(image.dtype)
 
 
 # ---------------------------------------------------------------------------
@@ -359,67 +294,6 @@ def sum_blocks(
 
     return np.sum(tiles, axis=(2, 3))
 
-
-# ---------------------------------------------------------------------------
-# Translation via correlation on summed block
-# ---------------------------------------------------------------------------
-
-def correct_translation_block(
-    summed_block: np.ndarray,
-    patch_size: int,
-    key: int,
-    upsample_factor: int = 2,
-) -> np.ndarray:
-    """
-    Estimate integer translation between summed_block and the reference patch
-    via cross-correlation + NMS.
-
-    Parameters
-    ----------
-    summed_block    : ndarray of shape (up, up)
-    patch_size      : int
-    key             : int
-    nms_size        : int
-    upsample_factor : int
-
-    Returns
-    -------
-    shifted_block : ndarray of shape (up, up)
-    """
-    ref_up = upsample_patch(generate_base_patch(patch_size, key), factor=upsample_factor).astype(np.float64)
-
-    blocks = summed_block - summed_block.mean()
-    ref = ref_up - ref_up.mean()
-
-    list_blocks = [blocks, blocks[::-1], blocks[:, ::-1], blocks[::-1, ::-1]]
-
-    corr = [correlation_fft(list_blocks[i], ref) for i in range(4)]
-    corr_idx = np.argmax([np.max(corr[j]) for j in range(4)])
-
-    peak_y, peak_x = np.unravel_index(np.argmax(corr[corr_idx]), corr[corr_idx].shape)
-    cy, cx = corr[corr_idx].shape[0] // 2, corr[corr_idx].shape[1] // 2
-
-    return np.roll(list_blocks[corr_idx], shift=(-peak_y + cy, -peak_x + cx), axis=(0, 1))
-
-
-# def correct_translation_block(
-#     summed_block: np.ndarray, shift_row: int, shift_col: int
-# ) -> np.ndarray:
-#     """
-#     Apply a circular shift to summed_block to align it with the reference.
-
-#     Parameters
-#     ----------
-#     summed_block       : ndarray of shape (up, up)
-#     shift_row, shift_col : int
-
-#     Returns
-#     -------
-#     aligned : ndarray of shape (up, up)
-#     """
-#     return np.roll(summed_block, (-shift_row, -shift_col), axis=(0, 1))
-
-
 # ---------------------------------------------------------------------------
 # Full synchronisation pipeline
 # ---------------------------------------------------------------------------
@@ -464,10 +338,10 @@ def synchronise(
     """
     interp = cv2.INTER_NEAREST if img.dtype == np.uint8 else cv2.INTER_LINEAR
 
-    reference = build_reference_patch(
+    reference = build_reference_patch_bipolar(
         img.shape, patch_size=patch_size, key=key,
         tile_mode=tile_mode, upsample_factor=upsample_factor,
-    ).astype(float) * 2 - 1
+    ).astype(float)
 
     img_ac = correlation_fft(img, img)
     ref_ac = correlation_fft(reference, reference)
@@ -475,20 +349,18 @@ def synchronise(
     M = estimate_affine(img_ac, ref_ac, nms_size=nms_size_ac, n_peaks=n_peaks)
     img_corrected = correct_affine(img, M, interpolation=interp)
 
-    corrected_ac = correlation_fft(img_corrected, reference)
+    center_ref = get_center_peak(non_maximum_suppression(ref_ac, size=nms_size_ac))
+    corrected_list = [img_corrected, img_corrected[::-1, :], img_corrected[:, ::-1], img_corrected[::-1, ::-1]]
+    img_list = [img, img[::-1, :], img[:, ::-1], img[::-1, ::-1]]
 
-    M_translation = estimate_affine(corrected_ac, ref_ac, nms_size=nms_size_ac, n_peaks=n_peaks//2)
+    results = []
+    for i in range(len(corrected_list)):
+        c_ac = correlation_fft(corrected_list[i], reference)
+        center_corr = get_center_peak(non_maximum_suppression(c_ac, size=nms_size_ac))
+        dy, dx = center_ref - center_corr
+        M_total = M.copy()
+        M_total[0,2] += dx
+        M_total[1,2] += dy
+        results.append(correct_affine(img_list[i], M_total, interpolation=cv2.INTER_LANCZOS4))
 
-    # center_ref = get_center_peak(select_lattice_peaks(non_maximum_suppression(ref_ac, size=nms_size_ac), n_peaks=n_peaks))
-    # center_corr = get_center_peak(select_lattice_peaks(non_maximum_suppression(corrected_ac, size=nms_size_ac), n_peaks=n_peaks))
-
-    # dx, dy = center_corr - center_ref  # careful: (x, y)
-
-    # M = np.float32([
-    #     [1, 0, dx],
-    #     [0, 1, dy],
-    # ])
-
-    result = correct_affine(img_corrected, M_translation, interpolation=interp)
-
-    return result
+    return results
