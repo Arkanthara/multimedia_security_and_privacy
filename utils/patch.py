@@ -415,6 +415,7 @@ def extract_bits_from_spatial(
     key: int,
     tile_mode: str = "symmetric",
     upsample_factor: int = 2,
+    mode: str | None = None,
 ) -> tuple[np.ndarray, float]:
     """
     Extract watermark bits from a spatial-domain residual signal.
@@ -473,10 +474,19 @@ def extract_bits_from_spatial(
 
     summed = np.sum(tiles, axis=(2, 3))    # (up, up)
 
+    if mode is not None:
+        if mode == "flip_y":
+            summed = summed[::-1, :]
+        elif mode == "flip_x":
+            summed = summed[:, ::-1]
+        elif mode == "flip_xy":
+            summed = summed[::-1, ::-1]
+    # "normal" → do nothing
+
     # Sum upsample_factor × upsample_factor pixel blocks into logical patch
     small = summed.reshape(
         patch_size, upsample_factor, patch_size, upsample_factor
-    ).sum(axis=(1, 3))                     # (patch_size, patch_size)
+    ).sum(axis=(1, 3))                  # (patch_size, patch_size)
 
     pos    = get_bit_positions(patch_size, n_bits, key)
     values = small[pos[:, 0], pos[:, 1]]

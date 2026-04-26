@@ -400,7 +400,7 @@ class WatermarkModel:
 
         try:
             # Pass the already-built reference so synchronise skips rebuilding it
-            aligned_residuals = synchronise(
+            aligned_residuals, flip_mode = synchronise(
                 residual,
                 patch_size=self.patch_size,
                 key=self.key,
@@ -415,6 +415,7 @@ class WatermarkModel:
                 n_bits,
                 self.key,
                 upsample_factor=self.upsample_factor,
+                mode=flip_mode,
             )
             msgs.append(msg)
             confidences.append(conf)

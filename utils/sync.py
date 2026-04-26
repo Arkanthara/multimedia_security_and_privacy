@@ -281,13 +281,53 @@ def correct_affine(
 # ---------------------------------------------------------------------------
 
 
-def estimate_translation_blocks(image: np.ndarray, key: int, patch_size: int, upsample_factor: int):
+def estimate_translation_and_flip(
+    image: np.ndarray,
+    key: int,
+    patch_size: int,
+    upsample_factor: int,
+    max_tiles: int = 16,
+):
+    """
+    Estimate global translation and flip mode using a subset of tiles.
+
+    Strategy
+    --------
+    - Split image into tiles of size (up, up)
+    - Select only tiles with even indices (i % 2 == 0, j % 2 == 0)
+    - Prioritize tiles closest to the image center
+    - Evaluate all 4 flip configurations in a fully vectorized way
+    - Aggregate results:
+        * median shift
+        * majority flip mode
+
+    Parameters
+    ----------
+    image : ndarray (H, W)
+    key : int
+    patch_size : int
+    upsample_factor : int
+    max_tiles : int
+        Maximum number of tiles used (for speed)
+
+    Returns
+    -------
+    shift : ndarray (2,)
+        Estimated (dy, dx)
+    mode : str
+        One of {"normal", "flip_y", "flip_x", "flip_xy"}
+    """
+
     up = patch_size * upsample_factor
     H, W = image.shape
-    ref_patch = generate_base_patch(patch_size, key)
-    ref_patch = upsample_patch(ref_patch, upsample_factor)
 
-    # pad
+    # --- reference patch ---
+    ref = generate_base_patch(patch_size, key)
+    ref = upsample_patch(ref, upsample_factor)
+    ref = ref.astype(np.float64)
+    ref = (ref - ref.mean()) / (ref.std() + 1e-8)
+
+    # --- pad image ---
     pad_H = (-H) % up
     pad_W = (-W) % up
     img = np.pad(image, ((0, pad_H), (0, pad_W)))
@@ -295,42 +335,80 @@ def estimate_translation_blocks(image: np.ndarray, key: int, patch_size: int, up
     H2, W2 = img.shape
     Ty, Tx = H2 // up, W2 // up
 
-    # reshape into tiles
+    # --- extract tiles: (Ty, Tx, up, up) ---
     tiles = img.reshape(Ty, up, Tx, up).transpose(0, 2, 1, 3)
 
-    # pick central tiles
-    cy, cx = Ty // 2, Tx // 2
-    selected = [
-        tiles[cy, cx],
-        tiles[cy-1, cx],
-        tiles[cy, cx-1],
-        tiles[cy+1, cx],
-        tiles[cy, cx+1],
-    ]
+    # --- select even-index tiles ---
+    yy, xx = np.meshgrid(np.arange(Ty), np.arange(Tx), indexing="ij")
+    mask = (yy % 2 == 0) & (xx % 2 == 0)
 
-    shifts = []
+    coords = np.stack([yy[mask], xx[mask]], axis=1)
 
-    for tile in selected:
-        # normalize
-        t = (tile - tile.mean()) / (tile.std() + 1e-8)
-        r = (ref_patch - ref_patch.mean()) / (ref_patch.std() + 1e-8)
+    # --- prioritize center tiles ---
+    cy, cx = Ty / 2, Tx / 2
+    dist = (coords[:, 0] - cy) ** 2 + (coords[:, 1] - cx) ** 2
+    order = np.argsort(dist)
 
-        # FFT correlation (small!)
-        F_t = np.fft.rfft2(t)
-        F_r = np.fft.rfft2(r, s=t.shape)
+    coords = coords[order[:max_tiles]]
 
-        corr = np.fft.irfft2(F_t * np.conj(F_r), s=t.shape)
-        corr = np.fft.fftshift(corr)
+    # --- gather selected tiles ---
+    selected = tiles[coords[:, 0], coords[:, 1]]  # (N, up, up)
 
-        dy, dx = np.unravel_index(np.argmax(corr), corr.shape)
-        shifts.append([dy - up//2, dx - up//2])
+    # --- build 4 flip variants ---
+    variants = np.stack([
+        selected,
+        selected[:, ::-1, :],
+        selected[:, :, ::-1],
+        selected[:, ::-1, ::-1],
+    ], axis=1)  # (N, 4, up, up)
 
-    shifts = np.array(shifts)
+    # --- normalize ---
+    variants = variants.astype(np.float64)
+    variants = (variants - variants.mean(axis=(-2, -1), keepdims=True)) / (
+        variants.std(axis=(-2, -1), keepdims=True) + 1e-8
+    )
 
-    # robust aggregation
+    # --- FFT ---
+    F_ref = np.fft.rfft2(ref, s=(up, up))
+    F_var = np.fft.rfft2(variants, axes=(-2, -1))
+
+    # --- correlation ---
+    corr = np.fft.irfft2(
+        F_var * np.conj(F_ref),
+        s=(up, up),
+        axes=(-2, -1),
+    )
+    corr = np.fft.fftshift(corr, axes=(-2, -1))  # (N, 4, up, up)
+
+    # --- find peaks ---
+    flat = corr.reshape(corr.shape[0], corr.shape[1], -1)
+    idx = np.argmax(flat, axis=-1)
+
+    dy = idx // up
+    dx = idx % up
+
+    scores = flat[np.arange(flat.shape[0])[:, None], np.arange(4), idx]
+
+    # --- best mode per tile ---
+    best_mode_idx = np.argmax(scores, axis=1)
+
+    # --- gather shifts ---
+    best_dy = dy[np.arange(len(coords)), best_mode_idx] - up // 2
+    best_dx = dx[np.arange(len(coords)), best_mode_idx] - up // 2
+
+    shifts = np.stack([best_dy, best_dx], axis=1)
+
+    # --- aggregate ---
     median_shift = np.median(shifts, axis=0)
 
-    return median_shift
+    # majority vote for mode
+    counts = np.bincount(best_mode_idx, minlength=4)
+    mode_idx = np.argmax(counts)
+
+    modes = np.array(["normal", "flip_y", "flip_x", "flip_xy"])
+    mode = modes[mode_idx]
+
+    return median_shift, mode
 
 # ---------------------------------------------------------------------------
 # Block summation
@@ -341,6 +419,7 @@ def sum_blocks(
     patch_size: int,
     tile_mode: str = "normal",
     upsample_factor: int = 2,
+    mode: str | None = None,
 ) -> np.ndarray:
     """
     Divide image into non-overlapping blocks and sum them into a single block.
@@ -375,7 +454,17 @@ def sum_blocks(
         tiles[:, :, 1::2, :] = tiles[::-1, :, 1::2, :]
         tiles[:, :, :, 1::2] = tiles[:, ::-1, :, 1::2]
 
-    return np.sum(tiles, axis=(2, 3))
+    blocks = np.sum(tiles, axis=(2, 3))
+
+    if mode is not None:
+        if mode == "flip_y":
+            blocks = blocks[::-1, :]
+        elif mode == "flip_x":
+            blocks = blocks[:, ::-1]
+        elif mode == "flip_xy":
+            blocks = blocks[::-1, ::-1]
+        # "normal" → do nothing
+    return blocks
 
 
 # ---------------------------------------------------------------------------
@@ -390,7 +479,7 @@ def synchronise(
     nms_size_ac: int = 31,
     upsample_factor: int = 2,
     reference: np.ndarray | None = None,
-) -> list[np.ndarray]:
+) -> tuple[np.ndarray, str]:
     """
     Align img to the reference watermark grid and return a list of four
     translation-corrected variants (original + 3 axis flips of the
@@ -464,7 +553,7 @@ def synchronise(
     # ------------------------------------------------------------------
     M             = estimate_affine(img_ac, ref_ac, nms_size=nms_size_ac)
     img_corrected = correct_affine(img, M, interpolation=interp)
-    center_ref    = get_center_peak(non_maximum_suppression(ref_ac, size=nms_size_ac))
+    # center_ref    = get_center_peak(non_maximum_suppression(ref_ac, size=nms_size_ac))
 
     # ------------------------------------------------------------------
     # Four flip variants: find per-variant translation, then apply the
@@ -508,9 +597,9 @@ def synchronise(
     #     M_total[1, 2] += dy
 
     #     results.append(correct_affine(img_var, M_total, interpolation=cv2.INTER_LINEAR))
-    dy, dx = estimate_translation_blocks(img_corrected, key, patch_size, upsample_factor)
+    translation, flip_mode = estimate_translation_and_flip(img_corrected, key, patch_size, upsample_factor)
     M_total       = M.copy()
-    M_total[0, 2] += dx
-    M_total[1, 2] += dy
+    M_total[0, 2] -= translation[1]  # dx
+    M_total[1, 2] -= translation[0]  # dy
 
-    return correct_affine(img, M_total, interpolation=interp)
+    return correct_affine(img, M_total, interpolation=interp), flip_mode
