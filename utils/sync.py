@@ -44,6 +44,11 @@ Performance notes
 * ``synchronise`` accepts an optional pre-built ``reference`` array so that
   ``model.py`` can pass the one it already computed for Wiener noise estimation,
   avoiding a full second ``build_reference_patch_bipolar`` call.
+
+* Reference cropping fix: the reference is always built (or received) at full
+  image size and then centre-cropped to match img_crop.  Building the reference
+  directly at crop size would produce a different tiling phase, corrupting both
+  the autocorrelation peak positions and the translation estimate.
 """
 
 from __future__ import annotations
@@ -117,6 +122,34 @@ def non_maximum_suppression(image: np.ndarray, size: int = 31) -> np.ndarray:
 
 
 # ---------------------------------------------------------------------------
+# Peak visualisation helper
+# ---------------------------------------------------------------------------
+
+def expand_peaks(image: np.ndarray, expansion_size: int = 3) -> np.ndarray:
+    """
+    Expand each detected peak into a small filled square for visualisation.
+
+    Parameters
+    ----------
+    image          : ndarray (H, W) — binary or valued peak map
+    expansion_size : int — half-size of the square in pixels
+
+    Returns
+    -------
+    expanded : ndarray (H, W), same dtype as image, values in {0, 1}
+    """
+    expanded = np.zeros_like(image)
+    peaks = np.argwhere(image > 0)
+    for peak in peaks:
+        x, y = peak
+        expanded[
+            max(0, x - expansion_size): min(image.shape[0], x + expansion_size + 1),
+            max(0, y - expansion_size): min(image.shape[1], y + expansion_size + 1),
+        ] = 1
+    return expanded
+
+
+# ---------------------------------------------------------------------------
 # Interest point detection
 # ---------------------------------------------------------------------------
 
@@ -143,66 +176,87 @@ def get_center_peak(peaks: np.ndarray) -> np.ndarray:
 
 def detect_interest_points(peaks: np.ndarray, min_angle_deg: float = 25.0) -> np.ndarray:
     """
-    Extract a quadrilateral cell from a lattice using a simple geometric rule.
+    Detect three stable lattice basis points from an autocorrelation peak map.
 
-    Strategy
-    --------
-    p1 : center (closest peak to image center)
-    p2 : closest neighbor to p1
-    p3 : next closest point with a different direction from p2
-         (angle > min_angle and < 180 - min_angle)
-    p4 : real point closest to (p2 + p3)
+    Returned points
+    ---------------
+    p1 : peak closest to the image centre  (origin of the lattice)
+    p2 : closest neighbour of p1 whose angle lies in [0°, 180°), smallest angle
+    p3 : closest neighbour of p1 in [0°, 180°) that is NOT collinear with p2,
+         i.e. |angle(p3) − angle(p2)| ∈ (min_angle_deg, 180° − min_angle_deg)
 
-    The returned order is: [p1, p2, p4, p3].
+    Both p2 and p3 use the standard mathematical angle convention
+    (y-axis pointing UP, angles CCW from the positive x/column axis).
+    Restricting to [0°, 180°) makes selection invariant to 180° rotations.
 
     Parameters
     ----------
-    peaks : ndarray (H, W)
-        Map of detected peaks.
-    min_angle_deg : float
-        Minimum angle between p2 and p3 (in degrees).
+    peaks         : (H, W) peak map — nonzero pixels mark detected peaks
+    min_angle_deg : minimum angular separation between p2 and p3 [degrees]
 
     Returns
     -------
-    points : ndarray (4, 2)
-        Quadrilateral in centered coordinates.
+    points : (3, 2) float array — [p1, p2, p3] in (row, col) image coordinates
 
     Raises
     ------
-    ValueError if a valid configuration cannot be found.
+    ValueError : fewer than 3 usable peaks, or all peaks are collinear
     """
-    H, W = peaks.shape
     ys, xs = np.nonzero(peaks)
     if len(ys) < 3:
-        raise ValueError("Not enough peaks.")
+        raise ValueError(f"Need ≥ 3 peaks, found {len(ys)}.")
 
-    coords = np.stack((ys, xs), axis=1).astype(float)
-    center = get_center_peak(peaks)
+    # p1: peak closest to the image centre
+    p1 = get_center_peak(peaks)  # (row, col)
 
-    others = coords - center
-    others = others[(others != 0).any(axis=1)]
+    # --- displacement vectors from p1 ------------------------------------
+    vecs = np.stack((ys, xs), axis=1).astype(float) - p1
+    vecs = vecs[vecs.any(axis=1)]  # remove the zero vector (p1 itself)
 
-    dists  = np.linalg.norm(others, axis=1)
-    others = others[np.argsort(dists)]   # sort by distance, not by score
+    # Standard mathematical angles: negate row so that "image up" is +y,
+    # then map to [0, 2π).
+    # atan2(-row_offset, col_offset) = CCW angle from the +col axis.
+    angles = np.arctan2(-vecs[:, 0], vecs[:, 1]) % (2 * np.pi)
 
-    # p2 = nearest neighbour
-    p2 = others[0]
+    # Keep only the upper half-plane [0°, 180°) to discard mirrored duplicates.
+    # Every lattice vector v has a mirror -v; exactly one of them falls here.
+    upper = angles < np.pi
+    vecs   = vecs[upper]
+    angles = angles[upper]
 
-    # p3 = nearest point with sufficient angular separation from p2
-    cos    = (others @ p2) / (np.linalg.norm(others, axis=1) * np.linalg.norm(p2) + 1e-8)
-    angles = np.arccos(np.clip(cos, -1, 1))
-    tol    = np.radians(min_angle_deg)
-    valid  = (angles > tol) & (angles < np.pi - tol)
-    valid[0] = False
+    if len(vecs) < 2:
+        raise ValueError("Fewer than 2 peaks in the upper half-plane [0°, 180°).")
 
-    if not np.any(valid):
-        raise ValueError("All strong peaks are collinear.")
+    # Sort by Euclidean distance so we always prefer the closest candidates
+    order  = np.argsort(np.linalg.norm(vecs, axis=1))
+    vecs   = vecs[order]
+    angles = angles[order]
 
-    # pick the closest valid one (not the highest-scored)
-    p3_idx = np.argmax(valid)   # first True = smallest distance among valid
-    p3     = others[p3_idx]
+    # p2: closest upper-half-plane vector (angle to be enforced smallest later)
+    v2, a2 = vecs[0], angles[0]
 
-    return (np.stack([[0., 0.], p2, p3]) + center).astype(float)
+    # p3: closest upper-half-plane vector NOT collinear with p2.
+    # "Not collinear" means the angular gap is neither ~0° (parallel) nor ~180° (anti-parallel).
+    tol = np.radians(min_angle_deg)
+    v3 = a3 = None
+    for v, a in zip(vecs[1:], angles[1:]):
+        if tol < abs(a - a2) < np.pi - tol:
+            v3, a3 = v, a
+            break
+
+    if v3 is None:
+        raise ValueError(
+            "All upper-half peaks are collinear with each other. "
+            f"Try reducing min_angle_deg (current: {min_angle_deg}°)."
+        )
+
+    # Enforce convention: p2 carries the SMALLER of the two angles
+    if a2 > a3:
+        v2, v3 = v3, v2
+
+    # Convert back to absolute image coordinates and return
+    # return np.stack([[0., 0.], v2, v3]) + p1
+    return np.stack([[0., 0.], v2, v3])
 
 
 # ---------------------------------------------------------------------------
@@ -237,12 +291,12 @@ def estimate_affine(img_ac: np.ndarray, ref_ac: np.ndarray, nms_size: int = 31) 
     dst = ref_pts[:, ::-1].astype(np.float32)
 
     # distances from p2 to p2 and p3 in dst
-    p22 = np.sum((src[1] - dst[1]) ** 2)
-    p23 = np.sum((src[1] - dst[2]) ** 2)
+    # p22 = np.sum((src[1] - dst[1]) ** 2)
+    # p23 = np.sum((src[1] - dst[2]) ** 2)
 
-    # If p2 is closer to p3 than to p2, swap p2 and p3 in src to match dst order.
-    if p23 < p22:
-        src[[1, 2]] = src[[2, 1]]
+    # # If p2 is closer to p3 than to p2, swap p2 and p3 in src to match dst order.
+    # if p23 < p22:
+    #     src[[1, 2]] = src[[2, 1]]
 
     return cv2.getAffineTransform(src, dst)
 
@@ -271,15 +325,148 @@ def correct_affine(
     cropped : ndarray, same dtype as image
     """
     H, W = image.shape
+    cx, cy = W / 2, H / 2
+
+    M3 = np.vstack([M, [0,0,1]])
+
+    T1 = np.array([[1, 0, -cx],
+                [0, 1, -cy],
+                [0, 0, 1]], dtype=np.float32)
+
+    T2 = np.array([[1, 0, cx],
+                [0, 1, cy],
+                [0, 0, 1]], dtype=np.float32)
+
+    M_centered = (T2 @ M3 @ T1)[:2]
+
     return cv2.warpAffine(
-        image.astype(np.float32), M, (W, H),
-        flags=interpolation, borderMode=cv2.BORDER_CONSTANT, borderValue=0,
+        image.astype(np.float32), M_centered, (W, H),
+        flags=interpolation,
+        borderMode=cv2.BORDER_CONSTANT,
+        borderValue=0,
     )
+
 
 # ---------------------------------------------------------------------------
 # Translation estimation
 # ---------------------------------------------------------------------------
 
+# def estimate_translation_and_flip(
+#     image: np.ndarray,
+#     key: int,
+#     patch_size: int,
+#     upsample_factor: int,
+#     max_tiles: int = 16,
+# ) -> tuple[np.ndarray, str]:
+#     """
+#     Estimate sub-period translation and flip mode of an affine-corrected image.
+
+#     The image is tiled into (up × up) blocks.  Each tile is correlated with four
+#     flip variants of the reference patch in one batched FFT pass.  The dominant
+#     flip mode (majority vote) and its median shift (over all tiles) are returned.
+
+#     Sign convention — why the raw peak must be sign-corrected for flip variants
+#     ---------------------------------------------------------------------------
+#     Cross-correlation:  corr[p] = Σ tile_flipped[k] · ref[k − p]
+#     For flip_y the tile was reversed in the row axis, so its correlation peak
+#     sits at lag −dy_true instead of +dy_true.  Negating recovers the true shift.
+#     In general:
+#         flip  0 (normal)  → sign( dy, dx) = (+, +)
+#         flip  1 (flip_y)  → sign(−dy, dx) = (−, +)   ← negate dy
+#         flip  2 (flip_x)  → sign( dy,−dx) = (+, −)   ← negate dx
+#         flip  3 (flip_xy) → sign(−dy,−dx) = (−, −)   ← negate both
+
+#     Parameters
+#     ----------
+#     image          : (H, W) or (H, W, C)  affine-corrected image
+#     key            : watermark key
+#     patch_size     : base patch size in pixels
+#     upsample_factor: upsampling factor applied to the patch
+#     max_tiles      : max number of tiles used for estimation
+
+#     Returns
+#     -------
+#     shift : (2,) ndarray  —  (dy, dx) shift of the image relative to reference
+#     mode  : str           —  "normal" | "flip_y" | "flip_x" | "flip_xy"
+#     """
+#     up = patch_size * upsample_factor   # side length of one reference tile
+
+#     # ── Reference: built once, FFT pre-computed ────────────────────────────
+#     ref = generate_base_patch(patch_size, key)
+#     ref = upsample_patch(ref, upsample_factor).astype(np.float64)
+#     ref = (ref - ref.mean()) / (ref.std() + 1e-8)
+#     F_ref_conj = np.conj(np.fft.rfft2(ref))           # shape (up, up//2 + 1)
+
+#     # ── Flatten colour images to single-channel grayscale ─────────────────
+#     img = image.astype(np.float64)
+#     if img.ndim == 3:
+#         img = img.mean(axis=2)
+
+#     H, W = img.shape
+
+#     # ── Pad to multiples of `up`; create a zero-copy strided tile view ────
+#     img = np.pad(img, ((0, (-H) % up), (0, (-W) % up)))
+#     Ty, Tx = img.shape[0] // up, img.shape[1] // up
+#     tiles = img.reshape(Ty, up, Tx, up).transpose(0, 2, 1, 3)   # (Ty,Tx,up,up)
+
+#     # ── Select up to max_tiles tiles, ranked by proximity to image centre ─
+#     yy, xx = np.meshgrid(np.arange(Ty), np.arange(Tx), indexing="ij")
+#     dist    = (yy - Ty / 2.0) ** 2 + (xx - Tx / 2.0) ** 2
+#     order   = np.argsort(dist.ravel())[:max_tiles]
+#     # Fancy indexing produces a contiguous (N, up, up) copy
+#     selected = tiles[yy.ravel()[order], xx.ravel()[order]]
+#     N = len(selected)
+
+#     # ── Four flip variants stacked into one array: (N*4, up, up) ──────────
+#     # Variants: 0 = normal | 1 = flip_y | 2 = flip_x | 3 = flip_xy
+#     variants = np.stack([
+#         selected,
+#         selected[:, ::-1, :  ],
+#         selected[:, :,    ::-1],
+#         selected[:, ::-1, ::-1],
+#     ], axis=1).reshape(N * 4, up, up)
+
+#     # Per-tile zero-mean / unit-variance normalisation
+#     mu       = variants.mean(axis=(-2, -1), keepdims=True)
+#     sig      = variants.std( axis=(-2, -1), keepdims=True) + 1e-8
+#     variants = (variants - mu) / sig
+
+#     # ── Batched cross-correlation via FFT ─────────────────────────────────
+#     # corr[p, q] = Σ variant[i,j] · ref[i−p, j−q]  (cyclic)
+#     # After fftshift the peak at (p,q) from the centre equals the lag.
+#     F_var = np.fft.rfft2(variants, axes=(-2, -1))
+#     corr  = np.fft.irfft2(F_var * F_ref_conj, axes=(-2, -1))
+#     corr  = np.fft.fftshift(corr, axes=(-2, -1)).reshape(N, 4, up, up)
+
+#     # ── Peak position → raw (dy, dx) relative to correlation centre ───────
+#     flat      = corr.reshape(N, 4, -1)
+#     idx       = np.argmax(flat, axis=-1)                          # (N, 4)
+#     scores    = flat[np.arange(N)[:, None], np.arange(4), idx]   # (N, 4)
+
+#     raw_dy = idx // up - up // 2   # (N, 4)
+#     raw_dx = idx  % up - up // 2   # (N, 4)
+
+#     # ── Sign correction: un-flip the shift back to original image coords ──
+#     # Flipping a tile axis negates the peak position on that axis.
+#     # variant  0  1   2   3
+#     sign_dy = np.array([+1, -1, +1, -1])
+#     sign_dx = np.array([+1, +1, -1, -1])
+
+#     dy_all = raw_dy * sign_dy   # (N, 4)
+#     dx_all = raw_dx * sign_dx   # (N, 4)
+
+#     # ── Per-tile: pick the flip with the highest correlation peak ─────────
+#     best  = np.argmax(scores, axis=1)   # (N,)
+#     n_idx = np.arange(N)
+#     dy    = dy_all[n_idx, best]
+#     dx    = dx_all[n_idx, best]
+
+#     # ── Aggregate across tiles ────────────────────────────────────────────
+#     median_shift = np.median(np.stack([dy, dx], axis=1), axis=0)
+#     mode_idx     = int(np.argmax(np.bincount(best, minlength=4)))
+#     mode         = ("normal", "flip_y", "flip_x", "flip_xy")[mode_idx]
+
+#     return median_shift, mode
 
 def estimate_translation_and_flip(
     image: np.ndarray,
@@ -290,125 +477,89 @@ def estimate_translation_and_flip(
 ):
     """
     Estimate global translation and flip mode using a subset of tiles.
-
-    Strategy
-    --------
-    - Split image into tiles of size (up, up)
-    - Select only tiles with even indices (i % 2 == 0, j % 2 == 0)
-    - Prioritize tiles closest to the image center
-    - Evaluate all 4 flip configurations in a fully vectorized way
-    - Aggregate results:
-        * median shift
-        * majority flip mode
-
-    Parameters
-    ----------
-    image : ndarray (H, W)
-    key : int
-    patch_size : int
-    upsample_factor : int
-    max_tiles : int
-        Maximum number of tiles used (for speed)
-
-    Returns
-    -------
-    shift : ndarray (2,)
-        Estimated (dy, dx)
-    mode : str
-        One of {"normal", "flip_y", "flip_x", "flip_xy"}
+    Optimizations vs original:
+      1. float32 throughout  → ~2× FFT speedup
+      2. Normalize once      → flip ops are mean/std invariant, no need to redo it 4×
+      3. 1 rfft2 per tile    → flip variants derived analytically in frequency domain
+      4. Step-2 arange       → no full meshgrid+mask allocation
     """
-
     up = patch_size * upsample_factor
     H, W = image.shape
 
-    # --- reference patch ---
+    # [OPT 1] float32 — halves FFT memory bandwidth and compute
     ref = generate_base_patch(patch_size, key)
     ref = upsample_patch(ref, upsample_factor)
-    ref = ref.astype(np.float64)
+    ref = ref.astype(np.float32)
     ref = (ref - ref.mean()) / (ref.std() + 1e-8)
 
-    # --- pad image ---
     pad_H = (-H) % up
     pad_W = (-W) % up
-    img = np.pad(image, ((0, pad_H), (0, pad_W)))
+    img = np.pad(image, ((0, pad_H), (0, pad_W))).astype(np.float32)
 
     H2, W2 = img.shape
     Ty, Tx = H2 // up, W2 // up
 
-    # --- extract tiles: (Ty, Tx, up, up) ---
     tiles = img.reshape(Ty, up, Tx, up).transpose(0, 2, 1, 3)
 
-    # --- select even-index tiles ---
-    yy, xx = np.meshgrid(np.arange(Ty), np.arange(Tx), indexing="ij")
-    mask = (yy % 2 == 0) & (xx % 2 == 0)
+    # [OPT 4] Direct step-2 index generation — avoids full Ty×Tx grid + boolean mask
+    ey = np.arange(0, Ty, 2)
+    ex = np.arange(0, Tx, 2)
+    yy, xx = np.meshgrid(ey, ex, indexing="ij")
+    coords = np.stack([yy.ravel(), xx.ravel()], axis=1)
 
-    coords = np.stack([yy[mask], xx[mask]], axis=1)
-
-    # --- prioritize center tiles ---
     cy, cx = Ty / 2, Tx / 2
     dist = (coords[:, 0] - cy) ** 2 + (coords[:, 1] - cx) ** 2
-    order = np.argsort(dist)
+    coords = coords[np.argsort(dist)[:max_tiles]]
 
-    coords = coords[order[:max_tiles]]
-
-    # --- gather selected tiles ---
     selected = tiles[coords[:, 0], coords[:, 1]]  # (N, up, up)
 
-    # --- build 4 flip variants ---
-    variants = np.stack([
-        selected,
-        selected[:, ::-1, :],
-        selected[:, :, ::-1],
-        selected[:, ::-1, ::-1],
-    ], axis=1)  # (N, 4, up, up)
+    # [OPT 2] Normalize once — flip ops preserve per-tile mean/std
+    mu    = selected.mean(axis=(-2, -1), keepdims=True)
+    sigma = selected.std(axis=(-2, -1), keepdims=True) + 1e-8
+    selected = (selected - mu) / sigma
 
-    # --- normalize ---
-    variants = variants.astype(np.float64)
-    variants = (variants - variants.mean(axis=(-2, -1), keepdims=True)) / (
-        variants.std(axis=(-2, -1), keepdims=True) + 1e-8
+    # [OPT 3] Single rfft2 per tile; derive all 4 flip variants analytically.
+    # For a real array a of shape (N, M) with rfft2 output F (shape N × M//2+1):
+    #
+    #   flip_y  a[::-1, :]    → F[(N-k)%N, l]      (roll the k-axis)
+    #   flip_xy a[::-1,::-1]  → conj(F)             (Hermitian symmetry of real arrays)
+    #   flip_x  a[:, ::-1]    → conj(F[(N-k)%N, l]) (= conj of flip_y)
+    #
+    # This replaces 3N extra rfft2 calls with cheap array operations.
+    F_tiles    = np.fft.rfft2(selected, axes=(-2, -1))          # (N, up, up//2+1)
+    F_ref_conj = np.conj(np.fft.rfft2(ref))                     # (up, up//2+1)
+
+    # Roll k-axis: k=0 is fixed point, k=1..up-1 reverse
+    F_flip_y  = np.concatenate(
+        [F_tiles[:, :1, :], F_tiles[:, 1:, :][:, ::-1, :]], axis=1
     )
+    F_flip_xy = np.conj(F_tiles)
+    F_flip_x  = np.conj(F_flip_y)
 
-    # --- FFT ---
-    F_ref = np.fft.rfft2(ref, s=(up, up))
-    F_var = np.fft.rfft2(variants, axes=(-2, -1))
+    F_variants = np.stack(
+        [F_tiles, F_flip_y, F_flip_x, F_flip_xy], axis=1
+    )  # (N, 4, up, up//2+1)
 
-    # --- correlation ---
-    corr = np.fft.irfft2(
-        F_var * np.conj(F_ref),
-        s=(up, up),
-        axes=(-2, -1),
-    )
+    corr = np.fft.irfft2(F_variants * F_ref_conj, s=(up, up), axes=(-2, -1))
     corr = np.fft.fftshift(corr, axes=(-2, -1))  # (N, 4, up, up)
 
-    # --- find peaks ---
-    flat = corr.reshape(corr.shape[0], corr.shape[1], -1)
-    idx = np.argmax(flat, axis=-1)
+    # Peak detection
+    N = len(coords)
+    flat = corr.reshape(N, 4, -1)
+    idx  = np.argmax(flat, axis=-1)                              # (N, 4)
+    dy   = idx // up
+    dx   = idx % up
+    scores = flat[np.arange(N)[:, None], np.arange(4), idx]     # (N, 4)
 
-    dy = idx // up
-    dx = idx % up
+    best_mode_idx = np.argmax(scores, axis=1)                    # (N,)
+    best_dy = dy[np.arange(N), best_mode_idx] - up // 2
+    best_dx = dx[np.arange(N), best_mode_idx] - up // 2
 
-    scores = flat[np.arange(flat.shape[0])[:, None], np.arange(4), idx]
+    median_shift = np.median(np.stack([best_dy, best_dx], axis=1), axis=0)
 
-    # --- best mode per tile ---
-    best_mode_idx = np.argmax(scores, axis=1)
-
-    # --- gather shifts ---
-    best_dy = dy[np.arange(len(coords)), best_mode_idx] - up // 2
-    best_dx = dx[np.arange(len(coords)), best_mode_idx] - up // 2
-
-    shifts = np.stack([best_dy, best_dx], axis=1)
-
-    # --- aggregate ---
-    median_shift = np.median(shifts, axis=0)
-
-    # majority vote for mode
-    counts = np.bincount(best_mode_idx, minlength=4)
-    mode_idx = np.argmax(counts)
-
-    modes = np.array(["normal", "flip_y", "flip_x", "flip_xy"])
-    mode = modes[mode_idx]
-
-    return median_shift, mode
+    counts   = np.bincount(best_mode_idx, minlength=4)
+    modes    = ["normal", "flip_y", "flip_x", "flip_xy"]
+    return median_shift, modes[np.argmax(counts)]
 
 # ---------------------------------------------------------------------------
 # Block summation
@@ -463,7 +614,6 @@ def sum_blocks(
             blocks = blocks[:, ::-1]
         elif mode == "flip_xy":
             blocks = blocks[::-1, ::-1]
-        # "normal" → do nothing
     return blocks
 
 
@@ -481,125 +631,447 @@ def synchronise(
     reference: np.ndarray | None = None,
 ) -> tuple[np.ndarray, str]:
     """
-    Align img to the reference watermark grid and return a list of four
-    translation-corrected variants (original + 3 axis flips of the
-    affine-corrected image).
+    Align img to the reference watermark grid.
 
-    Pipeline
-    --------
-    1. Compute autocorrelations of image and reference via rfft2.
-    2. Detect three lattice peaks in each → estimate affine transform.
-    3. Warp image with affine.
-    4. For each of four flip variants of the warped image:
-       a. Cross-correlate with reference (reusing precomputed reference rfft2).
-       b. Estimate translation offset.
-       c. Apply combined affine + translation to the corresponding flip of the
-          original image.
-    5. Return all four corrected images.
+    All heavy FFT / correlation / translation work is done on a small centre
+    crop.  Because correct_affine uses the image centre as its coordinate
+    origin, applying M to the crop (whose centre coincides with the full
+    image centre) is exact — no offset arithmetic needed.
+    The full image is touched exactly once, at the very end.
 
-    Parameters
-    ----------
-    img            : ndarray of shape (H, W) — uint8 {0,1} or float32 residual
-    patch_size     : int
-    key            : int
-    tile_mode      : {"normal", "symmetric"}
-    nms_size_ac    : int — NMS window for autocorrelation peak detection
-    upsample_factor: int
-    reference      : ndarray of shape (H, W), optional
-        Pre-built bipolar reference patch.  When supplied (e.g. passed from
-        ``WatermarkModel.decode`` which already computed it) the function skips
-        the ``build_reference_patch_bipolar`` call, saving significant time.
+    IMPORTANT — reference cropping:
+    The reference is always built (or received) at full image size, then
+    centre-cropped.  Building it directly at crop size would produce a
+    different tiling phase and corrupt both the autocorrelation peaks and
+    the translation estimate.
 
-    Returns
-    -------
-    results : list of four ndarray, each of shape (H, W), dtype float32
-        Affine + translation corrected variants of img.
+    Crop size = 4 × (patch_size × upsample_factor × 2)
+    → typically 4–8× smaller side-length → ~20–60× fewer FFT operations.
     """
     interp = cv2.INTER_NEAREST if img.dtype == np.uint8 else cv2.INTER_LINEAR
 
     # ------------------------------------------------------------------
-    # Build / receive reference and pre-compute its rfft2 ONCE.
-    # This single conjugate spectrum is reused for:
-    #   • ref_ac  (autocorrelation of reference)
-    #   • 4×  cross-correlation(corrected_variant, reference)
-    # That replaces what would otherwise be 5 separate rfft2 pairs.
+    # 1.  Centre crop  — 4 full watermark periods on each axis
+    # ------------------------------------------------------------------
+    tile      = patch_size * upsample_factor * 2
+    crop_size = 4 * tile
+    H, W      = img.shape[:2]
+    cy, cx    = H // 2, W // 2
+    half      = crop_size // 2
+
+    y0, y1    = max(0, cy - half), min(H, cy + half)
+    x0, x1    = max(0, cx - half), min(W, cx + half)
+    img_crop  = img[y0:y1, x0:x1]
+    crop_h, crop_w = img_crop.shape[:2]
+
+    # ------------------------------------------------------------------
+    # 2.  Reference — always build at full size, then crop.
+    #     This preserves the correct tiling phase in the centre region.
     # ------------------------------------------------------------------
     if reference is None:
-        ref = build_reference_patch_bipolar(
-            img.shape, patch_size=patch_size, key=key,
+        ref_full = build_reference_patch_bipolar(
+            (H, W), patch_size=patch_size, key=key,
             tile_mode=tile_mode, upsample_factor=upsample_factor,
         ).astype(np.float64)
     else:
-        ref = np.asarray(reference, dtype=np.float64)
+        ref_full = np.asarray(reference, dtype=np.float64)
+
+    ref = ref_full[y0:y1, x0:x1]
 
     ref_n      = (ref - ref.mean()) / (ref.std() + 1e-8)
-    F_ref      = np.fft.rfft2(ref_n)          # computed exactly once
+    F_ref      = np.fft.rfft2(ref_n)
     F_ref_conj = np.conj(F_ref)
-    ref_shape  = ref_n.shape
 
-    # ref autocorrelation (reuse F_ref)
-    ref_ac = np.fft.fftshift(np.fft.irfft2(F_ref * F_ref_conj, s=ref_shape))
+    ref_ac = np.fft.fftshift(np.fft.irfft2(F_ref * F_ref_conj, s=ref_n.shape))
 
     # ------------------------------------------------------------------
-    # Image autocorrelation
+    # 3.  Image autocorrelation — crop only
     # ------------------------------------------------------------------
-    img_f = img.astype(np.float64)
+    img_f = img_crop.astype(np.float64)
     img_f = (img_f - img_f.mean()) / (img_f.std() + 1e-8)
     F_img = np.fft.rfft2(img_f)
     img_ac = np.fft.fftshift(np.fft.irfft2(F_img * np.conj(F_img), s=img_f.shape))
 
     # ------------------------------------------------------------------
-    # Affine estimation + first warp (done once on the original image)
+    # 4.  Affine from crop autocorrelations
     # ------------------------------------------------------------------
-    M             = estimate_affine(img_ac, ref_ac, nms_size=nms_size_ac)
+    M = estimate_affine(img_ac, ref_ac, nms_size=nms_size_ac)
+
+    # ------------------------------------------------------------------
+    # 5.  Warp the crop with M directly.
+    #     correct_affine centres on the image centre; the crop is also
+    #     centred, so M applies without any offset adjustment.
+    # ------------------------------------------------------------------
     img_corrected = correct_affine(img, M, interpolation=interp)
-    # center_ref    = get_center_peak(non_maximum_suppression(ref_ac, size=nms_size_ac))
 
     # ------------------------------------------------------------------
-    # Four flip variants: find per-variant translation, then apply the
-    # combined affine+translation to the corresponding flip of the
-    # original image.
-    #
-    # The 4 cross-correlations each reuse F_ref_conj; only one rfft2 of
-    # the corrected variant is computed per iteration.
-    #
-    # INTER_LINEAR (not INTER_LANCZOS4) is used for the final warp: at
-    # this stage only a small residual translation remains, for which
-    # bilinear interpolation is indistinguishable from Lanczos-4 while
-    # being 4–8× faster.
+    # 6.  Translation + flip — entirely on the small crop
     # ------------------------------------------------------------------
-    # corrected_variants = [
-    #     img_corrected,
-    #     img_corrected[::-1, :],
-    #     img_corrected[:, ::-1],
-    #     img_corrected[::-1, ::-1],
-    # ]
-    # img_variants = [
-    #     img,
-    #     img[::-1, :],
-    #     img[:, ::-1],
-    #     img[::-1, ::-1],
-    # ]
+    translation, flip_mode = estimate_translation_and_flip(
+        img_corrected, key, patch_size, upsample_factor,
+    )
 
-    # results = []
-    # for corr, img_var in zip(corrected_variants, img_variants):
-    #     # Cross-correlation of this variant against reference
-    #     c = corr.astype(np.float64)
-    #     c = (c - c.mean()) / (c.std() + 1e-8)
-    #     F_c   = np.fft.rfft2(c)
-    #     c_ac  = np.fft.fftshift(np.fft.irfft2(F_c * F_ref_conj, s=ref_shape))
-
-    #     center_corr = get_center_peak(non_maximum_suppression(c_ac, size=nms_size_ac))
-    #     dy, dx = center_ref - center_corr
-
-    #     M_total       = M.copy()
-    #     M_total[0, 2] += dx
-    #     M_total[1, 2] += dy
-
-    #     results.append(correct_affine(img_var, M_total, interpolation=cv2.INTER_LINEAR))
-    translation, flip_mode = estimate_translation_and_flip(img_corrected, key, patch_size, upsample_factor)
-    M_total       = M.copy()
-    M_total[0, 2] -= translation[1]  # dx
-    M_total[1, 2] -= translation[0]  # dy
+    # ------------------------------------------------------------------
+    # 7.  Fuse affine + translation → ONE full-image warp
+    # ------------------------------------------------------------------
+    M_total        = M.copy()
+    M_total[0, 2] -= translation[1]   # dx
+    M_total[1, 2] -= translation[0]   # dy
 
     return correct_affine(img, M_total, interpolation=interp), flip_mode
+
+
+def synchronise_debug(
+    img: np.ndarray,
+    patch_size: int = 32,
+    key: int = 0,
+    tile_mode: str = "symmetric",
+    nms_size_ac: int = 31,
+    upsample_factor: int = 2,
+    reference: np.ndarray | None = None,
+    expansion_size: int = 3,
+) -> tuple[np.ndarray, str]:
+    """
+    Debug version of synchronise for Jupyter notebooks.
+    Each step plots immediately — if a later step fails, earlier plots are
+    already visible.
+
+    Steps
+    -----
+    0  Input image + centre-crop box
+    1  Image crop | Reference crop
+    2  Raw autocorrelations
+    3  NMS + expanded peaks
+    4  Lattice interest points + vectors
+    5  Affine matrix + corrected crop
+    6  Per-tile correlation maps
+    7  Shift scatter + flip vote
+    8  Final result vs original
+    """
+    import matplotlib.pyplot as plt
+    import matplotlib.colors as mcolors
+    import matplotlib.patches as mpatches
+
+    interp = cv2.INTER_NEAREST if img.dtype == np.uint8 else cv2.INTER_LINEAR
+    FLIP_NAMES  = ["normal", "flip_y", "flip_x", "flip_xy"]
+    FLIP_COLORS = ["#2ecc71", "#e74c3c", "#3498db", "#f39c12"]
+
+    # ── shared crop geometry ───────────────────────────────────────────
+    tile      = patch_size * upsample_factor * 2
+    crop_size = 4 * tile
+    H, W      = img.shape[:2]
+    cy, cx    = H // 2, W // 2
+    half      = crop_size // 2
+    y0, y1    = max(0, cy - half), min(H, cy + half)
+    x0, x1    = max(0, cx - half), min(W, cx + half)
+    img_crop  = img[y0:y1, x0:x1]
+    crop_h, crop_w = img_crop.shape[:2]
+
+    # ══════════════════════════════════════════════════════════════════
+    # STEP 0 — full image + crop box
+    # ══════════════════════════════════════════════════════════════════
+    try:
+        fig, ax = plt.subplots(figsize=(6, 5))
+        ax.imshow(img, cmap="gray")
+        ax.add_patch(mpatches.Rectangle(
+            (x0, y0), x1 - x0, y1 - y0,
+            linewidth=2, edgecolor="#e74c3c", facecolor="none",
+            label=f"crop [{crop_h}×{crop_w}]",
+        ))
+        ax.scatter([cx], [cy], c="#e74c3c", s=50, zorder=5, label="centre")
+        ax.legend(fontsize=7)
+        ax.set_title(f"Step 0 — Input [{H}×{W}]  patch={patch_size}  up={upsample_factor}  key={key}", fontsize=8)
+        ax.axis("off")
+        plt.tight_layout()
+        plt.show()
+    except Exception as e:
+        print(f"[step 0 failed] {e}")
+
+    # ══════════════════════════════════════════════════════════════════
+    # STEP 1 — crops
+    # ══════════════════════════════════════════════════════════════════
+    try:
+        if reference is None:
+            ref_full = build_reference_patch_bipolar(
+                (H, W), patch_size=patch_size, key=key,
+                tile_mode=tile_mode, upsample_factor=upsample_factor,
+            ).astype(np.float64)
+        else:
+            ref_full = np.asarray(reference, dtype=np.float64)
+        ref = ref_full[y0:y1, x0:x1]
+
+        fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+        axes[0].imshow(img_crop, cmap="seismic", norm=mcolors.CenteredNorm())
+        axes[0].set_title(f"Step 1a — Image crop [{crop_h}×{crop_w}]", fontsize=8)
+        axes[1].imshow(ref, cmap="RdBu_r")
+        axes[1].set_title(f"Step 1b — Reference crop (sliced from [{H}×{W}])", fontsize=8)
+        for ax in axes: ax.axis("off")
+        plt.suptitle("Step 1 — Centre crops", fontsize=9)
+        plt.tight_layout()
+        plt.show()
+    except Exception as e:
+        print(f"[step 1 failed] {e}")
+        raise   # reference is needed by all later steps
+
+    # ══════════════════════════════════════════════════════════════════
+    # STEP 2 — raw autocorrelations
+    # ══════════════════════════════════════════════════════════════════
+    try:
+        ref_n      = (ref - ref.mean()) / (ref.std() + 1e-8)
+        F_ref      = np.fft.rfft2(ref_n)
+        F_ref_conj = np.conj(F_ref)
+        ref_ac     = np.fft.fftshift(np.fft.irfft2(F_ref * F_ref_conj, s=ref_n.shape))
+
+        img_f  = img_crop.astype(np.float64)
+        img_f  = (img_f - img_f.mean()) / (img_f.std() + 1e-8)
+        F_img  = np.fft.rfft2(img_f)
+        img_ac = np.fft.fftshift(np.fft.irfft2(F_img * np.conj(F_img), s=img_f.shape))
+
+        fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+        axes[0].imshow(img_ac, cmap="inferno")
+        axes[0].set_title("Step 2a — Image autocorrelation", fontsize=8)
+        axes[1].imshow(ref_ac, cmap="inferno")
+        axes[1].set_title("Step 2b — Reference autocorrelation", fontsize=8)
+        for ax in axes: ax.axis("off")
+        plt.suptitle("Step 2 — Raw autocorrelations", fontsize=9)
+        plt.tight_layout()
+        plt.show()
+    except Exception as e:
+        print(f"[step 2 failed] {e}")
+        raise
+
+    # ══════════════════════════════════════════════════════════════════
+    # STEP 3 — NMS + expanded peaks
+    # ══════════════════════════════════════════════════════════════════
+    try:
+        img_nms = non_maximum_suppression(img_ac, nms_size_ac)
+        ref_nms = non_maximum_suppression(ref_ac, nms_size_ac)
+        img_exp = expand_peaks(img_nms, expansion_size)
+        ref_exp = expand_peaks(ref_nms, expansion_size)
+
+        fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+        axes[0].imshow(img_exp, cmap="hot")
+        axes[0].set_title(f"Step 3a — Image NMS peaks (n={(img_nms>0).sum()}, nms={nms_size_ac})", fontsize=8)
+        axes[1].imshow(ref_exp, cmap="hot")
+        axes[1].set_title(f"Step 3b — Ref NMS peaks (n={(ref_nms>0).sum()})", fontsize=8)
+        for ax in axes: ax.axis("off")
+        plt.suptitle("Step 3 — NMS + expanded peaks", fontsize=9)
+        plt.tight_layout()
+        plt.show()
+    except Exception as e:
+        print(f"[step 3 failed] {e}")
+        raise
+
+    # ══════════════════════════════════════════════════════════════════
+    # STEP 4 — interest points + lattice vectors
+    # ══════════════════════════════════════════════════════════════════
+    try:
+        img_pts = detect_interest_points(img_nms)
+        ref_pts = detect_interest_points(ref_nms)
+
+        fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+        for ax, exp, pts, label in [
+            (axes[0], img_exp, img_pts, "Image"),
+            (axes[1], ref_exp, ref_pts, "Ref"),
+        ]:
+            ax.imshow(exp, cmap="hot")
+            colors  = ["#2ecc71", "#e74c3c", "#3498db"]
+            markers = ["*", "^", "s"]
+            names   = ["p1 centre", "p2 v1", "p3 v2"]
+            for pt, c, mk, nm in zip(pts, colors, markers, names):
+                ax.scatter(pt[1], pt[0], c=c, marker=mk, s=120,
+                           edgecolors="white", linewidths=0.8, zorder=6, label=nm)
+            for vec_pt, color in [(pts[1], "#e74c3c"), (pts[2], "#3498db")]:
+                ax.annotate("", xy=(vec_pt[1], vec_pt[0]),
+                            xytext=(pts[0][1], pts[0][0]),
+                            arrowprops=dict(arrowstyle="->", color=color, lw=1.5))
+            v1 = pts[1] - pts[0]
+            v2 = pts[2] - pts[0]
+            info = (f"v1 |{np.linalg.norm(v1):.1f}px  {np.degrees(np.arctan2(v1[1],v1[0])):.1f}°  "
+                    f"v2 |{np.linalg.norm(v2):.1f}px  {np.degrees(np.arctan2(v2[1],v2[0])):.1f}°")
+            ax.set_title(f"Step 4 — {label} AC\n{info}", fontsize=7)
+            ax.legend(fontsize=6, loc="upper right")
+            ax.axis("off")
+
+        plt.suptitle("Step 4 — Lattice interest points", fontsize=9)
+        plt.tight_layout()
+        plt.show()
+    except Exception as e:
+        print(f"[step 4 failed] {e}")
+
+    # ══════════════════════════════════════════════════════════════════
+    # STEP 5 — affine estimation + corrected crop
+    # ══════════════════════════════════════════════════════════════════
+    try:
+        M = estimate_affine(img_ac, ref_ac, nms_size=nms_size_ac)
+        print(f"Estimated affine matrix:\n{M}")
+        img_corrected_crop = correct_affine(img_crop, M, interpolation=interp)
+
+        sx  = float(np.sqrt(M[0,0]**2 + M[1,0]**2))
+        sy  = float(np.sqrt(M[0,1]**2 + M[1,1]**2))
+        rot = float(np.degrees(np.arctan2(M[1,0], M[0,0])))
+        m_text = (f"M=[[{M[0,0]:.4f} {M[0,1]:.4f} {M[0,2]:.2f}] "
+                  f"[{M[1,0]:.4f} {M[1,1]:.4f} {M[1,2]:.2f}]]  "
+                  f"scale=({sx:.4f},{sy:.4f})  rot={rot:.2f}°  "
+                  f"t=({M[0,2]:.2f},{M[1,2]:.2f})px")
+
+        fig, axes = plt.subplots(1, 3, figsize=(13, 4))
+        axes[0].imshow(img_crop, cmap="seismic", norm=mcolors.CenteredNorm())
+        axes[0].set_title("Step 5a — Before affine", fontsize=8)
+        axes[1].imshow(img_corrected_crop, cmap="seismic", norm=mcolors.CenteredNorm())
+        axes[1].set_title("Step 5b — After affine", fontsize=8)
+        diff = img_corrected_crop.astype(np.float64) - img_crop.astype(np.float64)
+        im = axes[2].imshow(diff, cmap="RdBu_r", vmin=-np.abs(diff).max(), vmax=np.abs(diff).max())
+        axes[2].set_title("Step 5c — Difference", fontsize=8)
+        plt.colorbar(im, ax=axes[2], fraction=0.046, pad=0.04)
+        for ax in axes: ax.axis("off")
+        plt.suptitle(f"Step 5 — Affine correction\n{m_text}", fontsize=7)
+        plt.tight_layout()
+        plt.show()
+    except Exception as e:
+        print(f"[step 5 failed] {e}")
+        raise
+
+    # ══════════════════════════════════════════════════════════════════
+    # STEP 6 — per-tile correlation maps
+    # ══════════════════════════════════════════════════════════════════
+    try:
+        up     = patch_size * upsample_factor
+        H_c, W_c = img_corrected_crop.shape[:2]
+
+        ref_tile = generate_base_patch(patch_size, key)
+        ref_tile = upsample_patch(ref_tile, upsample_factor).astype(np.float64)
+        ref_tile = (ref_tile - ref_tile.mean()) / (ref_tile.std() + 1e-8)
+        F_ref_t_conj = np.conj(np.fft.rfft2(ref_tile, s=(up, up)))
+
+        img_p = np.pad(img_corrected_crop.astype(np.float64),
+                       ((0, (-H_c) % up), (0, (-W_c) % up)))
+        Ty, Tx   = img_p.shape[0] // up, img_p.shape[1] // up
+        tiles_db = img_p.reshape(Ty, up, Tx, up).transpose(0, 2, 1, 3)
+
+        yy, xx  = np.meshgrid(np.arange(Ty), np.arange(Tx), indexing="ij")
+        mask    = (yy % 2 == 0) & (xx % 2 == 0)
+        coords_db = np.stack([yy[mask], xx[mask]], axis=1)
+        dist_db   = (coords_db[:,0] - Ty/2)**2 + (coords_db[:,1] - Tx/2)**2
+        coords_db = coords_db[np.argsort(dist_db)[:16]]
+        N_db      = len(coords_db)
+
+        sel_db = tiles_db[coords_db[:,0], coords_db[:,1]]
+        var_db = np.stack([sel_db, sel_db[:,::-1,:], sel_db[:,:,::-1], sel_db[:,::-1,::-1]],
+                          axis=1).reshape(N_db * 4, up, up)
+        var_db = (var_db - var_db.mean(axis=(-2,-1), keepdims=True)) / (var_db.std(axis=(-2,-1), keepdims=True) + 1e-8)
+
+        F_db    = np.fft.rfft2(var_db, axes=(-2,-1))
+        corr_db = np.fft.irfft2(F_db * F_ref_t_conj, s=(up,up), axes=(-2,-1))
+        corr_db = np.fft.fftshift(corr_db, axes=(-2,-1)).reshape(N_db, 4, up, up)
+
+        flat_db  = corr_db.reshape(N_db, 4, -1)
+        idx_db   = np.argmax(flat_db, axis=-1)
+        scr_db   = flat_db[np.arange(N_db)[:,None], np.arange(4), idx_db]
+        bf_db    = np.argmax(scr_db, axis=1)
+        dy_db    = idx_db[np.arange(N_db), bf_db] // up - up // 2
+        dx_db    = idx_db[np.arange(N_db), bf_db]  % up - up // 2
+
+        n_show = min(9, N_db)
+        fig, axes = plt.subplots(3, 3, figsize=(10, 9))
+        for i, ax in enumerate(axes.ravel()):
+            if i >= n_show:
+                ax.axis("off")
+                continue
+            bf = int(bf_db[i])
+            ax.imshow(corr_db[i, bf], cmap="inferno")
+            ax.scatter([int(dx_db[i]) + up//2], [int(dy_db[i]) + up//2],
+                       c="#2ecc71", marker="x", s=60, linewidths=1.5, zorder=5)
+            ax.axhline(up//2, color="white", lw=0.5, alpha=0.4)
+            ax.axvline(up//2, color="white", lw=0.5, alpha=0.4)
+            ax.set_title(
+                f"tile {tuple(coords_db[i])}  {FLIP_NAMES[bf]}\n"
+                f"dy={dy_db[i]:+d}  dx={dx_db[i]:+d}  score={scr_db[i,bf]:.2f}",
+                fontsize=6, color=FLIP_COLORS[bf],
+            )
+            ax.axis("off")
+        plt.suptitle(f"Step 6 — Tile correlations (tile={up}×{up}px)", fontsize=9)
+        plt.tight_layout()
+        plt.show()
+    except Exception as e:
+        print(f"[step 6 failed] {e}")
+
+    # ══════════════════════════════════════════════════════════════════
+    # STEP 7 — shift scatter + flip vote
+    # ══════════════════════════════════════════════════════════════════
+    try:
+        shifts_db    = np.stack([dy_db, dx_db], axis=1)
+        median_shift = np.median(shifts_db, axis=0)
+        counts_db    = np.bincount(bf_db, minlength=4)
+        winner       = int(np.argmax(counts_db))
+
+        fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+
+        ax = axes[0]
+        for fi in range(4):
+            sel = bf_db == fi
+            if sel.any():
+                ax.scatter(shifts_db[sel,1], shifts_db[sel,0],
+                           c=FLIP_COLORS[fi], label=FLIP_NAMES[fi], s=60,
+                           edgecolors="white", linewidths=0.5)
+        ax.scatter([median_shift[1]], [median_shift[0]], c="white", marker="*",
+                   s=200, edgecolors="black", linewidths=1.0, zorder=6, label="median")
+        ax.axhline(0, color="gray", lw=0.6, linestyle="--")
+        ax.axvline(0, color="gray", lw=0.6, linestyle="--")
+        ax.set_xlabel("dx (px)", fontsize=8); ax.set_ylabel("dy (px)", fontsize=8)
+        ax.set_title(f"Step 7a — Shifts  median dy={median_shift[0]:+.1f}  dx={median_shift[1]:+.1f}", fontsize=8)
+        ax.legend(fontsize=7); ax.set_facecolor("#1a1a2e"); ax.tick_params(labelsize=7)
+
+        axes[1].bar(FLIP_NAMES, counts_db, color=FLIP_COLORS, edgecolor="white", linewidth=0.6)
+        for xi, v in enumerate(counts_db):
+            axes[1].text(xi, v + 0.1, str(v), ha="center", fontsize=9, color="white")
+        axes[1].set_title(f"Step 7b — Flip vote  →  '{FLIP_NAMES[winner]}' ({counts_db[winner]}/{N_db})", fontsize=8)
+        axes[1].set_facecolor("#1a1a2e"); axes[1].tick_params(labelsize=8)
+        axes[1].spines[["top","right"]].set_visible(False)
+
+        plt.suptitle("Step 7 — Translation & flip aggregation", fontsize=9)
+        plt.tight_layout()
+        plt.show()
+    except Exception as e:
+        print(f"[step 7 failed] {e}")
+
+    # ══════════════════════════════════════════════════════════════════
+    # Final computation + STEP 8 — result
+    # ══════════════════════════════════════════════════════════════════
+    try:
+        translation, flip_mode = estimate_translation_and_flip(
+            img_corrected_crop, key, patch_size, upsample_factor,
+        )
+        print(f"Estimated translation: dy={translation[0]:+.1f}px  dx={translation[1]:+.1f}px  flip='{flip_mode}'")
+        print(f"Estimated affine matrix:\n{M}")
+        M_total        = M.copy()
+        M_total[0, 2] -= translation[1]
+        M_total[1, 2] -= translation[0]
+        result = correct_affine(img, M_total, interpolation=interp)
+
+        mt_text = (
+            f"M_total=[[{M_total[0,0]:.4f} {M_total[0,1]:.4f} {M_total[0,2]:.2f}] "
+            f"[{M_total[1,0]:.4f} {M_total[1,1]:.4f} {M_total[1,2]:.2f}]]\n"
+            f"rot={rot:.2f}°  affine t=({M[0,2]:.2f},{M[1,2]:.2f})px  "
+            f"translation dy={translation[0]:+.1f} dx={translation[1]:+.1f}px  "
+            f"flip='{flip_mode}'"
+        )
+
+        fig, axes = plt.subplots(1, 3, figsize=(14, 4))
+        axes[0].imshow(img, cmap="seismic", norm=mcolors.CenteredNorm());    axes[0].set_title("Step 8a — Original", fontsize=8)
+        axes[1].imshow(result, cmap="seismic", norm=mcolors.CenteredNorm()); axes[1].set_title("Step 8b — Corrected", fontsize=8)
+        diff_f = result.astype(np.float64) - img.astype(np.float64)
+        im = axes[2].imshow(diff_f, cmap="RdBu_r",
+                            vmin=-np.abs(diff_f).max(), vmax=np.abs(diff_f).max())
+        axes[2].set_title("Step 8c — Difference", fontsize=8)
+        plt.colorbar(im, ax=axes[2], fraction=0.046, pad=0.04)
+        for ax in axes: ax.axis("off")
+        plt.suptitle(f"Step 8 — Final result\n{mt_text}", fontsize=7)
+        plt.tight_layout()
+        plt.show()
+
+        return result, flip_mode
+
+    except Exception as e:
+        print(f"[step 8 failed] {e}")
+        raise

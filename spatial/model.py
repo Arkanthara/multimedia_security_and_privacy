@@ -129,13 +129,13 @@ class WatermarkModel:
         D: float = 50.0,
         use_nvf: bool = True,
         nvf_window_size: int = 7,
-        msg_length: int = 32,
-        use_ecc: bool = False,
-        ecc_repetitions: int = 3,
+        msg_length: int = 100,
+        use_ecc: bool = True,
+        ecc_repetitions: int = 5,
         msg_repetitions: int = 1,
         patch_size: int = 32,
-        upsample_factor: int = 2,
-        key: int = 42,
+        upsample_factor: int = 4,
+        key: int = 7,
         tile_mode: str = "symmetric",
         nms_size_ac: int | None = None,
     ) -> None:
@@ -420,19 +420,8 @@ class WatermarkModel:
             msgs.append(msg)
             confidences.append(conf)
 
-            # 6. Extract bits from each aligned variant
-            # for res in aligned_residuals:
-            #     msg, conf = extract_bits_from_spatial(
-            #         res,
-            #         self.patch_size,
-            #         n_bits,
-            #         self.key,
-            #         upsample_factor=self.upsample_factor,
-            #     )
-            #     msgs.append(msg)
-            #     confidences.append(conf)
-
         except ValueError as e:
+            pass
             print(f"Error during bit extraction: {e}")
 
         # 7. Pick the highest-confidence result, then post-process
