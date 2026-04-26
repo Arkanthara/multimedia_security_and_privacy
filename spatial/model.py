@@ -111,8 +111,8 @@ class WatermarkModel:
 
     def __init__(
         self,
-        alpha_1: float = 3.8,
-        alpha_2: float = 10,
+        alpha_1: float = 4,
+        alpha_2: float = 20,
         D: float = 50.0,
         use_nvf: bool = True,
         nvf_window_size: int = 7,
@@ -124,7 +124,6 @@ class WatermarkModel:
         upsample_factor: int = 2,
         key: int = 42,
         tile_mode: str = "symmetric",
-        n_peaks: int = 15,
         nms_size_ac: int | None = None,
     ) -> None:
         self.alpha_1        = alpha_1 / 255.0  # Scale to [0, 1] range for float images
@@ -141,7 +140,6 @@ class WatermarkModel:
         self.key            = key
         self.tile_mode      = tile_mode
         self.nms_size_ac    = (upsample_factor + 1) * patch_size * 2 - 1
-        self.n_peaks        = n_peaks
 
         if nms_size_ac is None:
             self.nms_size_ac = (upsample_factor + 1) * patch_size * 2 - 1
@@ -152,15 +150,17 @@ class WatermarkModel:
     # Private helpers
     # -----------------------------------------------------------------------
 
-    def _get_channel(self, img_f: np.ndarray) -> np.ndarray:
+    def _get_channel(self, img_f: np.ndarray, chn: int = 2) -> np.ndarray:
         """Return the embedding channel: green (index 1) for RGB, full for grayscale."""
-        return img_f[..., 1] if img_f.ndim == 3 else img_f
+        assert chn < img_f.shape[2] if img_f.ndim == 3 else True, f"Channel index {chn} out of bounds for image with shape {img_f.shape}"
+        return img_f[..., chn] if img_f.ndim == 3 else img_f
 
-    def _set_channel(self, img_f: np.ndarray, channel: np.ndarray) -> np.ndarray:
+    def _set_channel(self, img_f: np.ndarray, channel: np.ndarray, chn: int = 2 ) -> np.ndarray:
         """Write *channel* back into a copy of *img_f*."""
+        assert chn < img_f.shape[2] if img_f.ndim == 3 else True, f"Channel index {chn} out of bounds for image with shape {img_f.shape}"
         if img_f.ndim == 3:
             out = img_f.copy()
-            out[..., 1] = channel
+            out[..., chn] = channel
             return out
         return channel
 
@@ -268,7 +268,7 @@ class WatermarkModel:
         -------
         watermarked : ndarray, same shape as *image*, dtype uint8
         """
-        img_f = img_as_float(image).astype(np.float32)
+        img_f = img_as_float(image)
         H, W  = img_f.shape[:2]
 
         # 1. Preprocess watermark: ECC encode (via LDPC G matrix) + tile
@@ -362,7 +362,6 @@ class WatermarkModel:
                 tile_mode=self.tile_mode,
                 nms_size_ac=self.nms_size_ac,
                 upsample_factor=self.upsample_factor,
-                n_peaks=self.n_peaks,
             )
 
             # 6. Extract bits from the aligned accumulated block.

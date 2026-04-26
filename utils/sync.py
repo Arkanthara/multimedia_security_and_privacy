@@ -56,11 +56,6 @@ def correlation_fft(img_1: np.ndarray, img_2: np.ndarray) -> np.ndarray:
     F2 = np.fft.fft2(f2, s=f1.shape)
     return np.fft.fftshift(np.real(np.fft.ifft2(F1 * np.conj(F2))))
 
-
-# ---------------------------------------------------------------------------
-# Non-maximum suppression
-# ---------------------------------------------------------------------------
-
 # ---------------------------------------------------------------------------
 # Non-maximum suppression
 # ---------------------------------------------------------------------------
@@ -175,7 +170,7 @@ def detect_interest_points(peaks: np.ndarray, min_angle_deg: float = 25.0) -> np
 # Affine estimation
 # ---------------------------------------------------------------------------
 
-def estimate_affine(img_ac: np.ndarray, ref_ac: np.ndarray, nms_size: int = 31, n_peaks: int = 15) -> np.ndarray:
+def estimate_affine(img_ac: np.ndarray, ref_ac: np.ndarray, nms_size: int = 31) -> np.ndarray:
     """
     Estimate the 2-D affine matrix mapping image lattice peaks to reference peaks.
 
@@ -302,7 +297,6 @@ def synchronise(
     tile_mode: str = "symmetric",
     nms_size_ac: int = 31,
     upsample_factor: int = 2,
-    n_peaks: int = 10,
 ) -> np.ndarray:
     """
     Align img to the reference watermark grid and return the summed,
@@ -343,7 +337,7 @@ def synchronise(
     img_ac = correlation_fft(img, img)
     ref_ac = correlation_fft(reference, reference)
 
-    M = estimate_affine(img_ac, ref_ac, nms_size=nms_size_ac, n_peaks=n_peaks)
+    M = estimate_affine(img_ac, ref_ac, nms_size=nms_size_ac)
     img_corrected = correct_affine(img, M, interpolation=interp)
 
     center_ref = get_center_peak(non_maximum_suppression(ref_ac, size=nms_size_ac))
