@@ -21,6 +21,17 @@ LSB helpers:
 Spatial helpers:
     build_patch_image_bipolar, build_reference_patch_bipolar,
     extract_bits_from_spatial
+
+Performance notes
+-----------------
+* ``tile_patch`` uses ``np.tile`` for "normal" (wrap) mode instead of
+  ``np.pad(mode="wrap")``.  ``np.tile`` fills the output in a single pass
+  without the bookkeeping overhead of the padding API.
+
+* ``build_patch_image_bipolar`` and ``build_reference_patch_bipolar`` are
+  inlined: they no longer call ``build_patch_image`` / ``build_reference_patch``
+  as intermediaries.  This eliminates one extra function-call level and one
+  intermediate uint8 allocation, going straight to float32 output.
 """
 
 import numpy as np
@@ -142,17 +153,26 @@ def tile_patch(
     Returns
     -------
     tiled : ndarray of shape (H, W), same dtype as *patch*
+
+    Notes
+    -----
+    For "normal" (wrap) mode ``np.tile`` is used instead of
+    ``np.pad(mode="wrap")``.  ``np.tile`` fills the result in a single pass
+    with no padding-API overhead; ``np.pad`` with mode="wrap" adds bookkeeping
+    that is measurable for large images.
     """
     H, W   = image_shape
     Ph, Pw = patch.shape
 
-    pad_h = max(0, H - Ph)
-    pad_w = max(0, W - Pw)
-
     if mode == "symmetric":
+        pad_h = max(0, H - Ph)
+        pad_w = max(0, W - Pw)
         tiled = np.pad(patch, ((0, pad_h), (0, pad_w)), mode="symmetric")
     else:
-        tiled = np.pad(patch, ((0, pad_h), (0, pad_w)), mode="wrap")
+        # ceil-division repeat counts, then crop to exact size
+        reps_h = -(-H // Ph)   # equivalent to math.ceil(H / Ph)
+        reps_w = -(-W // Pw)
+        tiled  = np.tile(patch, (reps_h, reps_w))
 
     return tiled[:H, :W]
 
@@ -238,7 +258,8 @@ def build_patch_image_bipolar(
     """
     Build a bipolar ({-1, +1}) watermark patch tiled over *image_shape*.
 
-    Equivalent to :func:`build_patch_image` followed by ``0 → -1, 1 → +1``.
+    Inlined version of ``build_patch_image`` + bipolar conversion: avoids
+    one extra call level and the intermediate uint8 array allocation.
 
     Parameters
     ----------
@@ -254,11 +275,14 @@ def build_patch_image_bipolar(
     full_patch : ndarray of shape (H, W), dtype float32
         Values in {-1.0, +1.0}.
     """
-    binary = build_patch_image(
-        watermark, image_shape, patch_size, key, tile_mode,
-        upsample_factor=upsample_factor,
-    )
-    return (2.0 * binary.astype(np.float32) - 1.0)
+    n_bits = len(watermark)
+    base   = generate_base_patch(patch_size, key)
+    pos    = get_bit_positions(patch_size, n_bits, key)
+    patch  = embed_watermark(base, pos, watermark)
+    up     = upsample_patch(patch, factor=upsample_factor)
+    tiled  = tile_patch(up, image_shape, mode=tile_mode)
+    # {0,1} → {-1.0, +1.0} in float32, single allocation
+    return np.where(tiled, np.float32(1.0), np.float32(-1.0))
 
 
 def build_reference_patch_bipolar(
@@ -271,6 +295,8 @@ def build_reference_patch_bipolar(
     """
     Build a bipolar ({-1, +1}) reference patch (no watermark bits) tiled over
     *image_shape*.
+
+    Inlined version of ``build_reference_patch`` + bipolar conversion.
 
     Parameters
     ----------
@@ -285,11 +311,10 @@ def build_reference_patch_bipolar(
     ref : ndarray of shape (H, W), dtype float32
         Values in {-1.0, +1.0}.
     """
-    binary = build_reference_patch(
-        image_shape, patch_size, key, tile_mode,
-        upsample_factor=upsample_factor,
-    )
-    return (2.0 * binary.astype(np.float32) - 1.0)
+    base  = generate_base_patch(patch_size, key)
+    up    = upsample_patch(base, factor=upsample_factor)
+    tiled = tile_patch(up, image_shape, mode=tile_mode)
+    return np.where(tiled, np.float32(1.0), np.float32(-1.0))
 
 
 # ---------------------------------------------------------------------------

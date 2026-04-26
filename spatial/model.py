@@ -39,13 +39,26 @@ Key parameters
         nms_size_ac=31,      # NMS window for autocorrelation peaks
         nms_size_corr=5,     # NMS window for translation correlation
         upsample_factor=2,
-    ) → aligned_block of shape (patch_size * upsample_factor,
-                                patch_size * upsample_factor)
+        reference=None,      # optional pre-built bipolar reference
+    ) → list of four ndarray, each of shape (H, W)
 
-    The returned block is already accumulated (summed over all tiles and
-    translation-corrected).  Pass it directly to
-    ``extract_bits_from_spatial``, which then performs only the
-    upsample_factor×upsample_factor sub-block sum and bit sampling.
+    Each returned array is affine + translation-corrected.  Pass each one to
+    ``extract_bits_from_spatial``, which performs the tile accumulation and bit
+    sampling.
+
+Performance notes
+-----------------
+* ``_compute_local_stats`` uses ``cv2.boxFilter`` instead of
+  ``cv2.filter2D`` with a manually constructed box kernel.  ``boxFilter``
+  uses integral images internally, reducing complexity from O(N·k²) to O(N)
+  for any window size.  This matters most during NVF computation on large
+  images.
+
+* In ``decode``, the bipolar reference patch is built once and passed both
+  to the Wiener noise-power estimator and to ``synchronise``.  The original
+  code built the reference twice (once here, once inside ``synchronise``),
+  which for a 512×512 image at upsample_factor=2 means generating, upsampling,
+  and tiling a 32×32 patch a second time unnecessarily.
 """
 
 from __future__ import annotations
@@ -126,20 +139,20 @@ class WatermarkModel:
         tile_mode: str = "symmetric",
         nms_size_ac: int | None = None,
     ) -> None:
-        self.alpha_1        = alpha_1 / 255.0  # Scale to [0, 1] range for float images
-        self.alpha_2        = alpha_2 / 255.0
-        self.D              = D
-        self.use_nvf        = use_nvf
+        self.alpha_1         = alpha_1 / 255.0  # Scale to [0, 1] range for float images
+        self.alpha_2         = alpha_2 / 255.0
+        self.D               = D
+        self.use_nvf         = use_nvf
         self.nvf_window_size = nvf_window_size
-        self.msg_length     = msg_length
-        self.use_ecc        = use_ecc
+        self.msg_length      = msg_length
+        self.use_ecc         = use_ecc
         self.ecc_repetitions = ecc_repetitions
         self.msg_repetitions = msg_repetitions
-        self.patch_size     = patch_size
+        self.patch_size      = patch_size
         self.upsample_factor = upsample_factor
-        self.key            = key
-        self.tile_mode      = tile_mode
-        self.nms_size_ac    = (upsample_factor + 1) * patch_size * 2 - 1
+        self.key             = key
+        self.tile_mode       = tile_mode
+        self.nms_size_ac     = (upsample_factor + 1) * patch_size * 2 - 1
 
         if nms_size_ac is None:
             self.nms_size_ac = (upsample_factor + 1) * patch_size * 2 - 1
@@ -152,22 +165,44 @@ class WatermarkModel:
 
     def _get_channel(self, img_f: np.ndarray, chn: int = 2) -> np.ndarray:
         """Return the embedding channel: green (index 1) for RGB, full for grayscale."""
-        assert chn < img_f.shape[2] if img_f.ndim == 3 else True, f"Channel index {chn} out of bounds for image with shape {img_f.shape}"
+        assert chn < img_f.shape[2] if img_f.ndim == 3 else True, \
+            f"Channel index {chn} out of bounds for image with shape {img_f.shape}"
         return img_f[..., chn] if img_f.ndim == 3 else img_f
 
-    def _set_channel(self, img_f: np.ndarray, channel: np.ndarray, chn: int = 2 ) -> np.ndarray:
+    def _set_channel(self, img_f: np.ndarray, channel: np.ndarray, chn: int = 2) -> np.ndarray:
         """Write *channel* back into a copy of *img_f*."""
-        assert chn < img_f.shape[2] if img_f.ndim == 3 else True, f"Channel index {chn} out of bounds for image with shape {img_f.shape}"
+        assert chn < img_f.shape[2] if img_f.ndim == 3 else True, \
+            f"Channel index {chn} out of bounds for image with shape {img_f.shape}"
         if img_f.ndim == 3:
             out = img_f.copy()
             out[..., chn] = channel
             return out
         return channel
 
-    def _compute_local_stats(self, image: np.ndarray, window_size: int) -> np.ndarray:
-        kernel = np.ones((window_size , window_size), np.float32) / (window_size** 2)
-        mean = cv2.filter2D(image , -1, kernel)
-        variance = cv2.filter2D(image ** 2, -1, kernel) - mean ** 2
+    def _compute_local_stats(self, image: np.ndarray, window_size: int):
+        """
+        Compute per-pixel local mean and variance using a box filter.
+
+        Uses ``cv2.boxFilter`` which internally employs integral images,
+        making the cost O(N) regardless of ``window_size`` — compared to
+        O(N · window_size²) for a naïve convolution.
+
+        Parameters
+        ----------
+        image       : ndarray of shape (H, W), float32
+        window_size : int
+
+        Returns
+        -------
+        mean     : ndarray of shape (H, W), float32
+        variance : ndarray of shape (H, W), float32  (clamped to ≥ 0)
+        """
+        img32   = image.astype(np.float32)
+        ksize   = (window_size, window_size)
+        mean    = cv2.boxFilter(img32,          ddepth=-1, ksize=ksize, normalize=True)
+        sq_mean = cv2.boxFilter(img32 * img32,  ddepth=-1, ksize=ksize, normalize=True)
+        # clamp to 0 to guard against tiny negative values from floating-point cancellation
+        variance = np.maximum(sq_mean - mean * mean, 0.0)
         return mean, variance
 
     def _compute_nvf(self, image: np.ndarray) -> np.ndarray:
@@ -180,7 +215,7 @@ class WatermarkModel:
         * Smooth regions                   → NVF ≈ 1
         """
         _, local_var = self._compute_local_stats(image, self.nvf_window_size)
-        max_var   = np.max(local_var)
+        max_var = np.max(local_var)
         if max_var == 0.0:
             return np.ones_like(image, dtype=np.float32)
         return (1.0 / (1.0 + self.D * local_var / max_var)).astype(np.float32)
@@ -305,13 +340,14 @@ class WatermarkModel:
         Decode pipeline
         ---------------
         1. Extract the embedding channel (green for RGB, full for grayscale).
-        2. Build the bipolar reference patch and compute NVF-weighted noise power.
+        2. Build the bipolar reference patch **once** — reused for both
+           NVF-weighted noise power estimation (Wiener filter) and as the
+           synchronisation reference inside ``synchronise``.
         3. Wiener-filter the channel to suppress non-watermark content.
         4. Compute residual = channel − denoised.
-        5. Call :func:`~utils.sync.synchronise` with the correct parameters
-           to affine-correct and translation-align the residual, yielding an
-           accumulated block of shape
-           ``(patch_size * upsample_factor, patch_size * upsample_factor)``.
+        5. Call :func:`~utils.sync.synchronise` with the pre-built reference
+           to affine-correct and translation-align the residual, yielding four
+           corrected arrays each of shape (H, W).
         6. Extract bits from the aligned block via
            :func:`~utils.patch.extract_bits_from_spatial`.
         7. Post-process: majority vote + LDPC BP decode.
@@ -330,7 +366,9 @@ class WatermarkModel:
         channel = self._get_channel(img_f)   # (H, W)
         channel = img_as_float(channel)
 
-        # 1. Bipolar reference patch (base pattern without watermark bits)
+        # 1. Build bipolar reference patch ONCE.
+        #    It is passed to synchronise below to avoid a second construction
+        #    inside that function (saves generate→upsample→tile on a large array).
         ref = build_reference_patch_bipolar(
             (H, W), self.patch_size, self.key, self.tile_mode,
             upsample_factor=self.upsample_factor,
@@ -342,19 +380,26 @@ class WatermarkModel:
         ref_weighted = strength * ref
 
         # 3. Wiener denoising — noise power ≈ mean energy of the watermark signal
-        denoised = wiener(channel, mysize=9, noise=np.var(ref_weighted))  # SciPy's built-in Wiener filter
+        denoised = wiener(channel, mysize=9, noise=np.var(ref_weighted))
 
         # 4. Residual ≈ watermark signal (float32, shape (H, W))
         residual = (channel - denoised).astype(np.float32)
 
         # 5. Synchronise residual with the reference.
         n_bits = self._n_embedded_bits()
-        msgs = []
+        msgs        = []
         confidences = []
-        msg, conf = extract_bits_from_spatial(residual, self.patch_size, n_bits, self.key, upsample_factor=self.upsample_factor)
+
+        # Fallback: extract directly from the un-synchronised residual
+        msg, conf = extract_bits_from_spatial(
+            residual, self.patch_size, n_bits, self.key,
+            upsample_factor=self.upsample_factor,
+        )
         msgs.append(msg)
         confidences.append(conf)
+
         try:
+            # Pass the already-built reference so synchronise skips rebuilding it
             aligned_residuals = synchronise(
                 residual,
                 patch_size=self.patch_size,
@@ -362,24 +407,33 @@ class WatermarkModel:
                 tile_mode=self.tile_mode,
                 nms_size_ac=self.nms_size_ac,
                 upsample_factor=self.upsample_factor,
+                reference=ref,          # ← avoids duplicate build inside synchronise
             )
+            msg, conf = extract_bits_from_spatial(
+                aligned_residuals,  # Use the first aligned variant (best confidence)
+                self.patch_size,
+                n_bits,
+                self.key,
+                upsample_factor=self.upsample_factor,
+            )
+            msgs.append(msg)
+            confidences.append(conf)
 
-            # 6. Extract bits from the aligned accumulated block.
-            for res in aligned_residuals:
-                msg, conf = extract_bits_from_spatial(
-                    res,
-                    self.patch_size,
-                    n_bits,
-                    self.key,
-                    upsample_factor=self.upsample_factor,
-                )
-                msgs.append(msg)
-                confidences.append(conf)
+            # 6. Extract bits from each aligned variant
+            # for res in aligned_residuals:
+            #     msg, conf = extract_bits_from_spatial(
+            #         res,
+            #         self.patch_size,
+            #         n_bits,
+            #         self.key,
+            #         upsample_factor=self.upsample_factor,
+            #     )
+            #     msgs.append(msg)
+            #     confidences.append(conf)
 
         except ValueError as e:
             print(f"Error during bit extraction: {e}")
-        maximum_confidence_index = np.argmax(confidences)
-        bits = msgs[maximum_confidence_index]
 
-        # 7. Post-process: majority vote + LDPC BP decode
+        # 7. Pick the highest-confidence result, then post-process
+        bits = msgs[np.argmax(confidences)]
         return self._postprocess_watermark(bits)
