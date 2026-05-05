@@ -64,7 +64,6 @@ Performance notes
 from __future__ import annotations
 
 import cv2
-from matplotlib import image
 import numpy as np
 from scipy.signal import wiener
 from skimage.util import img_as_float, img_as_ubyte
@@ -100,7 +99,7 @@ class WatermarkModel:
         If ``False``, embed uniformly: ``img_w = img + alpha_1 * w``.
     nvf_window_size : int
         Side length of the square window used to estimate local variance.
-    msg_length : int
+    message_length : int
         Number of message bits.
     use_ecc : bool
         Apply repetition-code LDPC error correction before embedding.
@@ -129,7 +128,7 @@ class WatermarkModel:
         D: float = 50.0,
         use_nvf: bool = True,
         nvf_window_size: int = 7,
-        msg_length: int = 100,
+        message_length: int = 100,
         use_ecc: bool = True,
         ecc_repetitions: int = 5,
         msg_repetitions: int = 1,
@@ -138,13 +137,16 @@ class WatermarkModel:
         key: int = 7,
         tile_mode: str = "symmetric",
         nms_size_ac: int | None = None,
+		psnr_threshold: float = 30.0,
+		max_encode_time: float = 5.0,
+		max_decode_time: float = 1.0,
     ) -> None:
         self.alpha_1         = alpha_1 / 255.0  # Scale to [0, 1] range for float images
         self.alpha_2         = alpha_2 / 255.0
         self.D               = D
         self.use_nvf         = use_nvf
         self.nvf_window_size = nvf_window_size
-        self.msg_length      = msg_length
+        self.message_length      = message_length
         self.use_ecc         = use_ecc
         self.ecc_repetitions = ecc_repetitions
         self.msg_repetitions = msg_repetitions
@@ -153,6 +155,9 @@ class WatermarkModel:
         self.key             = key
         self.tile_mode       = tile_mode
         self.nms_size_ac     = (upsample_factor + 1) * patch_size * 2 - 1
+        self.psnr_threshold  = psnr_threshold
+        self.max_encode_time = max_encode_time
+        self.max_decode_time = max_decode_time
 
         if nms_size_ac is None:
             self.nms_size_ac = (upsample_factor + 1) * patch_size * 2 - 1
@@ -228,7 +233,7 @@ class WatermarkModel:
 
     def _n_embedded_bits(self) -> int:
         """Total number of bits embedded in the patch (after ECC + repetition)."""
-        n = self.msg_length
+        n = self.message_length
         if self.use_ecc:
             n *= self.ecc_repetitions
         return n * self.msg_repetitions
@@ -242,7 +247,7 @@ class WatermarkModel:
 
         Parameters
         ----------
-        watermark : ndarray of shape (msg_length,), dtype uint8, values {0,1}
+        watermark : ndarray of shape (message_length,), dtype uint8, values {0,1}
 
         Returns
         -------
@@ -268,7 +273,7 @@ class WatermarkModel:
 
         Returns
         -------
-        message : ndarray of shape (msg_length,), dtype uint8
+        message : ndarray of shape (message_length,), dtype uint8
         """
         if self.msg_repetitions > 1:
             n    = len(bits) // self.msg_repetitions
@@ -297,7 +302,7 @@ class WatermarkModel:
         Parameters
         ----------
         image : ndarray of shape (H, W) or (H, W, C), any dtype
-        watermark : ndarray of shape (msg_length,), dtype int, values {0, 1}
+        watermark : ndarray of shape (message_length,), dtype int, values {0, 1}
 
         Returns
         -------
@@ -358,7 +363,7 @@ class WatermarkModel:
 
         Returns
         -------
-        bits : ndarray of shape (msg_length,), dtype uint8, values {0, 1}
+        bits : ndarray of shape (message_length,), dtype uint8, values {0, 1}
         """
         img_f = img_as_float(image)
         H, W  = img_f.shape[:2]
