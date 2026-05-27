@@ -1,0 +1,3 @@
+[submodule "presentation/neural-viz"]
+	path = presentation/neural-viz
+	url = git@github.com:Arkanthara/neural-viz.git
