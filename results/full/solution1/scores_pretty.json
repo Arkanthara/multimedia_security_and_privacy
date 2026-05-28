@@ -1,0 +1,141 @@
+{
+  "overall": {
+    "ber": 0.029714149595045262,
+    "psnr": 33.224074267245385,
+    "wpsnr": 28.53114468939269,
+    "ssim": 0.9966892763813806,
+    "jnd": 0.9999942586205397,
+    "fid": 7.213024192154535
+  },
+  "synthetic": {
+    "ber": 0.026939942802669207,
+    "psnr": 33.50448564198703,
+    "wpsnr": 28.807365294661476,
+    "ssim": 0.9965483547647428,
+    "jnd": 0.9999941985584787,
+    "fid": 10.124382460904314
+  },
+  "real": {
+    "ber": 0.03248571428571428,
+    "psnr": 32.94366289250374,
+    "wpsnr": 28.2549240841239,
+    "ssim": 0.9968301979980185,
+    "jnd": 0.9999943186826008,
+    "fid": 4.301665923404755
+  },
+  "by_cat": {
+    "signal_processing": {
+      "synthetic": 0.0,
+      "real": 0.0,
+      "overall": 0.0
+    },
+    "geometric": {
+      "synthetic": 0.0009,
+      "real": 0.00822,
+      "overall": 0.004560000000000001
+    },
+    "compression": {
+      "synthetic": 0.025400000000000002,
+      "real": 0.03556,
+      "overall": 0.03048
+    },
+    "ai": {
+      "synthetic": 0.14553691275167785,
+      "real": 0.15443333333333334,
+      "overall": 0.15
+    }
+  },
+  "by_attack": {
+    "gamma_correction": {
+      "synthetic": 0.0,
+      "real": 0.0
+    },
+    "create_ai": {
+      "synthetic": 0.426060606060606,
+      "real": 0.45349999999999996
+    },
+    "rotate": {
+      "synthetic": 0.0,
+      "real": 0.0
+    },
+    "jpegxl": {
+      "synthetic": 0.10069999999999998,
+      "real": 0.1222
+    },
+    "flipping": {
+      "synthetic": 0.0,
+      "real": 0.041100000000000005
+    },
+    "speckle_noise": {
+      "synthetic": 0.0,
+      "real": 0.0
+    },
+    "jpegxs": {
+      "synthetic": 0.0021000000000000003,
+      "real": 0.0375
+    },
+    "brightness": {
+      "synthetic": 0.0,
+      "real": 0.0
+    },
+    "blurring": {
+      "synthetic": 0.0,
+      "real": 0.0
+    },
+    "jpeg": {
+      "synthetic": 0.012000000000000002,
+      "real": 0.0124
+    },
+    "jpegai": {
+      "synthetic": 0.012200000000000003,
+      "real": 0.0057
+    },
+    "resized": {
+      "synthetic": 0.0,
+      "real": 0.0
+    },
+    "jpeg2000": {
+      "synthetic": 0.0,
+      "real": 0.0
+    },
+    "replace_ai": {
+      "synthetic": 0.008484848484848484,
+      "real": 0.0048
+    },
+    "crop": {
+      "synthetic": 0.0045000000000000005,
+      "real": 0.0
+    },
+    "gaussian_noise": {
+      "synthetic": 0.0,
+      "real": 0.0
+    },
+    "remove_ai": {
+      "synthetic": 0.0034999999999999996,
+      "real": 0.005
+    },
+    "histogram_equalization": {
+      "synthetic": 0.0,
+      "real": 0.0
+    },
+    "median_filtering": {
+      "synthetic": 0.0,
+      "real": 0.0
+    },
+    "sharpness": {
+      "synthetic": 0.0,
+      "real": 0.0
+    },
+    "scaled": {
+      "synthetic": 0.0,
+      "real": 0.0
+    }
+  },
+  "timing": {
+    "encode_avg_seconds": 0.06266299916314892,
+    "decode_avg_seconds": 0.22707402018131134,
+    "total_seconds": 5668.918265342712,
+    "num_images_encoded": 200,
+    "num_images_decoded": 4198
+  }
+}
