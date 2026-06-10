@@ -24,6 +24,8 @@
 #import "@preview/chronos:0.3.0": *
 #import "@preview/pintorita:0.1.4"
 #import "@preview/lilaq:0.6.0" as lq
+#import "@preview/tiptoe:0.4.0"
+
 
 #import "@preview/theorion:0.6.0": *
 #import cosmos.clouds: *
@@ -379,4 +381,171 @@ Detects unauthorized modifications to digital content (Key based or compression-
   - Fix priors $P(H_0)$ and $P(H_1)$
   - Minimize overall error: $P_(text("error")) = P_(F A) P(H_0) + P_(text("miss")) P(H_1)$
 ]
+
+= Watermark detection in practice
+
+#tblock(title: "Cosine similarity")[
+  - $cos(theta) = (y^T w) / (||y||_2 ||w||_2)$
+]
+
+#tblock(title: "Score definition")[
+  - $S(y) = 1/M (y^T w) = 1/M ||y||_2 ||w||_2 cos(theta)$
+]
+#tblock(title: [Distribution under $H_0$])[
+  - $S(y) = 1/M x^T w ~ cal(N)(0, (||w||_2^2 sigma_x^2)/M^2)$
+
+]
+
+#tblock(title: [Distribution under $H_1$])[
+  - $S(y) = 1/M (x + w)^T w ~ cal(N)((||w||_2^2)/M, (||w||_2^2 sigma_x^2)/M^2)$
+]
+
+== Decision rule: $|y^T w| > ||y||_2 ||w||_2 cos(theta)$
+
+#lq.diagram(
+  grid: none,
+  width: 25cm,
+  height: 10cm,
+  bounds: "strict",
+  xaxis: none,
+  yaxis: none,
+  aspect-ratio: 1,
+  lq.ellipse(-1, -1, width: 2, height: 2, stroke: 0.1em),
+  lq.line(
+    tip: tiptoe.stealth,
+    toe: tiptoe.circle,
+    (0, 0), (calc.cos(0deg), calc.sin(0deg)),
+    stroke: (paint: green, thickness: 0.1em),
+    label: [$w$]
+  ),
+  lq.line(
+    tip: tiptoe.stealth,
+    toe: tiptoe.circle,
+    (0, 0), (calc.cos(10deg), calc.sin(10deg)),
+    stroke: (paint: purple, thickness: 0.1em),
+    label: [$y$]
+  ),
+  lq.line(
+    (0, 0), (calc.cos(25deg), calc.sin(25deg)),
+    stroke: (paint: gray, thickness: 0.1em, dash: "dotted"),
+  ),
+  lq.line(
+    (0, 0), (calc.cos(-25deg), calc.sin(-25deg)),
+    stroke: (paint: gray, thickness: 0.1em, dash: "dotted"),
+  )
+
+
+)
+
+== $M$ increases
+
+#let mu1 = 0
+#let sigma1 = 0.2
+#let mu2 = 2
+#let sigma2 = 0.2
+#let threshold = 1.2
+
+#let xs = lq.linspace(-5, 8, num: 1000)
+#let xfa = lq.linspace(threshold, 8, num: 200)
+#let xmiss = lq.linspace(-5, threshold, num: 200)
+
+#lq.diagram(
+  grid: none,
+  width: 25cm,
+  height: 10cm,
+  bounds: "strict",
+  lq.plot(
+    label: [$H_0$],
+    xs,
+    xs.map(x =>
+      calc.exp(-(x - mu1)*(x - mu1) / (2 * sigma1*sigma1))
+    ),
+    mark: none,
+    stroke: 0.2em
+  ),
+    lq.plot(
+    label: [$H_1$],
+    xs,
+    xs.map(x =>
+      calc.exp(-(x - mu2)*(x - mu2) / (2 * sigma2*sigma2))
+    ),
+    mark: none,
+    stroke: 0.2em
+  ),
+)
+
+== $||w||_2^2$ increases
+
+#let mu1 = 0
+#let sigma1 = 1
+#let mu2 = 5
+#let sigma2 = 1
+#let threshold = 5
+
+#let xs = lq.linspace(-5, 8, num: 1000)
+#let xfa = lq.linspace(threshold, 8, num: 200)
+#let xmiss = lq.linspace(-5, threshold, num: 200)
+
+#lq.diagram(
+  grid: none,
+  width: 25cm,
+  height: 10cm,
+  bounds: "strict",
+  lq.plot(
+    label: [$H_0$],
+    xs,
+    xs.map(x =>
+      calc.exp(-(x - mu1)*(x - mu1) / (2 * sigma1*sigma1))
+    ),
+    mark: none,
+    stroke: 0.2em
+  ),
+    lq.plot(
+    label: [$H_1$],
+    xs,
+    xs.map(x =>
+      calc.exp(-(x - mu2)*(x - mu2) / (2 * sigma2*sigma2))
+    ),
+    mark: none,
+    stroke: 0.2em
+  ),
+)
+
+== $sigma_x^2$ increases
+
+#let mu1 = 0
+#let sigma1 = 1.5
+#let mu2 = 3
+#let sigma2 = 1.5
+#let threshold = 3
+
+#let xs = lq.linspace(-5, 8, num: 1000)
+#let xfa = lq.linspace(threshold, 8, num: 200)
+#let xmiss = lq.linspace(-5, threshold, num: 200)
+
+#lq.diagram(
+  grid: none,
+  width: 25cm,
+  height: 10cm,
+  bounds: "strict",
+  lq.plot(
+    label: [$H_0$],
+    xs,
+    xs.map(x =>
+      calc.exp(-(x - mu1)*(x - mu1) / (2 * sigma1*sigma1))
+    ),
+    mark: none,
+    stroke: 0.2em
+  ),
+    lq.plot(
+    label: [$H_1$],
+    xs,
+    xs.map(x =>
+      calc.exp(-(x - mu2)*(x - mu2) / (2 * sigma2*sigma2))
+    ),
+    mark: none,
+    stroke: 0.2em
+  ),
+)
+
 
