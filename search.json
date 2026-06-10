@@ -1,494 +1,50 @@
 [
   {
-    "objectID": "ch1c.html",
-    "href": "ch1c.html",
-    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
+    "objectID": "ch3.html",
+    "href": "ch3.html",
+    "title": "Chapter 3: Digital Watermarking",
     "section": "",
-    "text": "Course by S. Voloshynovskiy — University of Geneva",
+    "text": "Digital watermarking consists of embedding invisible information — a message or signature — directly into multimedia content (image, video, audio) so that it persists despite modifications. Applications range from copyright protection to broadcast monitoring, steganography, and tamper detection. The fundamental pipeline relies on a trio: an embedder, a potentially hostile channel, and a decoder that recovers the message or verifies the presence of the watermark using the secret key.\nNavigation:\n\n📖 Detailed chapter content (ch3c)\n📝 Quick review sheet (ch3r)",
     "crumbs": [
       "Course",
-      "Chapter 1: Introduction",
-      "Details"
+      "Chapter 3: Digital Watermarking",
+      "Chapter 3: Digital Watermarking"
     ]
   },
   {
-    "objectID": "ch1c.html#definition",
-    "href": "ch1c.html#definition",
-    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
-    "section": "Definition",
-    "text": "Definition\nDigital watermarking is the process of imperceptibly embedding a piece of information — a message or signature — directly into a multimedia content (image, video, audio) in such a way that it persists despite modifications. The embedded information is called a watermark.\nFormally, the watermarking system is defined by: \\[\\mathbf{y} = \\omega(\\mathbf{x},\\, k,\\, m), \\qquad \\hat{m} = g(\\mathbf{v},\\, k)\\]\nwhere:\n\n\\(\\mathbf{x} \\in \\mathbb{R}^{H \\times W \\times C}\\): the original image\n\\(k\\): a secret symmetric key\n\\(m \\in \\{0,1\\}^M\\): the message to embed (\\(M\\) bits)\n\\(\\mathbf{y}\\): the watermarked image\n\\(\\mathbf{v} = \\mathcal{A}(\\mathbf{y})\\): the received image after attack \\(\\mathcal{A}\\)\n\\(\\hat{m}\\): the extracted message",
-    "crumbs": [
-      "Course",
-      "Chapter 1: Introduction",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch1c.html#watermarking-pipeline",
-    "href": "ch1c.html#watermarking-pipeline",
-    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
-    "section": "Watermarking Pipeline",
-    "text": "Watermarking Pipeline\nDiagram 1: Digital watermarking pipeline\n\\usetikzlibrary{arrows.meta}\n\\begin{tikzpicture}[&gt;=Latex, font=\\small]\n\n% Message m (top left)\n\\node at (2.0, 7.5) {Message $m$};\n\\draw[-&gt;] (2.0, 7.3) -- (2.0, 6.7);\n\n% Encoder\n\\draw[fill=green!40, draw=green!60!black] (0.5, 5.7) rectangle (3.5, 6.7);\n\\node at (2.0, 6.2) {\\textbf{Encoder}};\n\n% Image x\n\\node at (-0.8, 4.2) {$\\mathbf{x}$};\n\\draw[-&gt;] (-0.3, 4.2) -- (0.5, 4.2);\n\n% s: Encoder -&gt; Embedder\n\\draw[-&gt;] (2.0, 5.7) -- (2.0, 4.7);\n\\node at (2.4, 5.2) {$\\mathbf{s}$};\n\n% Key k (left)\n\\node at (2.0, 1.5) {Key $k$};\n\\draw[-&gt;] (2.0, 1.8) -- (2.0, 2.8);\n\n% Embedder\n\\draw[fill=green!40, draw=green!60!black] (0.5, 2.8) rectangle (3.5, 4.7);\n\\node at (2.0, 3.75) {\\textbf{Embedder}};\n\n% y: Embedder -&gt; Channel\n\\draw[-&gt;] (3.5, 4.0) -- (5.5, 4.0);\n\\node at (4.5, 4.3) {$\\mathbf{y}$};\n\n% Multimedia Channel\n\\draw[fill=blue!30, draw=blue!70!black] (5.5, 3.0) rectangle (8.0, 5.0);\n\\node at (6.75, 4.3) {\\textbf{Multimedia}};\n\\node at (6.75, 3.7) {\\textbf{Channel}};\n\n% v: Channel -&gt; Extractor\n\\draw[-&gt;] (8.0, 4.0) -- (9.5, 4.0);\n\\node at (8.75, 4.3) {$\\mathbf{v}$};\n\n% Extractor\n\\draw[fill=green!40, draw=green!60!black] (9.5, 2.8) rectangle (12.0, 4.7);\n\\node at (10.75, 3.75) {\\textbf{Extractor}};\n\n% Key k (right)\n\\node at (10.75, 1.5) {Key $k$};\n\\draw[-&gt;] (10.75, 1.8) -- (10.75, 2.8);\n\n% s-hat: Extractor -&gt; Decoder\n\\draw[-&gt;] (10.75, 4.7) -- (10.75, 5.7);\n\\node at (11.2, 5.2) {$\\hat{\\mathbf{s}}$};\n\n% Decoder\n\\draw[fill=green!40, draw=green!60!black] (9.5, 5.7) rectangle (12.0, 6.7);\n\\node at (10.75, 6.2) {\\textbf{Decoder}};\n\n% Message m-hat (top right)\n\\node at (10.75, 7.5) {Message $\\hat{m}$};\n\\draw[-&gt;] (10.75, 6.7) -- (10.75, 7.3);\n\n\\end{tikzpicture}",
-    "crumbs": [
-      "Course",
-      "Chapter 1: Introduction",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch1c.html#applications",
-    "href": "ch1c.html#applications",
-    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
-    "section": "Applications",
-    "text": "Applications\nDigital watermarking is used in:\n\nCopyright protection: embed the owner’s identity or a unique identifier. During a dispute, the extractor — which requires secret key \\(k\\) — can prove ownership even after many transformations.\nBroadcast monitoring: an L-bit watermark encodes the distributor or buyer identifier. Automated systems scan television streams or online platforms to detect unauthorized broadcasts.\nMarking generative AI content: watermarking images, text, or videos produced by diffusion models or LLMs to indicate their artificial origin.\nSteganography: hiding the very existence of communication by concealing a secret message in an innocuous image.\nTamper detection: fragile watermarks designed to be destroyed by any modification, allowing integrity verification.",
-    "crumbs": [
-      "Course",
-      "Chapter 1: Introduction",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch1c.html#key-trade-offs",
-    "href": "ch1c.html#key-trade-offs",
-    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
-    "section": "Key Trade-offs",
-    "text": "Key Trade-offs\nAny watermarking system must balance four antagonistic properties:\n\nRobustness: the watermark survives compression, cropping, geometric attacks.\nImperceptibility: the visual quality of the watermarked image remains high (PSNR \\(&gt; 40\\) dB).\nCapacity: number of bits \\(L\\) that can be embedded.\nSecurity: resistance to an adversary who knows the algorithm but not the key.",
-    "crumbs": [
-      "Course",
-      "Chapter 1: Introduction",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch1c.html#challenges",
-    "href": "ch1c.html#challenges",
-    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
-    "section": "Challenges",
-    "text": "Challenges\n\nGeometric attacks: rotation, scaling, cropping can desynchronize the watermark.\nAdversarial attacks: targeted attacks can remove the watermark while preserving visual quality.\nCollusion attacks: combining several watermarked copies to erase the mark.\nKey management: protecting key \\(k\\) is essential for the whole system’s security.",
-    "crumbs": [
-      "Course",
-      "Chapter 1: Introduction",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch1c.html#definition-1",
-    "href": "ch1c.html#definition-1",
-    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
-    "section": "Definition",
-    "text": "Definition\nPerceptual hashing computes a compact binary fingerprint that is robust to benign transformations: \\[\\mathbf{b}_x = h(\\mathbf{x},\\, k), \\quad \\mathbf{b}_x \\in \\{0,1\\}^L\\]\nUnlike cryptographic hashes (MD5, SHA-256), a perceptual hash must be stable under small perturbations: two versions of the same image (compressed, resized, slightly modified) must produce similar (or identical) hashes.",
-    "crumbs": [
-      "Course",
-      "Chapter 1: Introduction",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch1c.html#perceptual-hashing-pipeline",
-    "href": "ch1c.html#perceptual-hashing-pipeline",
-    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
-    "section": "Perceptual Hashing Pipeline",
-    "text": "Perceptual Hashing Pipeline\nDiagram 2: Perceptual hashing and BSC channel model\n\\usetikzlibrary{arrows.meta}\n\\begin{tikzpicture}[&gt;=Latex, font=\\small]\n\n% Original image x\n\\draw[fill=gray!15, draw=gray!60] (0.0, 4.0) rectangle (2.0, 5.5);\n\\node at (1.0, 4.75) {$\\mathbf{x}$};\n\n% x -&gt; Hash\n\\draw[-&gt;] (2.0, 4.75) -- (3.5, 4.75);\n\n% Hash function h(.,k)\n\\draw[fill=green!40, draw=green!60!black] (3.5, 4.0) rectangle (6.0, 5.5);\n\\node at (4.75, 5.0) {\\textbf{Hash}};\n\\node at (4.75, 4.5) {$h(\\cdot, k)$};\n\n% Fingerprint bx\n\\draw[-&gt;] (6.0, 4.75) -- (7.5, 4.75);\n\\draw[fill=orange!30, draw=orange!60!black] (7.5, 4.0) rectangle (10.0, 5.5);\n\\node at (8.75, 5.0) {$\\mathbf{b}_x \\in \\{0,1\\}^L$};\n\\node at (8.75, 4.4) {Fingerprint};\n\n% bx -&gt; BSC\n\\draw[-&gt;] (8.75, 4.0) -- (8.75, 2.8);\n\n% BSC channel\n\\draw[fill=blue!30, draw=blue!70!black] (7.0, 1.8) rectangle (10.5, 2.8);\n\\node at (8.75, 2.3) {\\textbf{BSC} $(P_b)$};\n\n% BSC -&gt; b-hat-x\n\\draw[-&gt;] (8.75, 1.8) -- (8.75, 0.8);\n\\draw[fill=orange!30, draw=orange!60!black] (7.5, 0.0) rectangle (10.0, 0.8);\n\\node at (8.75, 0.4) {$\\hat{\\mathbf{b}}_x$};\n\n% Attacked image y\n\\draw[fill=gray!25, draw=gray!60] (0.0, 0.0) rectangle (2.0, 1.5);\n\\node at (1.0, 0.9) {$\\mathbf{y} = \\mathcal{A}(\\mathbf{x})$};\n\\node at (1.0, 0.3) {Attacked};\n\n% y -&gt; Hash2\n\\draw[-&gt;] (2.0, 0.75) -- (3.5, 0.75);\n\n% Hash function for attacked image\n\\draw[fill=green!40, draw=green!60!black] (3.5, 0.0) rectangle (6.0, 1.5);\n\\node at (4.75, 1.0) {\\textbf{Hash}};\n\\node at (4.75, 0.5) {$h(\\cdot, k)$};\n\n% by fingerprint\n\\draw[-&gt;] (6.0, 0.75) -- (7.5, 0.75);\n\\draw[fill=orange!30, draw=orange!60!black] (7.5, 0.0) rectangle (10.0, 1.5);\n\\node at (8.75, 1.0) {$\\mathbf{b}_y \\in \\{0,1\\}^L$};\n\\node at (8.75, 0.4) {Direct hash};\n\n\\end{tikzpicture}",
-    "crumbs": [
-      "Course",
-      "Chapter 1: Introduction",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch1c.html#irreversibility",
-    "href": "ch1c.html#irreversibility",
-    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
-    "section": "Irreversibility",
-    "text": "Irreversibility\nA fundamental property: it is impossible to reconstruct \\(\\mathbf{x}\\) from \\(\\mathbf{b}_x\\). This is guaranteed by the dimensionality reduction (\\(L \\ll H \\times W \\times C\\)) and the non-linear binarization (sign function).\nThis irreversibility is essential for privacy-preserving applications: one can compare fingerprints without ever exposing the original images.",
-    "crumbs": [
-      "Course",
-      "Chapter 1: Introduction",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch1c.html#required-properties",
-    "href": "ch1c.html#required-properties",
-    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
-    "section": "Required Properties",
-    "text": "Required Properties\n\n\n\n\n\n\n\n\nProperty\nMathematical formulation\nImportance\n\n\n\n\nRobustness\n\\(h(\\mathcal{A}(\\mathbf{x}), k) \\approx h(\\mathbf{x}, k)\\) for small \\(\\mathcal{A}\\)\nSimilar images → similar hashes\n\n\nIrreversibility\n\\(\\not\\exists\\) algorithm to recover \\(\\mathbf{x}\\) from \\(\\mathbf{b}_x\\)\nPrivacy protection\n\n\nSensitivity\n\\(h(\\mathbf{x}, k) \\not\\approx h(\\mathbf{x}', k)\\) for \\(\\mathbf{x}' \\neq \\mathbf{x}\\)\nDifferent images → different hashes\n\n\nCompactness\n\\(L \\ll H \\times W \\times C\\)\nStorage and search efficiency\n\n\nKey-dependency\n\\(h(\\mathbf{x}, k) \\neq h(\\mathbf{x}, k')\\) for \\(k \\neq k'\\)\nRevocability and security",
-    "crumbs": [
-      "Course",
-      "Chapter 1: Introduction",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch1c.html#cryptographic-hash-vs.-perceptual-hash",
-    "href": "ch1c.html#cryptographic-hash-vs.-perceptual-hash",
-    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
-    "section": "Cryptographic Hash vs. Perceptual Hash",
-    "text": "Cryptographic Hash vs. Perceptual Hash\nDiagram 3: Comparison of cryptographic vs. perceptual hashing\n\\usetikzlibrary{arrows.meta}\n\\begin{tikzpicture}[&gt;=Latex, font=\\small]\n\n% === Left: Cryptographic Hash ===\n\\node at (2.5, 7.5) {\\textbf{Cryptographic Hash (SHA-256)}};\n\\draw[fill=gray!15, draw=gray!60] (0.5, 6.2) rectangle (4.5, 7.2);\n\\node at (2.5, 6.7) {Image $\\mathbf{x}$};\n\\draw[-&gt;] (2.5, 6.2) -- (2.5, 5.4);\n\\draw[fill=blue!30, draw=blue!80!black] (0.5, 4.5) rectangle (4.5, 5.4);\n\\node at (2.5, 4.95) {\\textbf{SHA-256}};\n\\draw[-&gt;] (2.5, 4.5) -- (2.5, 3.7);\n\\draw[fill=orange!30, draw=orange!80!black] (0.5, 2.8) rectangle (4.5, 3.7);\n\\node at (2.5, 3.25) {256-bit hash};\n\n% Avalanche effect\n\\draw[fill=red!30, draw=red!80!black] (0.5, 1.5) rectangle (4.5, 2.5);\n\\node at (2.5, 2.1) {\\textbf{Avalanche effect:}};\n\\node at (2.5, 1.7) {1 bit changed $\\rightarrow$ 50\\% hash changed};\n\n% === Right: Perceptual Hash ===\n\\node at (9.5, 7.5) {\\textbf{Perceptual Hash}};\n\\draw[fill=gray!15, draw=gray!60] (7.5, 6.2) rectangle (11.5, 7.2);\n\\node at (9.5, 6.7) {Image $\\mathbf{x}$};\n\\draw[-&gt;] (9.5, 6.2) -- (9.5, 5.4);\n\\draw[fill=green!40, draw=green!60!black] (7.5, 4.5) rectangle (11.5, 5.4);\n\\node at (9.5, 4.95) {\\textbf{Perceptual Hash} $h(\\cdot, k)$};\n\\draw[-&gt;] (9.5, 4.5) -- (9.5, 3.7);\n\\draw[fill=orange!30, draw=orange!80!black] (7.5, 2.8) rectangle (11.5, 3.7);\n\\node at (9.5, 3.25) {$L$-bit fingerprint};\n\n% Robustness\n\\draw[fill=green!40, draw=green!60!black] (7.5, 1.5) rectangle (11.5, 2.5);\n\\node at (9.5, 2.1) {\\textbf{Robustness:}};\n\\node at (9.5, 1.7) {JPEG 70\\% $\\rightarrow$ small Hamming dist.};\n\n\\end{tikzpicture}",
-    "crumbs": [
-      "Course",
-      "Chapter 1: Introduction",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch1c.html#why-classical-encryption-doesnt-apply-directly",
-    "href": "ch1c.html#why-classical-encryption-doesnt-apply-directly",
-    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
-    "section": "Why Classical Encryption Doesn’t Apply Directly",
-    "text": "Why Classical Encryption Doesn’t Apply Directly\nClassical encryption (AES, RSA) operates on binary data and produces completely different outputs for any modification of the input. This is useful for confidentiality but incompatible with the needs of multimedia security:\n\nRobustness requirement: a JPEG-compressed image must still be recognizable as containing the same watermark. Encryption breaks this property completely.\nPerceptual metrics: multimedia quality is measured in PSNR, SSIM — not in bit error rate. Modifications that are imperceptible to humans may produce completely different encrypted outputs.\nSemantic search: databases of images or fingerprints require content-based similarity — not exact equality.",
-    "crumbs": [
-      "Course",
-      "Chapter 1: Introduction",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch1c.html#foundation-models-and-new-attack-surfaces",
-    "href": "ch1c.html#foundation-models-and-new-attack-surfaces",
-    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
-    "section": "Foundation Models and New Attack Surfaces",
-    "text": "Foundation Models and New Attack Surfaces\nLarge pre-trained models (CLIP, DALL-E, GPT-4V) introduce new vulnerabilities:\n\nModel inversion: from the model’s output, reconstruct training samples.\nMembership inference: determine whether a particular image was used for training.\nAdversarial attacks: perturbations imperceptible to humans fool the model.",
-    "crumbs": [
-      "Course",
-      "Chapter 1: Introduction",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch1c.html#adversarial-attacks",
-    "href": "ch1c.html#adversarial-attacks",
-    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
-    "section": "Adversarial Attacks",
-    "text": "Adversarial Attacks\nAn adversarial attack adds a perturbation \\(\\boldsymbol{\\delta}\\) to an image \\(\\mathbf{x}\\) that is imperceptible but causes a model \\(f\\) to make an incorrect prediction:\n\\[\\mathbf{x}^{adv} = \\mathbf{x} + \\boldsymbol{\\delta}, \\quad \\|\\boldsymbol{\\delta}\\|_\\infty \\leq \\epsilon, \\quad f(\\mathbf{x}^{adv}) \\neq f(\\mathbf{x})\\]\nDiagram 4: Two cases of adversarial attacks\n\\usetikzlibrary{arrows.meta}\n\\begin{tikzpicture}[&gt;=Latex, font=\\small]\n\n% === Case 1: White-box Attack ===\n\\node at (3.0, 7.5) {\\textbf{Case 1: White-box Attack}};\n\n\\draw[fill=gray!15, draw=gray!60] (0.5, 6.0) rectangle (2.5, 7.0);\n\\node at (1.5, 6.5) {Image $\\mathbf{x}$};\n\n\\draw[fill=orange!30, draw=orange!80!black] (0.5, 4.5) rectangle (2.5, 5.5);\n\\node at (1.5, 5.0) {Perturbation $\\boldsymbol{\\delta}$};\n\n\\draw[-&gt;] (1.5, 6.0) -- (1.5, 5.5);\n\n\\draw[fill=red!30, draw=red!80!black] (0.0, 3.2) rectangle (3.0, 4.2);\n\\node at (1.5, 3.7) {$\\mathbf{x}^{adv} = \\mathbf{x} + \\boldsymbol{\\delta}$};\n\\draw[-&gt;] (1.5, 4.5) -- (1.5, 4.2);\n\n\\draw[-&gt;] (1.5, 3.2) -- (1.5, 2.5);\n\\draw[fill=blue!30, draw=blue!80!black] (0.0, 1.5) rectangle (3.0, 2.5);\n\\node at (1.5, 2.1) {\\textbf{Model $f$}};\n\\node at (1.5, 1.7) {(known gradient)};\n\n\\draw[-&gt;] (1.5, 1.5) -- (1.5, 0.8);\n\\draw[fill=red!30, draw=red!80!black] (0.0, 0.0) rectangle (3.0, 0.8);\n\\node at (1.5, 0.4) {Wrong prediction};\n\n% === Case 2: Black-box Attack (Transfer) ===\n\\node at (9.0, 7.5) {\\textbf{Case 2: Black-box Attack (Transfer)}};\n\n\\draw[fill=gray!15, draw=gray!60] (6.5, 6.0) rectangle (8.5, 7.0);\n\\node at (7.5, 6.5) {Image $\\mathbf{x}$};\n\n\\draw[fill=orange!30, draw=orange!80!black] (6.5, 4.5) rectangle (8.5, 5.5);\n\\node at (7.5, 5.05) {Perturbation $\\boldsymbol{\\delta}$};\n\\node at (7.5, 4.65) {(on surrogate)};\n\n\\draw[-&gt;] (7.5, 6.0) -- (7.5, 5.5);\n\n\\draw[fill=red!30, draw=red!80!black] (6.0, 3.2) rectangle (9.0, 4.2);\n\\node at (7.5, 3.7) {$\\mathbf{x}^{adv}$};\n\\draw[-&gt;] (7.5, 4.5) -- (7.5, 4.2);\n\n\\draw[-&gt;] (9.0, 3.7) -- (10.5, 3.7);\n\\draw[fill=blue!30, draw=blue!80!black] (10.5, 3.2) rectangle (13.0, 4.2);\n\\node at (11.75, 3.75) {\\textbf{Model $f'$}};\n\\node at (11.75, 3.35) {(unknown)};\n\n\\draw[-&gt;] (11.75, 3.2) -- (11.75, 2.5);\n\\draw[fill=red!30, draw=red!80!black] (10.5, 1.5) rectangle (13.0, 2.5);\n\\node at (11.75, 2.05) {Transferable};\n\\node at (11.75, 1.65) {wrong prediction};\n\n\\end{tikzpicture}",
-    "crumbs": [
-      "Course",
-      "Chapter 1: Introduction",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch1c.html#main-attack-types",
-    "href": "ch1c.html#main-attack-types",
-    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
-    "section": "Main Attack Types",
-    "text": "Main Attack Types\n\n\n\n\n\n\n\n\nAttack\nMethod\nKnowledge of model\n\n\n\n\nFGSM (Fast Gradient Sign Method)\n\\(\\boldsymbol{\\delta} = \\epsilon \\cdot \\text{sign}(\\nabla_{\\mathbf{x}} \\mathcal{L})\\)\nWhite-box\n\n\nPGD (Projected Gradient Descent)\nIterative FGSM with projection\nWhite-box\n\n\nC&W (Carlini & Wagner)\nOptimization of distortion + misclassification\nWhite-box\n\n\nTransfer attack\nAdversarial on surrogate model\nBlack-box\n\n\nQuery-based attack\nGradient estimation by queries\nBlack-box",
-    "crumbs": [
-      "Course",
-      "Chapter 1: Introduction",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch1c.html#defenses",
-    "href": "ch1c.html#defenses",
-    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
-    "section": "Defenses",
-    "text": "Defenses\n\nAdversarial training: include adversarial examples in training.\nCertified defenses: randomized smoothing, provable robustness bounds.\nDetection: detect anomalous inputs before classification.\nWatermarking generated content: identify AI-generated images for later verification.",
-    "crumbs": [
-      "Course",
-      "Chapter 1: Introduction",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch1c.html#definition-and-context",
-    "href": "ch1c.html#definition-and-context",
-    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
-    "section": "Definition and Context",
-    "text": "Definition and Context\nPrivacy preservation in multimedia refers to all techniques that protect the identity and sensitive attributes of individuals present in digital content, while maintaining utility for legitimate applications.\nFormally, a privacy-preserving system must satisfy: \\[P[\\mathcal{M}(D) \\in S] \\leq e^\\varepsilon \\cdot P[\\mathcal{M}(D') \\in S] + \\delta\\]\nfor all sets \\(S\\) and all pairs of adjacent datasets \\(D, D'\\) (\\((\\varepsilon, \\delta)\\)-Differential Privacy).",
-    "crumbs": [
-      "Course",
-      "Chapter 1: Introduction",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch1c.html#main-techniques",
-    "href": "ch1c.html#main-techniques",
-    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
-    "section": "Main Techniques",
-    "text": "Main Techniques\n\nDifferential Privacy (DP)\nAdds calibrated noise to an algorithm’s output to guarantee that an individual’s presence in the dataset has negligible impact on results:\n\\[\\mathcal{M}(\\mathbf{x}) = f(\\mathbf{x}) + \\mathbf{n}, \\quad \\mathbf{n} \\sim \\mathcal{N}(\\mathbf{0}, \\sigma^2 \\mathbf{I})\\]\n\n\nFederated Learning\nTrains a model on distributed data without centralizing raw data:\n\nLocal training on each device/organization\nSharing only model gradients (not data)\nAggregation on a central server\nUpdated global model sent back\n\n\n\nMultimedia Anonymization\n\nFace blurring: Gaussian or pixelation blur on detected regions\nAttribute removal: removing identifiable attributes (tattoos, clothing)\nGAN-based anonymization: replacing faces with synthetic faces while preserving expression\n\n\n\nPrivacy-Preserving Retrieval\nSearch similar images in a database without revealing query content: \\[\\text{Query}: \\mathbf{b}_q = h(\\mathbf{x}_q, k) \\in \\{0,1\\}^L\\] \\[\\text{Decision}: d_H(\\mathbf{b}_q, \\mathbf{b}_i) \\leq \\tau_H \\Rightarrow \\text{similar}\\]",
-    "crumbs": [
-      "Course",
-      "Chapter 1: Introduction",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch1c.html#applications-1",
-    "href": "ch1c.html#applications-1",
-    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
-    "section": "Applications",
-    "text": "Applications\n\n\n\n\n\n\n\n\nApplication\nTechnique\nContext\n\n\n\n\nFace recognition without exposure\nRobust hashing\nSmartphone, physical access\n\n\nMedical image search\nPrivacy-preserving hashing\nHospital networks\n\n\nGDPR compliance\nAnonymization + DP\nEU enterprises\n\n\nFederated learning\nFL + DP\nMobile devices\n\n\nAI content marking\nWatermarking\nGenerative models",
-    "crumbs": [
-      "Course",
-      "Chapter 1: Introduction",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch3r.html",
-    "href": "ch3r.html",
-    "title": "Synthesis — Chapter 3",
+    "objectID": "ch3.html#overview",
+    "href": "ch3.html#overview",
+    "title": "Chapter 3: Digital Watermarking",
     "section": "",
-    "text": "Important📚 Quick Review Sheet — Chapter 3\n\n\n\nThis sheet summarizes the essential concepts from Chapter 3: additive embedding model, zero-bit and L-bit hypothesis testing, quality metrics, embedding domains, geometric synchronization, QIM, and watermarking system security.\nNavigation: Overview → | Detailed content →",
+    "text": "Digital watermarking consists of embedding invisible information — a message or signature — directly into multimedia content (image, video, audio) so that it persists despite modifications. Applications range from copyright protection to broadcast monitoring, steganography, and tamper detection. The fundamental pipeline relies on a trio: an embedder, a potentially hostile channel, and a decoder that recovers the message or verifies the presence of the watermark using the secret key.\nNavigation:\n\n📖 Detailed chapter content (ch3c)\n📝 Quick review sheet (ch3r)",
     "crumbs": [
       "Course",
       "Chapter 3: Digital Watermarking",
-      "Synthesis"
+      "Chapter 3: Digital Watermarking"
     ]
   },
   {
-    "objectID": "ch3r.html#key-formulas",
-    "href": "ch3r.html#key-formulas",
-    "title": "Synthesis — Chapter 3",
-    "section": "Key Formulas",
-    "text": "Key Formulas\n\n\n\n\n\n\n\n\nConcept\nFormula\nDescription\n\n\n\n\nAdditive embedding\n\\(\\mathbf{y} = \\mathbf{x} + \\varepsilon\\mathbf{w}\\)\nWatermarked image\n\n\nWatermark generation\n\\(\\mathbf{w} = \\text{Gen}(k)\\)\nPseudo-random sequence\n\n\nDetection score\n\\(S(\\mathbf{v}) = \\frac{1}{M}\\mathbf{v}\\cdot\\mathbf{w}\\)\nTest statistic\n\n\nDistortion\n\\(D_{xy} = \\frac{1}{M}\\|\\mathbf{x}-\\mathbf{y}\\|^2\\)\nMSE\n\n\nPSNR\n\\(\\text{PSNR} = 10\\log_{10}\\!\\left(\\frac{255^2}{D_{xy}}\\right)\\)\nQuality [dB]\n\n\nFalse alarm\n\\(P_{FA} = P(H_1\\mid H_0)\\)\nType I error\n\n\nMiss\n\\(P_\\text{miss} = P(H_0\\mid H_1)\\)\nType II error\n\n\nPower\n\\(P_D = 1 - P_\\text{miss}\\)\nDetection rate\n\n\nQIM\n\\(y_i = Q_m(x_i)\\)\nModulated quantization\n\n\nDC-QIM\n\\(y_i = Q(x_i + d_i(m,k)) - d_i(m,k)\\)\nWith dithering",
-    "crumbs": [
-      "Course",
-      "Chapter 3: Digital Watermarking",
-      "Synthesis"
-    ]
-  },
-  {
-    "objectID": "ch3r.html#watermark-types",
-    "href": "ch3r.html#watermark-types",
-    "title": "Synthesis — Chapter 3",
-    "section": "Watermark Types",
-    "text": "Watermark Types\n\n\n\n\n\n\n\n\n\nType\nObjective\nFormulation\nApplication\n\n\n\n\nZero-bit\nBinary detection\n\\(H_0\\) vs \\(H_1\\), threshold \\(\\tau\\)\nCopyright, authentication\n\n\nL-bit\nMessage decoding\n\\(\\hat{m} = g(\\mathbf{v},k)\\), \\(m\\in\\{0,1\\}^L\\)\nBroadcast monitoring, fingerprinting\n\n\nFragile\nIntegrity\nSensitive to all modifications\nTamper detection\n\n\nSemi-fragile\nIntegrity + normal robustness\nResists legitimate processing\nContent authentication",
-    "crumbs": [
-      "Course",
-      "Chapter 3: Digital Watermarking",
-      "Synthesis"
-    ]
-  },
-  {
-    "objectID": "ch3r.html#embedding-domains",
-    "href": "ch3r.html#embedding-domains",
-    "title": "Synthesis — Chapter 3",
-    "section": "Embedding Domains",
-    "text": "Embedding Domains\n\n\n\nDomain\nRobustness\nImperceptibility\nCapacity\nExample usage\n\n\n\n\nPixel\nLow\nGood\nHigh\nSteganography\n\n\nDCT\nGood\nGood\nMedium\nJPEG copyright\n\n\nDWT\nVery good\nVery good\nMedium\nBroadcast monitoring\n\n\nDeep features\nExcellent\nExcellent\nVariable\nModern systems",
-    "crumbs": [
-      "Course",
-      "Chapter 3: Digital Watermarking",
-      "Synthesis"
-    ]
-  },
-  {
-    "objectID": "ch3r.html#simplified-pipeline",
-    "href": "ch3r.html#simplified-pipeline",
-    "title": "Synthesis — Chapter 3",
-    "section": "Simplified Pipeline",
-    "text": "Simplified Pipeline",
-    "crumbs": [
-      "Course",
-      "Chapter 3: Digital Watermarking",
-      "Synthesis"
-    ]
-  },
-  {
-    "objectID": "ch3r.html#key-points",
-    "href": "ch3r.html#key-points",
-    "title": "Synthesis — Chapter 3",
-    "section": "Key Points",
-    "text": "Key Points\n\n\\(\\varepsilon^2 = D_{xy}\\): embedding strength is the square root of MSE distortion.\nScore \\(S(\\mathbf{v}) = \\frac{1}{M}\\mathbf{v}\\cdot\\mathbf{w}\\) converges to \\(\\varepsilon\\) under \\(H_1\\) and to \\(0\\) under \\(H_0\\).\nFor PSNR = 40 dB: \\(\\varepsilon = 255 \\cdot 10^{-2} \\approx 2.5\\) gray levels.\nRobustness grows as \\(\\sqrt{M}\\): high-resolution images are intrinsically easier to robustly watermark.\nDeep methods (HiDDeN, TrustMark, StegaStamp) improve the global trade-off via end-to-end optimization.",
-    "crumbs": [
-      "Course",
-      "Chapter 3: Digital Watermarking",
-      "Synthesis"
-    ]
-  },
-  {
-    "objectID": "ch2c.html",
-    "href": "ch2c.html",
-    "title": "Chapter 2: Notations and Core Concepts — Detailed Content",
-    "section": "",
-    "text": "Course by S. Voloshynovskiy — University of Geneva",
-    "crumbs": [
-      "Course",
-      "Chapter 2: Notations & Core Concepts",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch2c.html#basic-notations",
-    "href": "ch2c.html#basic-notations",
-    "title": "Chapter 2: Notations and Core Concepts — Detailed Content",
-    "section": "Basic Notations",
-    "text": "Basic Notations\n\nTensor Representation\nA digital image is modeled as a three-dimensional tensor: \\[\\mathbf{x} \\in \\mathbb{R}^{H \\times W \\times C}\\]\n\n\\(H\\): number of rows (height in pixels)\n\\(W\\): number of columns (width in pixels)\n\\(C\\): number of spectral channels\n\nFor an RGB image in 8 bits: \\(C = 3\\), \\(x_{h,w,c} \\in \\{0, 1, \\ldots, 255\\}\\).\nFor simplicity in calculations, the image is often vectorized: \\[\\mathbf{x} \\in \\mathbb{R}^N, \\quad N = H \\times W \\times C\\]",
-    "crumbs": [
-      "Course",
-      "Chapter 2: Notations & Core Concepts",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch2c.html#quality-metrics",
-    "href": "ch2c.html#quality-metrics",
-    "title": "Chapter 2: Notations and Core Concepts — Detailed Content",
-    "section": "Quality Metrics",
-    "text": "Quality Metrics\n\nMSE (Mean Squared Error)\n\\[\\text{MSE}(\\mathbf{x}, \\mathbf{y}) = \\frac{1}{HWC} \\sum_{h=1}^{H} \\sum_{w=1}^{W} \\sum_{c=1}^{C} (x_{h,w,c} - y_{h,w,c})^2 = \\frac{1}{N} \\|\\mathbf{x} - \\mathbf{y}\\|_2^2\\]\n\n\nPSNR (Peak Signal-to-Noise Ratio)\n\\[\\text{PSNR}(\\mathbf{x}, \\mathbf{y}) = 10 \\log_{10}\\!\\left(\\frac{P_\\text{max}^2}{\\text{MSE}(\\mathbf{x}, \\mathbf{y})}\\right) \\quad [\\text{dB}]\\]\nwith \\(P_\\text{max} = 255\\) for 8-bit images. PSNR \\(&gt; 40\\,\\text{dB}\\) is imperceptible.\n\n\nCosine Similarity\n\\[\\text{cos}(\\mathbf{u}, \\mathbf{v}) = \\frac{\\mathbf{u} \\cdot \\mathbf{v}}{\\|\\mathbf{u}\\|_2 \\|\\mathbf{v}\\|_2} = \\frac{\\sum_i u_i v_i}{\\sqrt{\\sum_i u_i^2} \\cdot \\sqrt{\\sum_i v_i^2}} \\in [-1, 1]\\]\nSpecial case: for normalized vectors \\(\\|\\mathbf{u}\\| = \\|\\mathbf{v}\\| = 1\\), cosine similarity equals the dot product.",
-    "crumbs": [
-      "Course",
-      "Chapter 2: Notations & Core Concepts",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch2c.html#frequency-transforms",
-    "href": "ch2c.html#frequency-transforms",
-    "title": "Chapter 2: Notations and Core Concepts — Detailed Content",
-    "section": "Frequency Transforms",
-    "text": "Frequency Transforms\n\nDCT (Discrete Cosine Transform)\nFor a 1D signal of length \\(N\\), the DCT-II is defined by: \\[X_k = \\sum_{n=0}^{N-1} x_n \\cos\\!\\left[\\frac{\\pi}{N}\\left(n + \\frac{1}{2}\\right)k\\right], \\quad k = 0, \\ldots, N-1\\]\nThree approaches for images:\n\nFull-frame DCT: applied to the entire \\(H \\times W\\) image\nBlock-wise DCT (8×8): JPEG standard — image split into \\(8 \\times 8\\) pixel blocks\nTensor DCT: applied separately on each dimension of the tensor\n\n\n\n\nDFT (Discrete Fourier Transform)\n\\[X_k = \\sum_{n=0}^{N-1} x_n \\, e^{-j2\\pi kn/N}, \\quad k = 0, \\ldots, N-1\\]\nImportant properties:\n\nLinearity: \\(\\mathcal{F}\\{ax + by\\} = a\\mathcal{F}\\{x\\} + b\\mathcal{F}\\{y\\}\\)\nParseval’s theorem: \\(\\sum_n |x_n|^2 = \\frac{1}{N}\\sum_k |X_k|^2\\)\nConvolution: spatial convolution ↔︎ frequency multiplication\n\n\n\nDWT (Discrete Wavelet Transform)\nThe DWT decomposes a signal into subbands at different resolutions: \\[x = \\sum_k \\langle x, \\psi_{j,k} \\rangle \\psi_{j,k} + \\sum_k \\langle x, \\phi_{J,k} \\rangle \\phi_{J,k}\\]\nwhere \\(\\psi_{j,k}\\) are the mother wavelets and \\(\\phi_{J,k}\\) the scaling functions.\nMulti-resolution structure (for a 2D image):\n\n\n\nPCA / Principal Component Analysis\nPCA projects data onto the directions of maximum variance.\nSteps:\n\nCompute the covariance matrix: \\(\\mathbf{C} = \\frac{1}{n}\\sum_{i=1}^n (\\mathbf{x}_i - \\bar{\\mathbf{x}})(\\mathbf{x}_i - \\bar{\\mathbf{x}})^\\top\\)\nSpectral decomposition: \\(\\mathbf{C} = \\mathbf{V} \\mathbf{\\Lambda} \\mathbf{V}^\\top\\)\nProjection: \\(\\mathbf{z} = \\mathbf{V}_d^\\top (\\mathbf{x} - \\bar{\\mathbf{x}}) \\in \\mathbb{R}^d\\)",
-    "crumbs": [
-      "Course",
-      "Chapter 2: Notations & Core Concepts",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch2c.html#foundation-models-concept",
-    "href": "ch2c.html#foundation-models-concept",
-    "title": "Chapter 2: Notations and Core Concepts — Detailed Content",
-    "section": "Foundation Models Concept",
-    "text": "Foundation Models Concept\nA foundation model is a large model pre-trained on unlabeled data at very large scale, then adapted to various downstream tasks.\nExamples: CLIP, DINO, ResNet pre-trained with SimCLR, BERT, GPT.\nThe latent representation: \\[\\mathbf{z}_x = f_\\phi(\\mathbf{x}), \\quad \\mathbf{z}_x \\in \\mathbb{R}^d\\]\nencodes semantic features without explicit supervision.",
-    "crumbs": [
-      "Course",
-      "Chapter 2: Notations & Core Concepts",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch2c.html#contrastive-learning-simclr",
-    "href": "ch2c.html#contrastive-learning-simclr",
-    "title": "Chapter 2: Notations and Core Concepts — Detailed Content",
-    "section": "Contrastive Learning — SimCLR",
-    "text": "Contrastive Learning — SimCLR\n\nPipeline\n\n\n\nNT-Xent Loss Function\n\\[\\mathcal{L}_\\text{NT-Xent} = -\\log \\frac{\\exp\\!\\left(\\text{sim}(\\mathbf{z}_x, \\mathbf{z}_{x^+})/\\tau\\right)}{\\sum_{j=1}^{2N} \\mathbf{1}_{[j \\neq x]} \\exp\\!\\left(\\text{sim}(\\mathbf{z}_x, \\mathbf{z}_j)/\\tau\\right)}\\]\nwhere \\(\\text{sim}(\\mathbf{u}, \\mathbf{v}) = \\mathbf{u}^\\top \\mathbf{v} / (\\|\\mathbf{u}\\| \\|\\mathbf{v}\\|)\\) and \\(\\tau &gt; 0\\) is the temperature.\nIntuition:\n\nMaximize similarity between views of the same image (anchor and positive)\nMinimize similarity with all other images in the batch (negatives)",
-    "crumbs": [
-      "Course",
-      "Chapter 2: Notations & Core Concepts",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch2c.html#digital-watermarking",
-    "href": "ch2c.html#digital-watermarking",
-    "title": "Chapter 2: Notations and Core Concepts — Detailed Content",
-    "section": "Digital Watermarking",
-    "text": "Digital Watermarking\n\nFormalization\nThe watermarking system is defined by:\n\\[\\mathbf{y} = \\omega(\\mathbf{x},\\, k,\\, m), \\qquad \\hat{m} = g(\\mathbf{v},\\, k)\\]\n\n\n\n\n\n\n\n\nSymbol\nType\nDescription\n\n\n\n\n\\(\\mathbf{x}\\)\n\\(\\mathbb{R}^N\\)\nOriginal image (vector)\n\n\n\\(k\\)\n—\nSecret symmetric key\n\n\n\\(m\\)\n\\(\\{0,1\\}^M\\)\nMessage to embed (\\(M\\) bits)\n\n\n\\(\\mathbf{y}\\)\n\\(\\mathbb{R}^N\\)\nWatermarked image\n\n\n\\(\\mathbf{v} = \\mathcal{A}(\\mathbf{y})\\)\n\\(\\mathbb{R}^N\\)\nReceived image after attack \\(\\mathcal{A}\\)\n\n\n\\(\\hat{m}\\)\n\\(\\{0,1\\}^M\\)\nExtracted message\n\n\n\n\n\nDistortion Constraint\nThe embedding must be imperceptible: \\[D(\\mathbf{x}, \\mathbf{y}) \\leq \\varepsilon\\]\nwith \\(D\\) a distortion metric (MSE, SSIM, etc.).\n\n\nDetection Score\nFor zero-bit watermarking: \\[S(\\mathbf{v}) = \\frac{1}{M} \\mathbf{v} \\cdot \\mathbf{w}, \\qquad \\text{decision:} \\quad S(\\mathbf{v}) \\underset{H_0}{\\overset{H_1}{\\gtrless}} \\tau\\]",
-    "crumbs": [
-      "Course",
-      "Chapter 2: Notations & Core Concepts",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch2c.html#perceptual-hashing",
-    "href": "ch2c.html#perceptual-hashing",
-    "title": "Chapter 2: Notations and Core Concepts — Detailed Content",
-    "section": "Perceptual Hashing",
-    "text": "Perceptual Hashing\n\nFormalization\n\\[\\mathbf{b}_x = h(\\mathbf{x},\\, k), \\quad \\mathbf{b}_x \\in \\{0,1\\}^L\\]\n\n\nHamming Distance\n\\[d_H(\\mathbf{b}_x, \\mathbf{b}_y) = \\sum_{i=1}^{L} \\mathbf{1}[b_{x,i} \\neq b_{y,i}] = \\|\\mathbf{b}_x \\oplus \\mathbf{b}_y\\|_1\\]\n\n\nBSC Channel Model\nThe fingerprints of two versions of the same image are related by: \\[P(\\hat{b}_i \\neq b_i) = P_b \\quad \\Longleftrightarrow \\quad \\mathbf{b}_y = \\mathbf{b}_x \\oplus \\mathbf{e}\\]\nwhere \\(\\mathbf{e} \\in \\{0,1\\}^L\\) is an error vector where each bit is independent with probability \\(P_b\\).",
-    "crumbs": [
-      "Course",
-      "Chapter 2: Notations & Core Concepts",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch2c.html#awgn-channel-model",
-    "href": "ch2c.html#awgn-channel-model",
-    "title": "Chapter 2: Notations and Core Concepts — Detailed Content",
-    "section": "AWGN Channel Model",
-    "text": "AWGN Channel Model\nThe additive Gaussian channel (AWGN) is written as: \\[\\mathbf{v} = \\mathbf{s} + \\mathbf{n}, \\quad \\mathbf{n} \\sim \\mathcal{N}(\\mathbf{0}, \\sigma^2 \\mathbf{I}_N)\\]\nwhere \\(\\mathbf{s}\\) is the transmitted signal, \\(\\sigma^2\\) is the noise variance, and \\(\\mathbf{I}_N\\) is the identity matrix of size \\(N = H \\times W \\times C\\).\nThe signal-to-noise ratio (SNR) is: \\[\\text{SNR} = \\frac{\\mathbb{E}[\\|\\mathbf{s}\\|^2]}{N\\sigma^2}\\]",
-    "crumbs": [
-      "Course",
-      "Chapter 2: Notations & Core Concepts",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch2c.html#hypothesis-testing",
-    "href": "ch2c.html#hypothesis-testing",
-    "title": "Chapter 2: Notations and Core Concepts — Detailed Content",
-    "section": "Hypothesis Testing",
-    "text": "Hypothesis Testing\n\nFormulation\n\n\\(H_0\\): no watermark — \\(\\mathbf{v} \\sim p_0(\\mathbf{v}) = \\mathcal{N}(\\mathbf{0}, \\sigma^2\\mathbf{I})\\)\n\\(H_1\\): watermark present — \\(\\mathbf{v} \\sim p_1(\\mathbf{v}) = \\mathcal{N}(\\mathbf{s}, \\sigma^2\\mathbf{I})\\)\n\n\n\nNeyman-Pearson Detector\nThe likelihood ratio is: \\[\\Lambda(\\mathbf{v}) = \\frac{p_1(\\mathbf{v})}{p_0(\\mathbf{v})} = \\exp\\!\\left(\\frac{\\mathbf{v}^\\top \\mathbf{s}}{\\sigma^2} - \\frac{\\|\\mathbf{s}\\|^2}{2\\sigma^2}\\right)\\]\nThe decision rule reduces to: \\[T(\\mathbf{v}) = \\mathbf{v}^\\top \\mathbf{s} \\underset{H_0}{\\overset{H_1}{\\gtrless}} \\eta\\]\n\n\nPerformance\nUnder \\(H_0\\): \\(T(\\mathbf{v}) \\sim \\mathcal{N}(0, \\sigma^2 \\|\\mathbf{s}\\|^2)\\)\nUnder \\(H_1\\): \\(T(\\mathbf{v}) \\sim \\mathcal{N}(\\|\\mathbf{s}\\|^2, \\sigma^2 \\|\\mathbf{s}\\|^2)\\)\nFalse alarm probability: \\[P_{FA} = P(T &gt; \\eta \\mid H_0) = Q\\!\\left(\\frac{\\eta}{\\sigma\\|\\mathbf{s}\\|}\\right)\\]\nDetection probability: \\[P_D = P(T &gt; \\eta \\mid H_1) = Q\\!\\left(\\frac{\\eta - \\|\\mathbf{s}\\|^2}{\\sigma\\|\\mathbf{s}\\|}\\right)\\]\nwhere \\(Q(x) = \\frac{1}{\\sqrt{2\\pi}}\\int_x^\\infty e^{-t^2/2}\\,dt\\) is the Gaussian Q-function.",
-    "crumbs": [
-      "Course",
-      "Chapter 2: Notations & Core Concepts",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch2c.html#roc-curve",
-    "href": "ch2c.html#roc-curve",
-    "title": "Chapter 2: Notations and Core Concepts — Detailed Content",
-    "section": "ROC Curve",
-    "text": "ROC Curve\n\nThe area under the ROC curve (AUC) quantifies the overall detector performance: AUC = 1 corresponds to a perfect detector, AUC = 0.5 to a random detector.",
-    "crumbs": [
-      "Course",
-      "Chapter 2: Notations & Core Concepts",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch1.html",
-    "href": "ch1.html",
-    "title": "Chapter 1: Introduction to Multimedia Security",
-    "section": "",
-    "text": "This first chapter establishes the conceptual foundations of the course. It introduces the four main areas of multimedia security — digital watermarking, perceptual hashing, foundation model security, and privacy preservation — defining the problems, mathematical models, and fundamental trade-offs specific to each.\nNavigation:\n\n📖 Detailed chapter content (ch1c)\n📝 Quick review sheet (ch1r)",
-    "crumbs": [
-      "Course",
-      "Chapter 1: Introduction",
-      "Chapter 1: Introduction to Multimedia Security"
-    ]
-  },
-  {
-    "objectID": "ch1.html#overview",
-    "href": "ch1.html#overview",
-    "title": "Chapter 1: Introduction to Multimedia Security",
-    "section": "",
-    "text": "This first chapter establishes the conceptual foundations of the course. It introduces the four main areas of multimedia security — digital watermarking, perceptual hashing, foundation model security, and privacy preservation — defining the problems, mathematical models, and fundamental trade-offs specific to each.\nNavigation:\n\n📖 Detailed chapter content (ch1c)\n📝 Quick review sheet (ch1r)",
-    "crumbs": [
-      "Course",
-      "Chapter 1: Introduction",
-      "Chapter 1: Introduction to Multimedia Security"
-    ]
-  },
-  {
-    "objectID": "ch1.html#synthesis",
-    "href": "ch1.html#synthesis",
-    "title": "Chapter 1: Introduction to Multimedia Security",
+    "objectID": "ch3.html#synthesis",
+    "href": "ch3.html#synthesis",
+    "title": "Chapter 3: Digital Watermarking",
     "section": "Chapter Synthesis",
-    "text": "Chapter Synthesis\n\n\n\n\n\n\nNoteBlock 1 — Digital Watermarking\n\n\n\nProblem: Embed a message \\(m\\) imperceptibly into an image \\(\\mathbf{x}\\) using a key \\(k\\).\nPipeline: \\[\\mathbf{y} = \\omega(\\mathbf{x},\\, k,\\, m), \\qquad \\hat{m} = g(\\mathbf{v},\\, k)\\]\nKey trade-offs:\n\nRobustness ↔︎ Imperceptibility ↔︎ Capacity\nZero-bit (detection \\(H_0\\)/\\(H_1\\)) vs M-bit (decoding)\n\nApplications: copyright protection, marking generative AI content, steganography, tamper detection.\n\n\n\n\n\n\n\n\nNoteBlock 2 — Perceptual Hashing\n\n\n\nProblem: Compute a compact, robust binary fingerprint of an image.\nModel: \\[\\mathbf{b}_x = h(\\mathbf{x},\\, k), \\quad \\mathbf{b}_x \\in \\{0,1\\}^L\\]\nThe channel between fingerprints is modeled as a Binary Symmetric Channel (BSC) with error probability \\(P_b\\): \\[P(\\hat{b}_i \\neq b_i) = P_b\\]\nIrreversibility property: it is impossible to reconstruct \\(\\mathbf{x}\\) from \\(\\mathbf{b}_x\\).\n\n\n\n\n\n\n\n\nNoteBlock 3 — Foundation Models Security\n\n\n\nContext: Large pre-trained models (LLM, VLM, diffusion models) introduce new attack surfaces.\nMain threats:\n\nHallucination and misinformation\nModel inversion and training data extraction\nPrompt injection and backdoors\nDeepfakes and malicious synthetic content\n\nDefenses: watermarking of generated content, synthetic content detection, alignment and RLHF.\n\n\n\n\n\n\n\n\nNoteBlock 4 — Privacy Preservation\n\n\n\nContext: Individual privacy can be compromised via metadata, gradients, or inference from a model.\nKey techniques:\n\nDifferential Privacy (DP): adding calibrated noise to guarantee \\((\\varepsilon, \\delta)\\)-DP\nFederated Learning: training without centralizing data\nMultimedia anonymization: face blurring, sensitive attribute removal\nPrivacy-Preserving Retrieval: search via secure perceptual hashing",
+    "text": "Chapter Synthesis\n\n\n\n\n\n\nNoteFundamental Trade-offs\n\n\n\nEvery digital watermarking system must balance four antagonistic properties:\n\nRobustness: the watermark survives compression, cropping, geometric attacks.\nImperceptibility: the visual quality of the watermarked image remains high (PSNR \\(&gt; 40\\) dB).\nCapacity: number of bits \\(L\\) that can be embedded.\nSecurity: resistance to an adversary who knows the algorithm but not the key.\n\nAdditive embedding model (zero-bit): \\[\\mathbf{y} = \\mathbf{x} + \\varepsilon\\mathbf{w}, \\quad \\mathbf{w} = \\text{Gen}(k), \\quad \\|\\mathbf{w}\\| = 1\\]\nDetection score: \\[S(\\mathbf{v}) = \\frac{1}{M}\\mathbf{v}\\cdot\\mathbf{w}\\]\nHypothesis test:\n\n\\(H_0\\): \\(\\mathbf{v} = \\mathbf{x}\\) (no watermark) → \\(\\mathbb{E}[S] = 0\\)\n\\(H_1\\): \\(\\mathbf{v} = \\mathbf{x} + \\varepsilon\\mathbf{w}\\) (watermark present) → \\(\\mathbb{E}[S] = \\varepsilon\\)\n\nL-bit watermark: \\(\\hat{m} = g(\\mathbf{v}, k)\\), \\(m \\in \\{0,1\\}^L\\)\n\n\n\n\n\n\n\n\nNoteMain Applications\n\n\n\n\n\n\n\n\n\n\n\nApplication\nType\nPrinciple\n\n\n\n\nCopyright protection\nZero-bit / L-bit\nIdentify the work or its owner\n\n\nBroadcast monitoring\nL-bit\nTrack content distribution\n\n\nSteganography\nL-bit\nSecret communication channel in image\n\n\nTamper detection\nFragile\nFragile watermark localized by region\n\n\nFingerprinting\nL-bit\nIdentify the acquirer (traceability)\n\n\n\n\n\n\n\n\n\n\n\nNoteEmbedding Domains\n\n\n\n\n\n\n\n\n\n\n\n\nDomain\nTransform\nRobustness\nNotes\n\n\n\n\nPixel\nNone\nLow\nSimple, sensitive to geometric attacks\n\n\nDCT\nDiscrete cosine\nGood\nJPEG-compatible, mid-frequency coefficients\n\n\nDWT\nDiscrete wavelets\nVery good\nMulti-resolution, perceptual masking\n\n\nDeep features\nCNN/ViT\nExcellent\nEnd-to-end optimization, very robust",
     "crumbs": [
       "Course",
-      "Chapter 1: Introduction",
-      "Chapter 1: Introduction to Multimedia Security"
+      "Chapter 3: Digital Watermarking",
+      "Chapter 3: Digital Watermarking"
     ]
   },
   {
-    "objectID": "ch1.html#introduction",
-    "href": "ch1.html#introduction",
-    "title": "Chapter 1: Introduction to Multimedia Security",
-    "section": "Introduction",
-    "text": "Introduction\n\nWhat is multimedia security?\nMultimedia security encompasses all techniques for protecting, authenticating, and controlling digital content (images, videos, audio). Unlike classical cryptography which encrypts raw binary data, multimedia security exploits the perceptual and statistical properties of signals to achieve its goals while preserving their utility.\nA multimedia content \\(\\mathbf{x}\\) is a high-dimensional datum: \\[\\mathbf{x} \\in \\mathbb{R}^{H \\times W \\times C}\\]\nwhere \\(H\\) is the height, \\(W\\) the width, and \\(C\\) the number of channels (e.g. \\(C=3\\) for an RGB image). The richness of this representation allows information to be hidden within it or robust fingerprints to be extracted from it.\n\n\nThe general problem\nWe seek to solve problems of the form:\n\\[\\text{Encoder} : (\\mathbf{x}, k, m) \\longrightarrow \\mathbf{y} \\approx \\mathbf{x}\\] \\[\\text{Decoder} : (\\mathbf{v}, k) \\longrightarrow \\hat{m}\\]\nwhere \\(\\mathbf{y}\\) is the protected content, \\(\\mathbf{v}\\) is the version received after passing through a noisy channel, \\(k\\) is a secret key, and \\(m\\) is the message to transmit or verify. The fundamental constraint is that \\(\\mathbf{y}\\) must remain perceptually indistinguishable from \\(\\mathbf{x}\\).\n\n\nChannel model\nThe multimedia channel can model many types of perturbations:\n\\[\\mathbf{v} = \\mathcal{A}(\\mathbf{y})\\]\nwhere \\(\\mathcal{A}\\) represents attacks such as JPEG compression, resizing, cropping, noise addition, or adversarial transformations.\n\n\nThe four pillars\n\n\n\n\n\n\n\n\nPillar\nObjective\nKey model\n\n\n\n\nWatermarking\nEmbed \\(m\\) into \\(\\mathbf{x}\\)\n\\(\\mathbf{y} = \\omega(\\mathbf{x}, k, m)\\)\n\n\nPerceptual Hashing\nRobust fingerprint\n\\(\\mathbf{b}_x = h(\\mathbf{x}, k)\\)\n\n\nFoundation Models\nSecure LLMs/VLMs\nSynthetic content detection\n\n\nPrivacy\nProtect individuals\n\\((\\varepsilon, \\delta)\\)-DP, FL",
+    "objectID": "ch3.html#introduction-to-digital-watermarking",
+    "href": "ch3.html#introduction-to-digital-watermarking",
+    "title": "Chapter 3: Digital Watermarking",
+    "section": "Introduction to Digital Watermarking",
+    "text": "Introduction to Digital Watermarking\nDigital watermarking aims to make content self-authenticating by concealing information that will accompany the work throughout its digital life. Unlike electronic signatures, the watermark is tied to the signal itself rather than its metadata.\nGeneral pipeline: \\[\\mathbf{y} = \\omega(\\mathbf{x}, k, m), \\qquad \\hat{m} = g(\\mathbf{v}, k)\\]\nwhere \\(\\mathbf{v} = \\mathcal{A}(\\mathbf{y})\\) denotes the received image after channel / attacks \\(\\mathcal{A}\\).\nThe embedding strength \\(\\varepsilon\\) directly controls the robustness–imperceptibility trade-off:\n\\[D_{xy} = \\frac{1}{M}\\|\\mathbf{x}-\\mathbf{y}\\|^2 = \\frac{\\varepsilon^2}{M}\\|\\mathbf{w}\\|^2 = \\varepsilon^2 \\quad (\\text{if } \\|\\mathbf{w}\\|^2 = M)\\]\n\\[\\text{PSNR} = 10\\log_{10}\\!\\left(\\frac{255^2}{\\varepsilon^2}\\right) \\text{ [dB]}\\]",
     "crumbs": [
       "Course",
-      "Chapter 1: Introduction",
-      "Chapter 1: Introduction to Multimedia Security"
-    ]
-  },
-  {
-    "objectID": "ch1.html#signal-detection-theory",
-    "href": "ch1.html#signal-detection-theory",
-    "title": "Chapter 1: Introduction to Multimedia Security",
-    "section": "Signal Detection Theory",
-    "text": "Signal Detection Theory\n\nHypotheses \\(H_0\\) and \\(H_1\\)\nZero-bit watermarking (detection) is formulated as a hypothesis test:\n\n\\(H_0\\): the image does not contain a watermark\n\\(H_1\\): the image does contain a watermark\n\nThe test statistic is typically a score function: \\[S(\\mathbf{v}) = \\frac{1}{M} \\sum_{i=1}^{M} v_i \\cdot w_i = \\frac{1}{M} \\mathbf{v} \\cdot \\mathbf{w}\\]\nwhere \\(\\mathbf{w}\\) is the reference vector (derived from key \\(k\\)) and \\(\\mathbf{v}\\) is the received signal.\n\n\nNeyman-Pearson criterion\nThe optimal detector minimizes the miss probability \\(P_\\text{miss} = P(\\text{decision } H_0 \\mid H_1)\\) subject to a false alarm probability constraint \\(P_{FA} = P(\\text{decision } H_1 \\mid H_0) \\leq \\alpha\\).\nThe ROC curve represents the trade-off between \\(P_D = 1 - P_\\text{miss}\\) and \\(P_{FA}\\).",
-    "crumbs": [
-      "Course",
-      "Chapter 1: Introduction",
-      "Chapter 1: Introduction to Multimedia Security"
+      "Chapter 3: Digital Watermarking",
+      "Chapter 3: Digital Watermarking"
     ]
   },
   {
@@ -780,6 +336,78 @@
     ]
   },
   {
+    "objectID": "ch3r.html",
+    "href": "ch3r.html",
+    "title": "Synthesis — Chapter 3",
+    "section": "",
+    "text": "Important📚 Quick Review Sheet — Chapter 3\n\n\n\nThis sheet summarizes the essential concepts from Chapter 3: additive embedding model, zero-bit and L-bit hypothesis testing, quality metrics, embedding domains, geometric synchronization, QIM, and watermarking system security.\nNavigation: Overview → | Detailed content →",
+    "crumbs": [
+      "Course",
+      "Chapter 3: Digital Watermarking",
+      "Synthesis"
+    ]
+  },
+  {
+    "objectID": "ch3r.html#key-formulas",
+    "href": "ch3r.html#key-formulas",
+    "title": "Synthesis — Chapter 3",
+    "section": "Key Formulas",
+    "text": "Key Formulas\n\n\n\n\n\n\n\n\nConcept\nFormula\nDescription\n\n\n\n\nAdditive embedding\n\\(\\mathbf{y} = \\mathbf{x} + \\varepsilon\\mathbf{w}\\)\nWatermarked image\n\n\nWatermark generation\n\\(\\mathbf{w} = \\text{Gen}(k)\\)\nPseudo-random sequence\n\n\nDetection score\n\\(S(\\mathbf{v}) = \\frac{1}{M}\\mathbf{v}\\cdot\\mathbf{w}\\)\nTest statistic\n\n\nDistortion\n\\(D_{xy} = \\frac{1}{M}\\|\\mathbf{x}-\\mathbf{y}\\|^2\\)\nMSE\n\n\nPSNR\n\\(\\text{PSNR} = 10\\log_{10}\\!\\left(\\frac{255^2}{D_{xy}}\\right)\\)\nQuality [dB]\n\n\nFalse alarm\n\\(P_{FA} = P(H_1\\mid H_0)\\)\nType I error\n\n\nMiss\n\\(P_\\text{miss} = P(H_0\\mid H_1)\\)\nType II error\n\n\nPower\n\\(P_D = 1 - P_\\text{miss}\\)\nDetection rate\n\n\nQIM\n\\(y_i = Q_m(x_i)\\)\nModulated quantization\n\n\nDC-QIM\n\\(y_i = Q(x_i + d_i(m,k)) - d_i(m,k)\\)\nWith dithering",
+    "crumbs": [
+      "Course",
+      "Chapter 3: Digital Watermarking",
+      "Synthesis"
+    ]
+  },
+  {
+    "objectID": "ch3r.html#watermark-types",
+    "href": "ch3r.html#watermark-types",
+    "title": "Synthesis — Chapter 3",
+    "section": "Watermark Types",
+    "text": "Watermark Types\n\n\n\n\n\n\n\n\n\nType\nObjective\nFormulation\nApplication\n\n\n\n\nZero-bit\nBinary detection\n\\(H_0\\) vs \\(H_1\\), threshold \\(\\tau\\)\nCopyright, authentication\n\n\nL-bit\nMessage decoding\n\\(\\hat{m} = g(\\mathbf{v},k)\\), \\(m\\in\\{0,1\\}^L\\)\nBroadcast monitoring, fingerprinting\n\n\nFragile\nIntegrity\nSensitive to all modifications\nTamper detection\n\n\nSemi-fragile\nIntegrity + normal robustness\nResists legitimate processing\nContent authentication",
+    "crumbs": [
+      "Course",
+      "Chapter 3: Digital Watermarking",
+      "Synthesis"
+    ]
+  },
+  {
+    "objectID": "ch3r.html#embedding-domains",
+    "href": "ch3r.html#embedding-domains",
+    "title": "Synthesis — Chapter 3",
+    "section": "Embedding Domains",
+    "text": "Embedding Domains\n\n\n\nDomain\nRobustness\nImperceptibility\nCapacity\nExample usage\n\n\n\n\nPixel\nLow\nGood\nHigh\nSteganography\n\n\nDCT\nGood\nGood\nMedium\nJPEG copyright\n\n\nDWT\nVery good\nVery good\nMedium\nBroadcast monitoring\n\n\nDeep features\nExcellent\nExcellent\nVariable\nModern systems",
+    "crumbs": [
+      "Course",
+      "Chapter 3: Digital Watermarking",
+      "Synthesis"
+    ]
+  },
+  {
+    "objectID": "ch3r.html#simplified-pipeline",
+    "href": "ch3r.html#simplified-pipeline",
+    "title": "Synthesis — Chapter 3",
+    "section": "Simplified Pipeline",
+    "text": "Simplified Pipeline",
+    "crumbs": [
+      "Course",
+      "Chapter 3: Digital Watermarking",
+      "Synthesis"
+    ]
+  },
+  {
+    "objectID": "ch3r.html#key-points",
+    "href": "ch3r.html#key-points",
+    "title": "Synthesis — Chapter 3",
+    "section": "Key Points",
+    "text": "Key Points\n\n\\(\\varepsilon^2 = D_{xy}\\): embedding strength is the square root of MSE distortion.\nScore \\(S(\\mathbf{v}) = \\frac{1}{M}\\mathbf{v}\\cdot\\mathbf{w}\\) converges to \\(\\varepsilon\\) under \\(H_1\\) and to \\(0\\) under \\(H_0\\).\nFor PSNR = 40 dB: \\(\\varepsilon = 255 \\cdot 10^{-2} \\approx 2.5\\) gray levels.\nRobustness grows as \\(\\sqrt{M}\\): high-resolution images are intrinsically easier to robustly watermark.\nDeep methods (HiDDeN, TrustMark, StegaStamp) improve the global trade-off via end-to-end optimization.",
+    "crumbs": [
+      "Course",
+      "Chapter 3: Digital Watermarking",
+      "Synthesis"
+    ]
+  },
+  {
     "objectID": "ch4r.html",
     "href": "ch4r.html",
     "title": "Synthesis — Chapter 4",
@@ -885,324 +513,6 @@
       "Course",
       "Chapter 4: Privacy-Preserving Methods",
       "Synthesis"
-    ]
-  },
-  {
-    "objectID": "index.html",
-    "href": "index.html",
-    "title": "Home",
-    "section": "",
-    "text": "This course, taught by Professor S. Voloshynovskiy at the University of Geneva, presents the theoretical foundations and practical aspects of security and privacy in the multimedia domain. You will discover how to protect, authenticate, and analyze digital content (images, audio, video) using modern techniques grounded in information theory, signal processing, and deep learning.\nThe course is organized around four major themes: digital watermarking, perceptual hashing, foundation model security, and privacy preservation. Each theme is approached both from a rigorous mathematical perspective and through concrete applications from research and industry.\nCourse materials are organized into chapters, each available in three forms: a quick synthesis for review, a chapter overview, and detailed content for in-depth study. Use the sidebar navigation to access the different sections.\n\n\n\n\n\n\nChapter\nTitle\nMain Topics\n\n\n\n\n1\nIntroduction to Multimedia Security\nWatermarking, perceptual hashing, foundation models, privacy\n\n\n2\nNotations and Core Concepts\nImage representations, SSL, signal detection\n\n\n3\nDigital Watermarking\nEmbedders, extractors, attacks, metrics\n\n\n4\nPrivacy-Preserving Methods\nRobust hashing, fuzzy commitment, biometrics\n\n\n\n\n\n\n\n\n\n\n\n\n\nLanguage: English (French version available via the language selector)\nPrerequisites: Probability and statistics, linear algebra, basics of signal processing and machine learning\nAssessment: Written exam covering all chapters",
-    "crumbs": [
-      "Home"
-    ]
-  },
-  {
-    "objectID": "index.html#course-structure",
-    "href": "index.html#course-structure",
-    "title": "Home",
-    "section": "",
-    "text": "Chapter\nTitle\nMain Topics\n\n\n\n\n1\nIntroduction to Multimedia Security\nWatermarking, perceptual hashing, foundation models, privacy\n\n\n2\nNotations and Core Concepts\nImage representations, SSL, signal detection\n\n\n3\nDigital Watermarking\nEmbedders, extractors, attacks, metrics\n\n\n4\nPrivacy-Preserving Methods\nRobust hashing, fuzzy commitment, biometrics",
-    "crumbs": [
-      "Home"
-    ]
-  },
-  {
-    "objectID": "index.html#resources",
-    "href": "index.html#resources",
-    "title": "Home",
-    "section": "",
-    "text": "Language: English (French version available via the language selector)\nPrerequisites: Probability and statistics, linear algebra, basics of signal processing and machine learning\nAssessment: Written exam covering all chapters",
-    "crumbs": [
-      "Home"
-    ]
-  },
-  {
-    "objectID": "ch2r.html",
-    "href": "ch2r.html",
-    "title": "Synthesis — Chapter 2",
-    "section": "",
-    "text": "Important📚 Quick Review Sheet — Chapter 2\n\n\n\nThis sheet summarizes the essential concepts from Chapter 2. It covers image representations, self-supervised learning, formal notations for watermarking and hashing, and detection theory.\nNavigation: Overview → | Detailed content →",
-    "crumbs": [
-      "Course",
-      "Chapter 2: Notations & Core Concepts",
-      "Synthesis"
-    ]
-  },
-  {
-    "objectID": "ch2r.html#key-formulas",
-    "href": "ch2r.html#key-formulas",
-    "title": "Synthesis — Chapter 2",
-    "section": "Key Formulas",
-    "text": "Key Formulas\n\n\n\n\n\n\n\n\nConcept\nFormula\nUnits / Notes\n\n\n\n\nImage\n\\(\\mathbf{x} \\in \\mathbb{R}^{H \\times W \\times C}\\)\n\\(x_{h,w,c} \\in \\{0,\\ldots,255\\}\\) for 8 bits\n\n\nMSE\n\\(\\frac{1}{N}\\|\\mathbf{x}-\\mathbf{y}\\|_2^2\\)\n\\(N = HWC\\)\n\n\nPSNR\n\\(10\\log_{10}\\!\\left(\\frac{255^2}{\\text{MSE}}\\right)\\)\nIn dB; \\(&gt;40\\,\\text{dB}\\) ≈ imperceptible\n\n\nCosine\n\\(\\frac{\\mathbf{u}\\cdot\\mathbf{v}}{\\|\\mathbf{u}\\|\\|\\mathbf{v}\\|}\\)\n\\(\\in[-1,1]\\)\n\n\nSSL representation\n\\(\\mathbf{z}_x = f_\\phi(\\mathbf{x}) \\in \\mathbb{R}^d\\)\n\\(d \\ll N\\)\n\n\nDFT\n\\(X_k = \\sum_{n=0}^{N-1} x_n e^{-j2\\pi kn/N}\\)\n—\n\n\nDCT-II\n\\(X_k = \\sum_{n=0}^{N-1} x_n \\cos\\!\\left[\\frac{\\pi(2n+1)k}{2N}\\right]\\)\nJPEG base: 8×8 blocks\n\n\nWatermarking\n\\(\\mathbf{y} = \\omega(\\mathbf{x},k,m)\\), \\(\\hat{m}=g(\\mathbf{v},k)\\)\n—\n\n\nDetection score\n\\(S(\\mathbf{v}) = \\frac{1}{M}\\mathbf{v}\\cdot\\mathbf{w}\\)\nTest statistic\n\n\nAWGN channel\n\\(\\mathbf{v} = \\mathbf{s} + \\mathbf{n}\\), \\(\\mathbf{n}\\sim\\mathcal{N}(\\mathbf{0},\\sigma^2\\mathbf{I})\\)\n—\n\n\n\\(P_{FA}\\)\n\\(Q\\!\\left(\\frac{\\eta}{\\sigma\\|\\mathbf{s}\\|}\\right)\\)\nFalse alarm\n\n\n\\(P_D\\)\n\\(Q\\!\\left(\\frac{\\eta-\\|\\mathbf{s}\\|^2}{\\sigma\\|\\mathbf{s}\\|}\\right)\\)\nDetection power\n\n\nHamming distance\n\\(d_H(\\mathbf{b}_x,\\mathbf{b}_y) = \\|\\mathbf{b}_x\\oplus\\mathbf{b}_y\\|_1\\)\nFor perceptual hashing",
-    "crumbs": [
-      "Course",
-      "Chapter 2: Notations & Core Concepts",
-      "Synthesis"
-    ]
-  },
-  {
-    "objectID": "ch2r.html#part-1-image-representations",
-    "href": "ch2r.html#part-1-image-representations",
-    "title": "Synthesis — Chapter 2",
-    "section": "Part 1 — Image Representations",
-    "text": "Part 1 — Image Representations\nImage: \\(\\mathbf{x} \\in \\mathbb{R}^{H \\times W \\times C}\\), pixels \\(\\in \\{0,\\ldots,255\\}\\) (8 bits)\nMetrics:\n\nMSE: mean squared pixel-wise error\nPSNR \\(&gt; 40\\,\\text{dB}\\): imperceptible modification\nCosine: compares representation vectors (not raw pixels)\n\nTransforms:\n\n\n\nTransform\nDomain\nMain usage\n\n\n\n\nDCT (8×8)\nFrequencies\nJPEG compression, frequency watermarking\n\n\nDFT\nComplex frequencies\nFiltering, spectral analysis\n\n\nDWT\nTime-frequency\nMulti-resolution compression, watermarking\n\n\nPCA\nMaximum variance\nDimensionality reduction",
-    "crumbs": [
-      "Course",
-      "Chapter 2: Notations & Core Concepts",
-      "Synthesis"
-    ]
-  },
-  {
-    "objectID": "ch2r.html#part-2-self-supervised-learning",
-    "href": "ch2r.html#part-2-self-supervised-learning",
-    "title": "Synthesis — Chapter 2",
-    "section": "Part 2 — Self-Supervised Learning",
-    "text": "Part 2 — Self-Supervised Learning\nLatent representation: \\(\\mathbf{z}_x = f_\\phi(\\mathbf{x}) \\in \\mathbb{R}^d\\)\nContrastive learning:\n\nAnchor \\(\\mathbf{x}\\) + Positive \\(\\mathbf{x}^+\\) (same image, different augmentations) → bring closer\nNegatives \\(\\mathbf{x}^-\\) (other images in batch) → push apart\nTemperature \\(\\tau\\) controls selectivity\n\nNT-Xent loss: \\[\\mathcal{L} = -\\log \\frac{\\exp(\\text{sim}(\\mathbf{z}_x,\\mathbf{z}_{x^+})/\\tau)}{\\sum_j \\exp(\\text{sim}(\\mathbf{z}_x,\\mathbf{z}_j)/\\tau)}\\]",
-    "crumbs": [
-      "Course",
-      "Chapter 2: Notations & Core Concepts",
-      "Synthesis"
-    ]
-  },
-  {
-    "objectID": "ch2r.html#part-3-watermarking-and-hashing",
-    "href": "ch2r.html#part-3-watermarking-and-hashing",
-    "title": "Synthesis — Chapter 2",
-    "section": "Part 3 — Watermarking and Hashing",
-    "text": "Part 3 — Watermarking and Hashing\n\nWatermarking\n\nSymbols:\n\n\\(\\mathbf{x}\\): original image, \\(\\mathbf{y}\\): watermarked image, \\(\\mathbf{v}\\): received image\n\\(k\\): secret key, \\(m\\): message, \\(\\hat{m}\\): extracted message\n\\(S(\\mathbf{v}) = \\frac{1}{M}\\mathbf{v}\\cdot\\mathbf{w}\\): detection score (zero-bit)\n\n\n\nPerceptual Hashing\n\n\\(\\mathbf{b}_x = h(\\mathbf{x}, k) \\in \\{0,1\\}^L\\)\nBSC channel: \\(P(\\hat{b}_i \\neq b_i) = P_b\\)\nSimilarity decision: \\(d_H(\\mathbf{b}_x, \\mathbf{b}_y) \\leq \\tau_H\\)",
-    "crumbs": [
-      "Course",
-      "Chapter 2: Notations & Core Concepts",
-      "Synthesis"
-    ]
-  },
-  {
-    "objectID": "ch2r.html#part-4-signal-detection",
-    "href": "ch2r.html#part-4-signal-detection",
-    "title": "Synthesis — Chapter 2",
-    "section": "Part 4 — Signal Detection",
-    "text": "Part 4 — Signal Detection\nHypothesis test:\n\n\n\n\n\n\n\n\nHypothesis\nModel\nMeaning\n\n\n\n\n\\(H_0\\)\n\\(\\mathbf{v} \\sim \\mathcal{N}(\\mathbf{0}, \\sigma^2\\mathbf{I})\\)\nNo watermark\n\n\n\\(H_1\\)\n\\(\\mathbf{v} \\sim \\mathcal{N}(\\mathbf{s}, \\sigma^2\\mathbf{I})\\)\nWatermark present\n\n\n\nNP test statistic: \\(T(\\mathbf{v}) = \\mathbf{v}^\\top \\mathbf{s} \\underset{H_0}{\\overset{H_1}{\\gtrless}} \\eta\\)\nErrors:\n\n\\(P_{FA}\\): false alarm (declare \\(H_1\\) when \\(H_0\\))\n\\(P_\\text{miss}\\): miss (declare \\(H_0\\) when \\(H_1\\))\n\\(P_D = 1 - P_\\text{miss}\\): detection power\n\nROC curve: represents \\(P_D\\) as a function of \\(P_{FA}\\). AUC = 1 → perfect detector; AUC = 0.5 → random.\nBSC: \\(P(\\hat{b}_i \\neq b_i) = P_b\\). Hamming distance follows \\(\\mathcal{B}(L, P_b)\\) distribution under \\(H_1\\).",
-    "crumbs": [
-      "Course",
-      "Chapter 2: Notations & Core Concepts",
-      "Synthesis"
-    ]
-  },
-  {
-    "objectID": "ch4.html",
-    "href": "ch4.html",
-    "title": "Chapter 4: Privacy-Preserving Methods",
-    "section": "",
-    "text": "Privacy protection in biometrics aims to allow person authentication without storing raw biometric templates — data which, once stolen, cannot be revoked like a password. Three main families of approaches exist: cryptographic methods (one-way hash \\(h(\\mathbf{x})\\), irreversible but sensitive to biometric noise), signal processing methods (direct similarity score comparison \\(T(\\mathbf{y}, \\mathbf{x}^{(m)})\\), robust but invertible), and hybrid methods such as fuzzy commitment and robust hashing, which combine irreversibility and noise robustness. Revocability — the ability to issue new identifiers if a database is compromised — is a key property that only hybrid methods with key \\(k\\) can fully guarantee.\nNavigation:\n\n📖 Detailed chapter content (ch4c)\n📝 Quick review sheet (ch4r)",
-    "crumbs": [
-      "Course",
-      "Chapter 4: Privacy-Preserving Methods",
-      "Chapter 4: Privacy-Preserving Methods"
-    ]
-  },
-  {
-    "objectID": "ch4.html#overview",
-    "href": "ch4.html#overview",
-    "title": "Chapter 4: Privacy-Preserving Methods",
-    "section": "",
-    "text": "Privacy protection in biometrics aims to allow person authentication without storing raw biometric templates — data which, once stolen, cannot be revoked like a password. Three main families of approaches exist: cryptographic methods (one-way hash \\(h(\\mathbf{x})\\), irreversible but sensitive to biometric noise), signal processing methods (direct similarity score comparison \\(T(\\mathbf{y}, \\mathbf{x}^{(m)})\\), robust but invertible), and hybrid methods such as fuzzy commitment and robust hashing, which combine irreversibility and noise robustness. Revocability — the ability to issue new identifiers if a database is compromised — is a key property that only hybrid methods with key \\(k\\) can fully guarantee.\nNavigation:\n\n📖 Detailed chapter content (ch4c)\n📝 Quick review sheet (ch4r)",
-    "crumbs": [
-      "Course",
-      "Chapter 4: Privacy-Preserving Methods",
-      "Chapter 4: Privacy-Preserving Methods"
-    ]
-  },
-  {
-    "objectID": "ch4.html#synthesis",
-    "href": "ch4.html#synthesis",
-    "title": "Chapter 4: Privacy-Preserving Methods",
-    "section": "Chapter Synthesis",
-    "text": "Chapter Synthesis\n\n\n\n\n\n\nNoteThree Protection Approaches\n\n\n\nCryptographic approach: \\[\\mathbf{b}_x = h(\\mathbf{x}) \\in \\{0,1\\}^L\\] One-way, non-invertible, but \\(h(\\mathbf{x}) \\neq h(\\mathbf{y})\\) even if \\(\\|\\mathbf{x}-\\mathbf{y}\\|^2 \\leq \\varepsilon\\) → unsuitable for noisy biometrics.\nSignal processing approach: \\[T\\!\\left(\\mathbf{y}, \\mathbf{x}^{(m)}\\right) = \\frac{1}{N}\\mathbf{y}\\cdot\\mathbf{x}^{(m)}, \\quad \\text{decision}: T \\underset{H_1}{\\overset{H_0}{\\gtrless}} \\tau\\] Robust to biometric noise, but template \\(\\mathbf{x}^{(m)}\\) can be reconstructed from multiple sessions.\nHybrid approach — robust hashing: \\[\\mathbf{b}_x = \\text{sign}(\\mathbf{P}\\mathbf{x}), \\quad \\mathbf{P} \\in \\{-1,+1\\}^{L\\times N}, \\quad \\mathbf{P} = f(k)\\] Robust + irreversible + revocable (changing \\(k\\) generates a new \\(\\mathbf{b}_x\\)).\n\n\n\n\n\n\n\n\nNoteFundamental Problem: Irreversibility vs. Robustness\n\n\n\n\nBiometrics = permanence: face, fingerprint, iris do not change.\nMajor threat: if a biometric database is compromised, victims cannot “change” their biometrics.\nContradictory dual requirement: robustness to intra-class noise (same person, different conditions) AND irreversibility (impossible to reconstruct the template from the stored hash).\nSolution: key \\(k\\) per database → different keys → different hashes → no cross-database matching.\n\n\n\n\n\n\n\n\n\nNoteRobust Hashing Security\n\n\n\nBlind attack: without \\(k\\), an adversary observing \\(\\mathbf{b}_x \\in \\{0,1\\}^L\\) cannot recover \\(\\mathbf{x}\\) (information-theoretic irreversibility if \\(L \\ll N\\)).\nInformed attack: with \\(k\\), matrix \\(\\mathbf{P}\\) is known, but inverting \\(\\text{sign}(\\mathbf{P}\\mathbf{x})\\) remains NP-hard (for \\(L &lt; N\\)).\nRevocability: new key \\(k' \\neq k\\) → new projection \\(\\mathbf{P}' \\neq \\mathbf{P}\\) → new hash \\(\\mathbf{b}'_x \\neq \\mathbf{b}_x\\), and the two hashes are statistically independent.",
-    "crumbs": [
-      "Course",
-      "Chapter 4: Privacy-Preserving Methods",
-      "Chapter 4: Privacy-Preserving Methods"
-    ]
-  },
-  {
-    "objectID": "ch4.html#introduction",
-    "href": "ch4.html#introduction",
-    "title": "Chapter 4: Privacy-Preserving Methods",
-    "section": "Introduction",
-    "text": "Introduction\nBiometric authentication compares a presented sample at enrollment to a stored template. If this template is exposed, the consequences are far more serious than a password leak: the individual cannot change their face or fingerprints. Robust hashing is the fundamental building block that transforms a biometric template into a compact, irreversible, and revocable identifier. Conceptually, it is analogous to a cryptographic hash (like SHA-256) enriched with noise tolerance — a property that classical cryptographic hashes deliberately lack (the avalanche effect precisely guarantees that a small input modification completely changes the output).",
-    "crumbs": [
-      "Course",
-      "Chapter 4: Privacy-Preserving Methods",
-      "Chapter 4: Privacy-Preserving Methods"
-    ]
-  },
-  {
-    "objectID": "ch3.html",
-    "href": "ch3.html",
-    "title": "Chapter 3: Digital Watermarking",
-    "section": "",
-    "text": "Digital watermarking consists of embedding invisible information — a message or signature — directly into multimedia content (image, video, audio) so that it persists despite modifications. Applications range from copyright protection to broadcast monitoring, steganography, and tamper detection. The fundamental pipeline relies on a trio: an embedder, a potentially hostile channel, and a decoder that recovers the message or verifies the presence of the watermark using the secret key.\nNavigation:\n\n📖 Detailed chapter content (ch3c)\n📝 Quick review sheet (ch3r)",
-    "crumbs": [
-      "Course",
-      "Chapter 3: Digital Watermarking",
-      "Chapter 3: Digital Watermarking"
-    ]
-  },
-  {
-    "objectID": "ch3.html#overview",
-    "href": "ch3.html#overview",
-    "title": "Chapter 3: Digital Watermarking",
-    "section": "",
-    "text": "Digital watermarking consists of embedding invisible information — a message or signature — directly into multimedia content (image, video, audio) so that it persists despite modifications. Applications range from copyright protection to broadcast monitoring, steganography, and tamper detection. The fundamental pipeline relies on a trio: an embedder, a potentially hostile channel, and a decoder that recovers the message or verifies the presence of the watermark using the secret key.\nNavigation:\n\n📖 Detailed chapter content (ch3c)\n📝 Quick review sheet (ch3r)",
-    "crumbs": [
-      "Course",
-      "Chapter 3: Digital Watermarking",
-      "Chapter 3: Digital Watermarking"
-    ]
-  },
-  {
-    "objectID": "ch3.html#synthesis",
-    "href": "ch3.html#synthesis",
-    "title": "Chapter 3: Digital Watermarking",
-    "section": "Chapter Synthesis",
-    "text": "Chapter Synthesis\n\n\n\n\n\n\nNoteFundamental Trade-offs\n\n\n\nEvery digital watermarking system must balance four antagonistic properties:\n\nRobustness: the watermark survives compression, cropping, geometric attacks.\nImperceptibility: the visual quality of the watermarked image remains high (PSNR \\(&gt; 40\\) dB).\nCapacity: number of bits \\(L\\) that can be embedded.\nSecurity: resistance to an adversary who knows the algorithm but not the key.\n\nAdditive embedding model (zero-bit): \\[\\mathbf{y} = \\mathbf{x} + \\varepsilon\\mathbf{w}, \\quad \\mathbf{w} = \\text{Gen}(k), \\quad \\|\\mathbf{w}\\| = 1\\]\nDetection score: \\[S(\\mathbf{v}) = \\frac{1}{M}\\mathbf{v}\\cdot\\mathbf{w}\\]\nHypothesis test:\n\n\\(H_0\\): \\(\\mathbf{v} = \\mathbf{x}\\) (no watermark) → \\(\\mathbb{E}[S] = 0\\)\n\\(H_1\\): \\(\\mathbf{v} = \\mathbf{x} + \\varepsilon\\mathbf{w}\\) (watermark present) → \\(\\mathbb{E}[S] = \\varepsilon\\)\n\nL-bit watermark: \\(\\hat{m} = g(\\mathbf{v}, k)\\), \\(m \\in \\{0,1\\}^L\\)\n\n\n\n\n\n\n\n\nNoteMain Applications\n\n\n\n\n\n\n\n\n\n\n\nApplication\nType\nPrinciple\n\n\n\n\nCopyright protection\nZero-bit / L-bit\nIdentify the work or its owner\n\n\nBroadcast monitoring\nL-bit\nTrack content distribution\n\n\nSteganography\nL-bit\nSecret communication channel in image\n\n\nTamper detection\nFragile\nFragile watermark localized by region\n\n\nFingerprinting\nL-bit\nIdentify the acquirer (traceability)\n\n\n\n\n\n\n\n\n\n\n\nNoteEmbedding Domains\n\n\n\n\n\n\n\n\n\n\n\n\nDomain\nTransform\nRobustness\nNotes\n\n\n\n\nPixel\nNone\nLow\nSimple, sensitive to geometric attacks\n\n\nDCT\nDiscrete cosine\nGood\nJPEG-compatible, mid-frequency coefficients\n\n\nDWT\nDiscrete wavelets\nVery good\nMulti-resolution, perceptual masking\n\n\nDeep features\nCNN/ViT\nExcellent\nEnd-to-end optimization, very robust",
-    "crumbs": [
-      "Course",
-      "Chapter 3: Digital Watermarking",
-      "Chapter 3: Digital Watermarking"
-    ]
-  },
-  {
-    "objectID": "ch3.html#introduction-to-digital-watermarking",
-    "href": "ch3.html#introduction-to-digital-watermarking",
-    "title": "Chapter 3: Digital Watermarking",
-    "section": "Introduction to Digital Watermarking",
-    "text": "Introduction to Digital Watermarking\nDigital watermarking aims to make content self-authenticating by concealing information that will accompany the work throughout its digital life. Unlike electronic signatures, the watermark is tied to the signal itself rather than its metadata.\nGeneral pipeline: \\[\\mathbf{y} = \\omega(\\mathbf{x}, k, m), \\qquad \\hat{m} = g(\\mathbf{v}, k)\\]\nwhere \\(\\mathbf{v} = \\mathcal{A}(\\mathbf{y})\\) denotes the received image after channel / attacks \\(\\mathcal{A}\\).\nThe embedding strength \\(\\varepsilon\\) directly controls the robustness–imperceptibility trade-off:\n\\[D_{xy} = \\frac{1}{M}\\|\\mathbf{x}-\\mathbf{y}\\|^2 = \\frac{\\varepsilon^2}{M}\\|\\mathbf{w}\\|^2 = \\varepsilon^2 \\quad (\\text{if } \\|\\mathbf{w}\\|^2 = M)\\]\n\\[\\text{PSNR} = 10\\log_{10}\\!\\left(\\frac{255^2}{\\varepsilon^2}\\right) \\text{ [dB]}\\]",
-    "crumbs": [
-      "Course",
-      "Chapter 3: Digital Watermarking",
-      "Chapter 3: Digital Watermarking"
-    ]
-  },
-  {
-    "objectID": "ch4c.html",
-    "href": "ch4c.html",
-    "title": "Chapter 4: Privacy-Preserving Methods — Detailed Content",
-    "section": "",
-    "text": "Course by S. Voloshynovskiy — University of Geneva",
-    "crumbs": [
-      "Course",
-      "Chapter 4: Privacy-Preserving Methods",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch4c.html#biometrics-and-privacy",
-    "href": "ch4c.html#biometrics-and-privacy",
-    "title": "Chapter 4: Privacy-Preserving Methods — Detailed Content",
-    "section": "Biometrics and Privacy",
-    "text": "Biometrics and Privacy\nBiometric authentication systems exploit physical or behavioral characteristics unique to each individual. The most common modalities are:\n\nFace: very widespread, non-intrusive acquisition, but sensitive to lighting, aging, accessories.\nFingerprint: technologically mature, good accuracy, but can be copied via latent print.\nIris: highly discriminant (~200 degrees of freedom), stable over time, but delicate acquisition.\nVoice: behavioral biometric, convenient for telephone authentication, but varies with health.\n\nThe authentication process takes place in two phases:\n\nEnrollment: the user provides their biometric sample \\(\\mathbf{x}\\), from which a template \\(\\mathbf{b}_x\\) is computed and stored in the database.\nVerification: the user provides a new sample \\(\\mathbf{y}\\), and the system decides whether \\(\\mathbf{y}\\) comes from the same person as \\(\\mathbf{b}_x\\).\n\nThe fundamental problem is that the biometric template contains sensitive private information, and its compromise is permanent: unlike a password, one cannot “revoke” their iris or fingerprint.",
-    "crumbs": [
-      "Course",
-      "Chapter 4: Privacy-Preserving Methods",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch4c.html#main-threats",
-    "href": "ch4c.html#main-threats",
-    "title": "Chapter 4: Privacy-Preserving Methods — Detailed Content",
-    "section": "Main Threats",
-    "text": "Main Threats\nBiometric systems face several specific threats:\n\nIdentity theft (impersonation): an adversary presents a forged sample (video deepfake, silicone fingerprint) to be authenticated in place of the victim.\nTemplate theft: an adversary accesses the database and retrieves stored templates, enabling replay attacks.\nCross-database matching: if the same raw biometric template is used in multiple databases (bank, hospital, company), simultaneous compromise allows linking identities.\nSensitive attribute inference (soft biometrics): from a biometric template, an adversary can infer age, gender, ethnicity, health — information protected by GDPR.\n\n\nDiagram 1: Threats on the biometric database",
-    "crumbs": [
-      "Course",
-      "Chapter 4: Privacy-Preserving Methods",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch4c.html#one-way-hashing",
-    "href": "ch4c.html#one-way-hashing",
-    "title": "Chapter 4: Privacy-Preserving Methods — Detailed Content",
-    "section": "One-Way Hashing",
-    "text": "One-Way Hashing\nClassical cryptographic hashing (SHA-256, MD5) maps any input to a fixed-length digest:\n\\[\\mathbf{b}_x = h(\\mathbf{x}) \\in \\{0,1\\}^L\\]\nDesirable properties: - Pre-image resistance: impossible to find \\(\\mathbf{x}\\) from \\(h(\\mathbf{x})\\) - Collision resistance: infeasible to find \\(\\mathbf{x} \\neq \\mathbf{x}'\\) with \\(h(\\mathbf{x}) = h(\\mathbf{x}')\\) - Avalanche effect: small change in \\(\\mathbf{x}\\) → completely different \\(h(\\mathbf{x})\\)",
-    "crumbs": [
-      "Course",
-      "Chapter 4: Privacy-Preserving Methods",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch4c.html#why-it-fails-for-biometrics",
-    "href": "ch4c.html#why-it-fails-for-biometrics",
-    "title": "Chapter 4: Privacy-Preserving Methods — Detailed Content",
-    "section": "Why It Fails for Biometrics",
-    "text": "Why It Fails for Biometrics\nThe avalanche effect is precisely the problem: biometric measurements of the same person vary between sessions (lighting, pose, sensor). Therefore:\n\\[h(\\mathbf{x}) \\neq h(\\mathbf{y}) \\quad \\text{even if} \\quad \\|\\mathbf{x} - \\mathbf{y}\\|^2 \\leq \\varepsilon_\\text{intra}\\]\nThis makes direct cryptographic hashing incompatible with biometric verification.",
-    "crumbs": [
-      "Course",
-      "Chapter 4: Privacy-Preserving Methods",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch4c.html#direct-similarity-comparison",
-    "href": "ch4c.html#direct-similarity-comparison",
-    "title": "Chapter 4: Privacy-Preserving Methods — Detailed Content",
-    "section": "Direct Similarity Comparison",
-    "text": "Direct Similarity Comparison\nThe signal processing approach stores the template \\(\\mathbf{x}^{(m)}\\) (possibly transformed but invertible) and compares it with the query \\(\\mathbf{y}\\) via a score:\n\\[T\\!\\left(\\mathbf{y}, \\mathbf{x}^{(m)}\\right) = \\frac{1}{N}\\mathbf{y}\\cdot\\mathbf{x}^{(m)}\\]\nDecision rule (Neyman-Pearson): \\[T \\underset{H_1}{\\overset{H_0}{\\gtrless}} \\tau\\]\n\n\\(H_0\\): same person (intra-class) → \\(\\mathbb{E}[T] = \\|\\mathbf{x}^{(m)}\\|^2/N \\approx 1\\) (normalized templates)\n\\(H_1\\): different person (inter-class) → \\(\\mathbb{E}[T] \\approx 0\\)\n\nAdvantage: robust to intra-class noise.\nCritical weakness: from multiple sessions \\(\\mathbf{y}_1, \\ldots, \\mathbf{y}_K\\) and access to \\(T(\\cdot, \\mathbf{x}^{(m)})\\), one can reconstruct \\(\\mathbf{x}^{(m)}\\) via gradient ascent.",
-    "crumbs": [
-      "Course",
-      "Chapter 4: Privacy-Preserving Methods",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch4c.html#principle",
-    "href": "ch4c.html#principle",
-    "title": "Chapter 4: Privacy-Preserving Methods — Detailed Content",
-    "section": "Principle",
-    "text": "Principle\nRobust hashing combines the advantages of the two previous approaches:\n\\[\\mathbf{b}_x = \\text{sign}(\\mathbf{P}\\mathbf{x}), \\quad \\mathbf{P} \\in \\{-1,+1\\}^{L\\times N}, \\quad \\mathbf{P} = f(k)\\]\nwhere \\(\\mathbf{P}\\) is a random projection matrix generated from secret key \\(k\\).\nDiagram 2: Three protection approaches compared",
-    "crumbs": [
-      "Course",
-      "Chapter 4: Privacy-Preserving Methods",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch4c.html#bsc-channel-model",
-    "href": "ch4c.html#bsc-channel-model",
-    "title": "Chapter 4: Privacy-Preserving Methods — Detailed Content",
-    "section": "BSC Channel Model",
-    "text": "BSC Channel Model\nUnder \\(H_0\\) (same person, \\(\\mathbf{y} \\approx \\mathbf{x}\\) with intra-class noise):\n\\[P(\\hat{b}_i \\neq b_i) = P_b \\approx \\frac{1}{\\pi}\\arccos\\!\\left(\\frac{\\mathbf{x}\\cdot\\mathbf{y}}{\\|\\mathbf{x}\\|\\|\\mathbf{y}\\|}\\right)\\]\nFor intra-class: \\(P_b \\approx 0.05\\)–\\(0.15\\). For inter-class (different persons): \\(P_b \\approx 0.5\\).\nThe Hamming distance follows: \\[d_H(\\mathbf{b}_x, \\mathbf{b}_y) \\sim \\mathcal{B}(L, P_b)\\]",
-    "crumbs": [
-      "Course",
-      "Chapter 4: Privacy-Preserving Methods",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch4c.html#principle-1",
-    "href": "ch4c.html#principle-1",
-    "title": "Chapter 4: Privacy-Preserving Methods — Detailed Content",
-    "section": "Principle",
-    "text": "Principle\nFuzzy commitment (Juels & Wattenberg, 1999) combines an error-correcting code (ECC) with biometric hashing:\nEnrollment: \\[c = \\mathbf{b}_x \\oplus \\text{ECC}(m)\\]\nStore \\(c\\) (public) and \\(\\text{hash}(m)\\) (for verification).\nVerification: \\[e' = \\mathbf{b}_y \\oplus c = \\mathbf{b}_y \\oplus \\mathbf{b}_x \\oplus \\text{ECC}(m)\\]\nIf \\(d_H(\\mathbf{b}_x, \\mathbf{b}_y) \\leq t\\) (ECC correction capability), decode \\(m' = \\text{ECC}^{-1}(e')\\) and verify \\(\\text{hash}(m') = \\text{hash}(m)\\).\nDiagram 3: Fuzzy commitment scheme\n#cetz.canvas({\n  import cetz.draw: *\n\n  // Enrollment phase\n  content((3.5, 7.5), [*Enrollment*])\n\n  rect((0.5, 6.0), (2.5, 7.0), fill: luma(85%), stroke: luma(40%))\n  content((1.5, 6.5), [$bold(upright(b))_x$])\n\n  rect((3.5, 6.0), (5.5, 7.0), fill: green.lighten(60%), stroke: green.darken(20%))\n  content((4.5, 6.5), [ECC$(m)$])\n\n  line((2.5, 6.5), (3.5, 6.5), mark: (end: \"&gt;\"))\n  content((3.0, 6.8), [$oplus$])\n\n  line((5.5, 6.5), (6.5, 6.5), mark: (end: \"&gt;\"))\n  rect((6.5, 6.0), (8.5, 7.0), fill: orange.lighten(70%), stroke: orange.darken(20%))\n  content((7.5, 6.5), [$c$ (stored)])\n\n  // Verification phase\n  content((3.5, 4.5), [*Verification*])\n\n  rect((0.5, 3.0), (2.5, 4.0), fill: luma(75%), stroke: luma(40%))\n  content((1.5, 3.5), [$bold(upright(b))_y$])\n\n  line((2.5, 3.5), (3.5, 3.5), mark: (end: \"&gt;\"))\n  content((3.0, 3.8), [$oplus$])\n\n  rect((3.5, 3.0), (5.5, 4.0), fill: orange.lighten(70%), stroke: orange.darken(20%))\n  content((4.5, 3.5), [$c$ (retrieved)])\n\n  line((5.5, 3.5), (6.5, 3.5), mark: (end: \"&gt;\"))\n  rect((6.5, 3.0), (8.5, 4.0), fill: blue.lighten(70%), stroke: blue.darken(20%))\n  content((7.5, 3.5), [ECC decode])\n\n  line((8.5, 3.5), (9.5, 3.5), mark: (end: \"&gt;\"))\n  rect((9.5, 3.0), (11.5, 4.0), fill: green.lighten(60%), stroke: green.darken(20%))\n  content((10.5, 3.5), [Verify $m'$])\n\n  line((10.5, 3.0), (10.5, 2.2), mark: (end: \"&gt;\"))\n  rect((9.0, 1.3), (12.0, 2.2), fill: green.lighten(60%), stroke: green.darken(20%))\n  content((10.5, 1.75), [$H_0$ or $H_1$])\n})",
-    "crumbs": [
-      "Course",
-      "Chapter 4: Privacy-Preserving Methods",
-      "Details"
-    ]
-  },
-  {
-    "objectID": "ch4c.html#security-properties",
-    "href": "ch4c.html#security-properties",
-    "title": "Chapter 4: Privacy-Preserving Methods — Detailed Content",
-    "section": "Security Properties",
-    "text": "Security Properties\n\n\\(c\\) is stored in public but reveals nothing about \\(\\mathbf{b}_x\\) without knowing \\(m\\).\nSecurity relies on the difficulty of decoding without the correct biometric query.\nECC capacity must satisfy: correction capability \\(t \\geq L \\cdot P_b\\).",
-    "crumbs": [
-      "Course",
-      "Chapter 4: Privacy-Preserving Methods",
-      "Details"
     ]
   },
   {
@@ -1370,6 +680,696 @@
     "crumbs": [
       "Course",
       "Chapter 1: Introduction",
+      "Synthesis"
+    ]
+  },
+  {
+    "objectID": "ch4.html",
+    "href": "ch4.html",
+    "title": "Chapter 4: Privacy-Preserving Methods",
+    "section": "",
+    "text": "Privacy protection in biometrics aims to allow person authentication without storing raw biometric templates — data which, once stolen, cannot be revoked like a password. Three main families of approaches exist: cryptographic methods (one-way hash \\(h(\\mathbf{x})\\), irreversible but sensitive to biometric noise), signal processing methods (direct similarity score comparison \\(T(\\mathbf{y}, \\mathbf{x}^{(m)})\\), robust but invertible), and hybrid methods such as fuzzy commitment and robust hashing, which combine irreversibility and noise robustness. Revocability — the ability to issue new identifiers if a database is compromised — is a key property that only hybrid methods with key \\(k\\) can fully guarantee.\nNavigation:\n\n📖 Detailed chapter content (ch4c)\n📝 Quick review sheet (ch4r)",
+    "crumbs": [
+      "Course",
+      "Chapter 4: Privacy-Preserving Methods",
+      "Chapter 4: Privacy-Preserving Methods"
+    ]
+  },
+  {
+    "objectID": "ch4.html#overview",
+    "href": "ch4.html#overview",
+    "title": "Chapter 4: Privacy-Preserving Methods",
+    "section": "",
+    "text": "Privacy protection in biometrics aims to allow person authentication without storing raw biometric templates — data which, once stolen, cannot be revoked like a password. Three main families of approaches exist: cryptographic methods (one-way hash \\(h(\\mathbf{x})\\), irreversible but sensitive to biometric noise), signal processing methods (direct similarity score comparison \\(T(\\mathbf{y}, \\mathbf{x}^{(m)})\\), robust but invertible), and hybrid methods such as fuzzy commitment and robust hashing, which combine irreversibility and noise robustness. Revocability — the ability to issue new identifiers if a database is compromised — is a key property that only hybrid methods with key \\(k\\) can fully guarantee.\nNavigation:\n\n📖 Detailed chapter content (ch4c)\n📝 Quick review sheet (ch4r)",
+    "crumbs": [
+      "Course",
+      "Chapter 4: Privacy-Preserving Methods",
+      "Chapter 4: Privacy-Preserving Methods"
+    ]
+  },
+  {
+    "objectID": "ch4.html#synthesis",
+    "href": "ch4.html#synthesis",
+    "title": "Chapter 4: Privacy-Preserving Methods",
+    "section": "Chapter Synthesis",
+    "text": "Chapter Synthesis\n\n\n\n\n\n\nNoteThree Protection Approaches\n\n\n\nCryptographic approach: \\[\\mathbf{b}_x = h(\\mathbf{x}) \\in \\{0,1\\}^L\\] One-way, non-invertible, but \\(h(\\mathbf{x}) \\neq h(\\mathbf{y})\\) even if \\(\\|\\mathbf{x}-\\mathbf{y}\\|^2 \\leq \\varepsilon\\) → unsuitable for noisy biometrics.\nSignal processing approach: \\[T\\!\\left(\\mathbf{y}, \\mathbf{x}^{(m)}\\right) = \\frac{1}{N}\\mathbf{y}\\cdot\\mathbf{x}^{(m)}, \\quad \\text{decision}: T \\underset{H_1}{\\overset{H_0}{\\gtrless}} \\tau\\] Robust to biometric noise, but template \\(\\mathbf{x}^{(m)}\\) can be reconstructed from multiple sessions.\nHybrid approach — robust hashing: \\[\\mathbf{b}_x = \\text{sign}(\\mathbf{P}\\mathbf{x}), \\quad \\mathbf{P} \\in \\{-1,+1\\}^{L\\times N}, \\quad \\mathbf{P} = f(k)\\] Robust + irreversible + revocable (changing \\(k\\) generates a new \\(\\mathbf{b}_x\\)).\n\n\n\n\n\n\n\n\nNoteFundamental Problem: Irreversibility vs. Robustness\n\n\n\n\nBiometrics = permanence: face, fingerprint, iris do not change.\nMajor threat: if a biometric database is compromised, victims cannot “change” their biometrics.\nContradictory dual requirement: robustness to intra-class noise (same person, different conditions) AND irreversibility (impossible to reconstruct the template from the stored hash).\nSolution: key \\(k\\) per database → different keys → different hashes → no cross-database matching.\n\n\n\n\n\n\n\n\n\nNoteRobust Hashing Security\n\n\n\nBlind attack: without \\(k\\), an adversary observing \\(\\mathbf{b}_x \\in \\{0,1\\}^L\\) cannot recover \\(\\mathbf{x}\\) (information-theoretic irreversibility if \\(L \\ll N\\)).\nInformed attack: with \\(k\\), matrix \\(\\mathbf{P}\\) is known, but inverting \\(\\text{sign}(\\mathbf{P}\\mathbf{x})\\) remains NP-hard (for \\(L &lt; N\\)).\nRevocability: new key \\(k' \\neq k\\) → new projection \\(\\mathbf{P}' \\neq \\mathbf{P}\\) → new hash \\(\\mathbf{b}'_x \\neq \\mathbf{b}_x\\), and the two hashes are statistically independent.",
+    "crumbs": [
+      "Course",
+      "Chapter 4: Privacy-Preserving Methods",
+      "Chapter 4: Privacy-Preserving Methods"
+    ]
+  },
+  {
+    "objectID": "ch4.html#introduction",
+    "href": "ch4.html#introduction",
+    "title": "Chapter 4: Privacy-Preserving Methods",
+    "section": "Introduction",
+    "text": "Introduction\nBiometric authentication compares a presented sample at enrollment to a stored template. If this template is exposed, the consequences are far more serious than a password leak: the individual cannot change their face or fingerprints. Robust hashing is the fundamental building block that transforms a biometric template into a compact, irreversible, and revocable identifier. Conceptually, it is analogous to a cryptographic hash (like SHA-256) enriched with noise tolerance — a property that classical cryptographic hashes deliberately lack (the avalanche effect precisely guarantees that a small input modification completely changes the output).",
+    "crumbs": [
+      "Course",
+      "Chapter 4: Privacy-Preserving Methods",
+      "Chapter 4: Privacy-Preserving Methods"
+    ]
+  },
+  {
+    "objectID": "ch4c.html",
+    "href": "ch4c.html",
+    "title": "Chapter 4: Privacy-Preserving Methods — Detailed Content",
+    "section": "",
+    "text": "Course by S. Voloshynovskiy — University of Geneva",
+    "crumbs": [
+      "Course",
+      "Chapter 4: Privacy-Preserving Methods",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch4c.html#biometrics-and-privacy",
+    "href": "ch4c.html#biometrics-and-privacy",
+    "title": "Chapter 4: Privacy-Preserving Methods — Detailed Content",
+    "section": "Biometrics and Privacy",
+    "text": "Biometrics and Privacy\nBiometric authentication systems exploit physical or behavioral characteristics unique to each individual. The most common modalities are:\n\nFace: very widespread, non-intrusive acquisition, but sensitive to lighting, aging, accessories.\nFingerprint: technologically mature, good accuracy, but can be copied via latent print.\nIris: highly discriminant (~200 degrees of freedom), stable over time, but delicate acquisition.\nVoice: behavioral biometric, convenient for telephone authentication, but varies with health.\n\nThe authentication process takes place in two phases:\n\nEnrollment: the user provides their biometric sample \\(\\mathbf{x}\\), from which a template \\(\\mathbf{b}_x\\) is computed and stored in the database.\nVerification: the user provides a new sample \\(\\mathbf{y}\\), and the system decides whether \\(\\mathbf{y}\\) comes from the same person as \\(\\mathbf{b}_x\\).\n\nThe fundamental problem is that the biometric template contains sensitive private information, and its compromise is permanent: unlike a password, one cannot “revoke” their iris or fingerprint.",
+    "crumbs": [
+      "Course",
+      "Chapter 4: Privacy-Preserving Methods",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch4c.html#main-threats",
+    "href": "ch4c.html#main-threats",
+    "title": "Chapter 4: Privacy-Preserving Methods — Detailed Content",
+    "section": "Main Threats",
+    "text": "Main Threats\nBiometric systems face several specific threats:\n\nIdentity theft (impersonation): an adversary presents a forged sample (video deepfake, silicone fingerprint) to be authenticated in place of the victim.\nTemplate theft: an adversary accesses the database and retrieves stored templates, enabling replay attacks.\nCross-database matching: if the same raw biometric template is used in multiple databases (bank, hospital, company), simultaneous compromise allows linking identities.\nSensitive attribute inference (soft biometrics): from a biometric template, an adversary can infer age, gender, ethnicity, health — information protected by GDPR.\n\n\nDiagram 1: Threats on the biometric database",
+    "crumbs": [
+      "Course",
+      "Chapter 4: Privacy-Preserving Methods",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch4c.html#one-way-hashing",
+    "href": "ch4c.html#one-way-hashing",
+    "title": "Chapter 4: Privacy-Preserving Methods — Detailed Content",
+    "section": "One-Way Hashing",
+    "text": "One-Way Hashing\nClassical cryptographic hashing (SHA-256, MD5) maps any input to a fixed-length digest:\n\\[\\mathbf{b}_x = h(\\mathbf{x}) \\in \\{0,1\\}^L\\]\nDesirable properties: - Pre-image resistance: impossible to find \\(\\mathbf{x}\\) from \\(h(\\mathbf{x})\\) - Collision resistance: infeasible to find \\(\\mathbf{x} \\neq \\mathbf{x}'\\) with \\(h(\\mathbf{x}) = h(\\mathbf{x}')\\) - Avalanche effect: small change in \\(\\mathbf{x}\\) → completely different \\(h(\\mathbf{x})\\)",
+    "crumbs": [
+      "Course",
+      "Chapter 4: Privacy-Preserving Methods",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch4c.html#why-it-fails-for-biometrics",
+    "href": "ch4c.html#why-it-fails-for-biometrics",
+    "title": "Chapter 4: Privacy-Preserving Methods — Detailed Content",
+    "section": "Why It Fails for Biometrics",
+    "text": "Why It Fails for Biometrics\nThe avalanche effect is precisely the problem: biometric measurements of the same person vary between sessions (lighting, pose, sensor). Therefore:\n\\[h(\\mathbf{x}) \\neq h(\\mathbf{y}) \\quad \\text{even if} \\quad \\|\\mathbf{x} - \\mathbf{y}\\|^2 \\leq \\varepsilon_\\text{intra}\\]\nThis makes direct cryptographic hashing incompatible with biometric verification.",
+    "crumbs": [
+      "Course",
+      "Chapter 4: Privacy-Preserving Methods",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch4c.html#direct-similarity-comparison",
+    "href": "ch4c.html#direct-similarity-comparison",
+    "title": "Chapter 4: Privacy-Preserving Methods — Detailed Content",
+    "section": "Direct Similarity Comparison",
+    "text": "Direct Similarity Comparison\nThe signal processing approach stores the template \\(\\mathbf{x}^{(m)}\\) (possibly transformed but invertible) and compares it with the query \\(\\mathbf{y}\\) via a score:\n\\[T\\!\\left(\\mathbf{y}, \\mathbf{x}^{(m)}\\right) = \\frac{1}{N}\\mathbf{y}\\cdot\\mathbf{x}^{(m)}\\]\nDecision rule (Neyman-Pearson): \\[T \\underset{H_1}{\\overset{H_0}{\\gtrless}} \\tau\\]\n\n\\(H_0\\): same person (intra-class) → \\(\\mathbb{E}[T] = \\|\\mathbf{x}^{(m)}\\|^2/N \\approx 1\\) (normalized templates)\n\\(H_1\\): different person (inter-class) → \\(\\mathbb{E}[T] \\approx 0\\)\n\nAdvantage: robust to intra-class noise.\nCritical weakness: from multiple sessions \\(\\mathbf{y}_1, \\ldots, \\mathbf{y}_K\\) and access to \\(T(\\cdot, \\mathbf{x}^{(m)})\\), one can reconstruct \\(\\mathbf{x}^{(m)}\\) via gradient ascent.",
+    "crumbs": [
+      "Course",
+      "Chapter 4: Privacy-Preserving Methods",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch4c.html#principle",
+    "href": "ch4c.html#principle",
+    "title": "Chapter 4: Privacy-Preserving Methods — Detailed Content",
+    "section": "Principle",
+    "text": "Principle\nRobust hashing combines the advantages of the two previous approaches:\n\\[\\mathbf{b}_x = \\text{sign}(\\mathbf{P}\\mathbf{x}), \\quad \\mathbf{P} \\in \\{-1,+1\\}^{L\\times N}, \\quad \\mathbf{P} = f(k)\\]\nwhere \\(\\mathbf{P}\\) is a random projection matrix generated from secret key \\(k\\).\nDiagram 2: Three protection approaches compared",
+    "crumbs": [
+      "Course",
+      "Chapter 4: Privacy-Preserving Methods",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch4c.html#bsc-channel-model",
+    "href": "ch4c.html#bsc-channel-model",
+    "title": "Chapter 4: Privacy-Preserving Methods — Detailed Content",
+    "section": "BSC Channel Model",
+    "text": "BSC Channel Model\nUnder \\(H_0\\) (same person, \\(\\mathbf{y} \\approx \\mathbf{x}\\) with intra-class noise):\n\\[P(\\hat{b}_i \\neq b_i) = P_b \\approx \\frac{1}{\\pi}\\arccos\\!\\left(\\frac{\\mathbf{x}\\cdot\\mathbf{y}}{\\|\\mathbf{x}\\|\\|\\mathbf{y}\\|}\\right)\\]\nFor intra-class: \\(P_b \\approx 0.05\\)–\\(0.15\\). For inter-class (different persons): \\(P_b \\approx 0.5\\).\nThe Hamming distance follows: \\[d_H(\\mathbf{b}_x, \\mathbf{b}_y) \\sim \\mathcal{B}(L, P_b)\\]",
+    "crumbs": [
+      "Course",
+      "Chapter 4: Privacy-Preserving Methods",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch4c.html#principle-1",
+    "href": "ch4c.html#principle-1",
+    "title": "Chapter 4: Privacy-Preserving Methods — Detailed Content",
+    "section": "Principle",
+    "text": "Principle\nFuzzy commitment (Juels & Wattenberg, 1999) combines an error-correcting code (ECC) with biometric hashing:\nEnrollment: \\[c = \\mathbf{b}_x \\oplus \\text{ECC}(m)\\]\nStore \\(c\\) (public) and \\(\\text{hash}(m)\\) (for verification).\nVerification: \\[e' = \\mathbf{b}_y \\oplus c = \\mathbf{b}_y \\oplus \\mathbf{b}_x \\oplus \\text{ECC}(m)\\]\nIf \\(d_H(\\mathbf{b}_x, \\mathbf{b}_y) \\leq t\\) (ECC correction capability), decode \\(m' = \\text{ECC}^{-1}(e')\\) and verify \\(\\text{hash}(m') = \\text{hash}(m)\\).\nDiagram 3: Fuzzy commitment scheme\n#cetz.canvas({\n  import cetz.draw: *\n\n  // Enrollment phase\n  content((3.5, 7.5), [*Enrollment*])\n\n  rect((0.5, 6.0), (2.5, 7.0), fill: luma(85%), stroke: luma(40%))\n  content((1.5, 6.5), [$bold(upright(b))_x$])\n\n  rect((3.5, 6.0), (5.5, 7.0), fill: green.lighten(60%), stroke: green.darken(20%))\n  content((4.5, 6.5), [ECC$(m)$])\n\n  line((2.5, 6.5), (3.5, 6.5), mark: (end: \"&gt;\"))\n  content((3.0, 6.8), [$oplus$])\n\n  line((5.5, 6.5), (6.5, 6.5), mark: (end: \"&gt;\"))\n  rect((6.5, 6.0), (8.5, 7.0), fill: orange.lighten(70%), stroke: orange.darken(20%))\n  content((7.5, 6.5), [$c$ (stored)])\n\n  // Verification phase\n  content((3.5, 4.5), [*Verification*])\n\n  rect((0.5, 3.0), (2.5, 4.0), fill: luma(75%), stroke: luma(40%))\n  content((1.5, 3.5), [$bold(upright(b))_y$])\n\n  line((2.5, 3.5), (3.5, 3.5), mark: (end: \"&gt;\"))\n  content((3.0, 3.8), [$oplus$])\n\n  rect((3.5, 3.0), (5.5, 4.0), fill: orange.lighten(70%), stroke: orange.darken(20%))\n  content((4.5, 3.5), [$c$ (retrieved)])\n\n  line((5.5, 3.5), (6.5, 3.5), mark: (end: \"&gt;\"))\n  rect((6.5, 3.0), (8.5, 4.0), fill: blue.lighten(70%), stroke: blue.darken(20%))\n  content((7.5, 3.5), [ECC decode])\n\n  line((8.5, 3.5), (9.5, 3.5), mark: (end: \"&gt;\"))\n  rect((9.5, 3.0), (11.5, 4.0), fill: green.lighten(60%), stroke: green.darken(20%))\n  content((10.5, 3.5), [Verify $m'$])\n\n  line((10.5, 3.0), (10.5, 2.2), mark: (end: \"&gt;\"))\n  rect((9.0, 1.3), (12.0, 2.2), fill: green.lighten(60%), stroke: green.darken(20%))\n  content((10.5, 1.75), [$H_0$ or $H_1$])\n})",
+    "crumbs": [
+      "Course",
+      "Chapter 4: Privacy-Preserving Methods",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch4c.html#security-properties",
+    "href": "ch4c.html#security-properties",
+    "title": "Chapter 4: Privacy-Preserving Methods — Detailed Content",
+    "section": "Security Properties",
+    "text": "Security Properties\n\n\\(c\\) is stored in public but reveals nothing about \\(\\mathbf{b}_x\\) without knowing \\(m\\).\nSecurity relies on the difficulty of decoding without the correct biometric query.\nECC capacity must satisfy: correction capability \\(t \\geq L \\cdot P_b\\).",
+    "crumbs": [
+      "Course",
+      "Chapter 4: Privacy-Preserving Methods",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch1.html",
+    "href": "ch1.html",
+    "title": "Chapter 1: Introduction to Multimedia Security",
+    "section": "",
+    "text": "This first chapter establishes the conceptual foundations of the course. It introduces the four main areas of multimedia security — digital watermarking, perceptual hashing, foundation model security, and privacy preservation — defining the problems, mathematical models, and fundamental trade-offs specific to each.\nNavigation:\n\n📖 Detailed chapter content (ch1c)\n📝 Quick review sheet (ch1r)",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Chapter 1: Introduction to Multimedia Security"
+    ]
+  },
+  {
+    "objectID": "ch1.html#overview",
+    "href": "ch1.html#overview",
+    "title": "Chapter 1: Introduction to Multimedia Security",
+    "section": "",
+    "text": "This first chapter establishes the conceptual foundations of the course. It introduces the four main areas of multimedia security — digital watermarking, perceptual hashing, foundation model security, and privacy preservation — defining the problems, mathematical models, and fundamental trade-offs specific to each.\nNavigation:\n\n📖 Detailed chapter content (ch1c)\n📝 Quick review sheet (ch1r)",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Chapter 1: Introduction to Multimedia Security"
+    ]
+  },
+  {
+    "objectID": "ch1.html#synthesis",
+    "href": "ch1.html#synthesis",
+    "title": "Chapter 1: Introduction to Multimedia Security",
+    "section": "Chapter Synthesis",
+    "text": "Chapter Synthesis\n\n\n\n\n\n\nNoteBlock 1 — Digital Watermarking\n\n\n\nProblem: Embed a message \\(m\\) imperceptibly into an image \\(\\mathbf{x}\\) using a key \\(k\\).\nPipeline: \\[\\mathbf{y} = \\omega(\\mathbf{x},\\, k,\\, m), \\qquad \\hat{m} = g(\\mathbf{v},\\, k)\\]\nKey trade-offs:\n\nRobustness ↔︎ Imperceptibility ↔︎ Capacity\nZero-bit (detection \\(H_0\\)/\\(H_1\\)) vs M-bit (decoding)\n\nApplications: copyright protection, marking generative AI content, steganography, tamper detection.\n\n\n\n\n\n\n\n\nNoteBlock 2 — Perceptual Hashing\n\n\n\nProblem: Compute a compact, robust binary fingerprint of an image.\nModel: \\[\\mathbf{b}_x = h(\\mathbf{x},\\, k), \\quad \\mathbf{b}_x \\in \\{0,1\\}^L\\]\nThe channel between fingerprints is modeled as a Binary Symmetric Channel (BSC) with error probability \\(P_b\\): \\[P(\\hat{b}_i \\neq b_i) = P_b\\]\nIrreversibility property: it is impossible to reconstruct \\(\\mathbf{x}\\) from \\(\\mathbf{b}_x\\).\n\n\n\n\n\n\n\n\nNoteBlock 3 — Foundation Models Security\n\n\n\nContext: Large pre-trained models (LLM, VLM, diffusion models) introduce new attack surfaces.\nMain threats:\n\nHallucination and misinformation\nModel inversion and training data extraction\nPrompt injection and backdoors\nDeepfakes and malicious synthetic content\n\nDefenses: watermarking of generated content, synthetic content detection, alignment and RLHF.\n\n\n\n\n\n\n\n\nNoteBlock 4 — Privacy Preservation\n\n\n\nContext: Individual privacy can be compromised via metadata, gradients, or inference from a model.\nKey techniques:\n\nDifferential Privacy (DP): adding calibrated noise to guarantee \\((\\varepsilon, \\delta)\\)-DP\nFederated Learning: training without centralizing data\nMultimedia anonymization: face blurring, sensitive attribute removal\nPrivacy-Preserving Retrieval: search via secure perceptual hashing",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Chapter 1: Introduction to Multimedia Security"
+    ]
+  },
+  {
+    "objectID": "ch1.html#introduction",
+    "href": "ch1.html#introduction",
+    "title": "Chapter 1: Introduction to Multimedia Security",
+    "section": "Introduction",
+    "text": "Introduction\n\nWhat is multimedia security?\nMultimedia security encompasses all techniques for protecting, authenticating, and controlling digital content (images, videos, audio). Unlike classical cryptography which encrypts raw binary data, multimedia security exploits the perceptual and statistical properties of signals to achieve its goals while preserving their utility.\nA multimedia content \\(\\mathbf{x}\\) is a high-dimensional datum: \\[\\mathbf{x} \\in \\mathbb{R}^{H \\times W \\times C}\\]\nwhere \\(H\\) is the height, \\(W\\) the width, and \\(C\\) the number of channels (e.g. \\(C=3\\) for an RGB image). The richness of this representation allows information to be hidden within it or robust fingerprints to be extracted from it.\n\n\nThe general problem\nWe seek to solve problems of the form:\n\\[\\text{Encoder} : (\\mathbf{x}, k, m) \\longrightarrow \\mathbf{y} \\approx \\mathbf{x}\\] \\[\\text{Decoder} : (\\mathbf{v}, k) \\longrightarrow \\hat{m}\\]\nwhere \\(\\mathbf{y}\\) is the protected content, \\(\\mathbf{v}\\) is the version received after passing through a noisy channel, \\(k\\) is a secret key, and \\(m\\) is the message to transmit or verify. The fundamental constraint is that \\(\\mathbf{y}\\) must remain perceptually indistinguishable from \\(\\mathbf{x}\\).\n\n\nChannel model\nThe multimedia channel can model many types of perturbations:\n\\[\\mathbf{v} = \\mathcal{A}(\\mathbf{y})\\]\nwhere \\(\\mathcal{A}\\) represents attacks such as JPEG compression, resizing, cropping, noise addition, or adversarial transformations.\n\n\nThe four pillars\n\n\n\n\n\n\n\n\nPillar\nObjective\nKey model\n\n\n\n\nWatermarking\nEmbed \\(m\\) into \\(\\mathbf{x}\\)\n\\(\\mathbf{y} = \\omega(\\mathbf{x}, k, m)\\)\n\n\nPerceptual Hashing\nRobust fingerprint\n\\(\\mathbf{b}_x = h(\\mathbf{x}, k)\\)\n\n\nFoundation Models\nSecure LLMs/VLMs\nSynthetic content detection\n\n\nPrivacy\nProtect individuals\n\\((\\varepsilon, \\delta)\\)-DP, FL",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Chapter 1: Introduction to Multimedia Security"
+    ]
+  },
+  {
+    "objectID": "ch1.html#signal-detection-theory",
+    "href": "ch1.html#signal-detection-theory",
+    "title": "Chapter 1: Introduction to Multimedia Security",
+    "section": "Signal Detection Theory",
+    "text": "Signal Detection Theory\n\nHypotheses \\(H_0\\) and \\(H_1\\)\nZero-bit watermarking (detection) is formulated as a hypothesis test:\n\n\\(H_0\\): the image does not contain a watermark\n\\(H_1\\): the image does contain a watermark\n\nThe test statistic is typically a score function: \\[S(\\mathbf{v}) = \\frac{1}{M} \\sum_{i=1}^{M} v_i \\cdot w_i = \\frac{1}{M} \\mathbf{v} \\cdot \\mathbf{w}\\]\nwhere \\(\\mathbf{w}\\) is the reference vector (derived from key \\(k\\)) and \\(\\mathbf{v}\\) is the received signal.\n\n\nNeyman-Pearson criterion\nThe optimal detector minimizes the miss probability \\(P_\\text{miss} = P(\\text{decision } H_0 \\mid H_1)\\) subject to a false alarm probability constraint \\(P_{FA} = P(\\text{decision } H_1 \\mid H_0) \\leq \\alpha\\).\nThe ROC curve represents the trade-off between \\(P_D = 1 - P_\\text{miss}\\) and \\(P_{FA}\\).",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Chapter 1: Introduction to Multimedia Security"
+    ]
+  },
+  {
+    "objectID": "ch2c.html",
+    "href": "ch2c.html",
+    "title": "Chapter 2: Notations and Core Concepts — Detailed Content",
+    "section": "",
+    "text": "Course by S. Voloshynovskiy — University of Geneva",
+    "crumbs": [
+      "Course",
+      "Chapter 2: Notations & Core Concepts",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch2c.html#basic-notations",
+    "href": "ch2c.html#basic-notations",
+    "title": "Chapter 2: Notations and Core Concepts — Detailed Content",
+    "section": "Basic Notations",
+    "text": "Basic Notations\n\nTensor Representation\nA digital image is modeled as a three-dimensional tensor: \\[\\mathbf{x} \\in \\mathbb{R}^{H \\times W \\times C}\\]\n\n\\(H\\): number of rows (height in pixels)\n\\(W\\): number of columns (width in pixels)\n\\(C\\): number of spectral channels\n\nFor an RGB image in 8 bits: \\(C = 3\\), \\(x_{h,w,c} \\in \\{0, 1, \\ldots, 255\\}\\).\nFor simplicity in calculations, the image is often vectorized: \\[\\mathbf{x} \\in \\mathbb{R}^N, \\quad N = H \\times W \\times C\\]",
+    "crumbs": [
+      "Course",
+      "Chapter 2: Notations & Core Concepts",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch2c.html#quality-metrics",
+    "href": "ch2c.html#quality-metrics",
+    "title": "Chapter 2: Notations and Core Concepts — Detailed Content",
+    "section": "Quality Metrics",
+    "text": "Quality Metrics\n\nMSE (Mean Squared Error)\n\\[\\text{MSE}(\\mathbf{x}, \\mathbf{y}) = \\frac{1}{HWC} \\sum_{h=1}^{H} \\sum_{w=1}^{W} \\sum_{c=1}^{C} (x_{h,w,c} - y_{h,w,c})^2 = \\frac{1}{N} \\|\\mathbf{x} - \\mathbf{y}\\|_2^2\\]\n\n\nPSNR (Peak Signal-to-Noise Ratio)\n\\[\\text{PSNR}(\\mathbf{x}, \\mathbf{y}) = 10 \\log_{10}\\!\\left(\\frac{P_\\text{max}^2}{\\text{MSE}(\\mathbf{x}, \\mathbf{y})}\\right) \\quad [\\text{dB}]\\]\nwith \\(P_\\text{max} = 255\\) for 8-bit images. PSNR \\(&gt; 40\\,\\text{dB}\\) is imperceptible.\n\n\nCosine Similarity\n\\[\\text{cos}(\\mathbf{u}, \\mathbf{v}) = \\frac{\\mathbf{u} \\cdot \\mathbf{v}}{\\|\\mathbf{u}\\|_2 \\|\\mathbf{v}\\|_2} = \\frac{\\sum_i u_i v_i}{\\sqrt{\\sum_i u_i^2} \\cdot \\sqrt{\\sum_i v_i^2}} \\in [-1, 1]\\]\nSpecial case: for normalized vectors \\(\\|\\mathbf{u}\\| = \\|\\mathbf{v}\\| = 1\\), cosine similarity equals the dot product.",
+    "crumbs": [
+      "Course",
+      "Chapter 2: Notations & Core Concepts",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch2c.html#frequency-transforms",
+    "href": "ch2c.html#frequency-transforms",
+    "title": "Chapter 2: Notations and Core Concepts — Detailed Content",
+    "section": "Frequency Transforms",
+    "text": "Frequency Transforms\n\nDCT (Discrete Cosine Transform)\nFor a 1D signal of length \\(N\\), the DCT-II is defined by: \\[X_k = \\sum_{n=0}^{N-1} x_n \\cos\\!\\left[\\frac{\\pi}{N}\\left(n + \\frac{1}{2}\\right)k\\right], \\quad k = 0, \\ldots, N-1\\]\nThree approaches for images:\n\nFull-frame DCT: applied to the entire \\(H \\times W\\) image\nBlock-wise DCT (8×8): JPEG standard — image split into \\(8 \\times 8\\) pixel blocks\nTensor DCT: applied separately on each dimension of the tensor\n\n\n\n\nDFT (Discrete Fourier Transform)\n\\[X_k = \\sum_{n=0}^{N-1} x_n \\, e^{-j2\\pi kn/N}, \\quad k = 0, \\ldots, N-1\\]\nImportant properties:\n\nLinearity: \\(\\mathcal{F}\\{ax + by\\} = a\\mathcal{F}\\{x\\} + b\\mathcal{F}\\{y\\}\\)\nParseval’s theorem: \\(\\sum_n |x_n|^2 = \\frac{1}{N}\\sum_k |X_k|^2\\)\nConvolution: spatial convolution ↔︎ frequency multiplication\n\n\n\nDWT (Discrete Wavelet Transform)\nThe DWT decomposes a signal into subbands at different resolutions: \\[x = \\sum_k \\langle x, \\psi_{j,k} \\rangle \\psi_{j,k} + \\sum_k \\langle x, \\phi_{J,k} \\rangle \\phi_{J,k}\\]\nwhere \\(\\psi_{j,k}\\) are the mother wavelets and \\(\\phi_{J,k}\\) the scaling functions.\nMulti-resolution structure (for a 2D image):\n\n\n\nPCA / Principal Component Analysis\nPCA projects data onto the directions of maximum variance.\nSteps:\n\nCompute the covariance matrix: \\(\\mathbf{C} = \\frac{1}{n}\\sum_{i=1}^n (\\mathbf{x}_i - \\bar{\\mathbf{x}})(\\mathbf{x}_i - \\bar{\\mathbf{x}})^\\top\\)\nSpectral decomposition: \\(\\mathbf{C} = \\mathbf{V} \\mathbf{\\Lambda} \\mathbf{V}^\\top\\)\nProjection: \\(\\mathbf{z} = \\mathbf{V}_d^\\top (\\mathbf{x} - \\bar{\\mathbf{x}}) \\in \\mathbb{R}^d\\)",
+    "crumbs": [
+      "Course",
+      "Chapter 2: Notations & Core Concepts",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch2c.html#foundation-models-concept",
+    "href": "ch2c.html#foundation-models-concept",
+    "title": "Chapter 2: Notations and Core Concepts — Detailed Content",
+    "section": "Foundation Models Concept",
+    "text": "Foundation Models Concept\nA foundation model is a large model pre-trained on unlabeled data at very large scale, then adapted to various downstream tasks.\nExamples: CLIP, DINO, ResNet pre-trained with SimCLR, BERT, GPT.\nThe latent representation: \\[\\mathbf{z}_x = f_\\phi(\\mathbf{x}), \\quad \\mathbf{z}_x \\in \\mathbb{R}^d\\]\nencodes semantic features without explicit supervision.",
+    "crumbs": [
+      "Course",
+      "Chapter 2: Notations & Core Concepts",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch2c.html#contrastive-learning-simclr",
+    "href": "ch2c.html#contrastive-learning-simclr",
+    "title": "Chapter 2: Notations and Core Concepts — Detailed Content",
+    "section": "Contrastive Learning — SimCLR",
+    "text": "Contrastive Learning — SimCLR\n\nPipeline\n\n\n\nNT-Xent Loss Function\n\\[\\mathcal{L}_\\text{NT-Xent} = -\\log \\frac{\\exp\\!\\left(\\text{sim}(\\mathbf{z}_x, \\mathbf{z}_{x^+})/\\tau\\right)}{\\sum_{j=1}^{2N} \\mathbf{1}_{[j \\neq x]} \\exp\\!\\left(\\text{sim}(\\mathbf{z}_x, \\mathbf{z}_j)/\\tau\\right)}\\]\nwhere \\(\\text{sim}(\\mathbf{u}, \\mathbf{v}) = \\mathbf{u}^\\top \\mathbf{v} / (\\|\\mathbf{u}\\| \\|\\mathbf{v}\\|)\\) and \\(\\tau &gt; 0\\) is the temperature.\nIntuition:\n\nMaximize similarity between views of the same image (anchor and positive)\nMinimize similarity with all other images in the batch (negatives)",
+    "crumbs": [
+      "Course",
+      "Chapter 2: Notations & Core Concepts",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch2c.html#digital-watermarking",
+    "href": "ch2c.html#digital-watermarking",
+    "title": "Chapter 2: Notations and Core Concepts — Detailed Content",
+    "section": "Digital Watermarking",
+    "text": "Digital Watermarking\n\nFormalization\nThe watermarking system is defined by:\n\\[\\mathbf{y} = \\omega(\\mathbf{x},\\, k,\\, m), \\qquad \\hat{m} = g(\\mathbf{v},\\, k)\\]\n\n\n\n\n\n\n\n\nSymbol\nType\nDescription\n\n\n\n\n\\(\\mathbf{x}\\)\n\\(\\mathbb{R}^N\\)\nOriginal image (vector)\n\n\n\\(k\\)\n—\nSecret symmetric key\n\n\n\\(m\\)\n\\(\\{0,1\\}^M\\)\nMessage to embed (\\(M\\) bits)\n\n\n\\(\\mathbf{y}\\)\n\\(\\mathbb{R}^N\\)\nWatermarked image\n\n\n\\(\\mathbf{v} = \\mathcal{A}(\\mathbf{y})\\)\n\\(\\mathbb{R}^N\\)\nReceived image after attack \\(\\mathcal{A}\\)\n\n\n\\(\\hat{m}\\)\n\\(\\{0,1\\}^M\\)\nExtracted message\n\n\n\n\n\nDistortion Constraint\nThe embedding must be imperceptible: \\[D(\\mathbf{x}, \\mathbf{y}) \\leq \\varepsilon\\]\nwith \\(D\\) a distortion metric (MSE, SSIM, etc.).\n\n\nDetection Score\nFor zero-bit watermarking: \\[S(\\mathbf{v}) = \\frac{1}{M} \\mathbf{v} \\cdot \\mathbf{w}, \\qquad \\text{decision:} \\quad S(\\mathbf{v}) \\underset{H_0}{\\overset{H_1}{\\gtrless}} \\tau\\]",
+    "crumbs": [
+      "Course",
+      "Chapter 2: Notations & Core Concepts",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch2c.html#perceptual-hashing",
+    "href": "ch2c.html#perceptual-hashing",
+    "title": "Chapter 2: Notations and Core Concepts — Detailed Content",
+    "section": "Perceptual Hashing",
+    "text": "Perceptual Hashing\n\nFormalization\n\\[\\mathbf{b}_x = h(\\mathbf{x},\\, k), \\quad \\mathbf{b}_x \\in \\{0,1\\}^L\\]\n\n\nHamming Distance\n\\[d_H(\\mathbf{b}_x, \\mathbf{b}_y) = \\sum_{i=1}^{L} \\mathbf{1}[b_{x,i} \\neq b_{y,i}] = \\|\\mathbf{b}_x \\oplus \\mathbf{b}_y\\|_1\\]\n\n\nBSC Channel Model\nThe fingerprints of two versions of the same image are related by: \\[P(\\hat{b}_i \\neq b_i) = P_b \\quad \\Longleftrightarrow \\quad \\mathbf{b}_y = \\mathbf{b}_x \\oplus \\mathbf{e}\\]\nwhere \\(\\mathbf{e} \\in \\{0,1\\}^L\\) is an error vector where each bit is independent with probability \\(P_b\\).",
+    "crumbs": [
+      "Course",
+      "Chapter 2: Notations & Core Concepts",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch2c.html#awgn-channel-model",
+    "href": "ch2c.html#awgn-channel-model",
+    "title": "Chapter 2: Notations and Core Concepts — Detailed Content",
+    "section": "AWGN Channel Model",
+    "text": "AWGN Channel Model\nThe additive Gaussian channel (AWGN) is written as: \\[\\mathbf{v} = \\mathbf{s} + \\mathbf{n}, \\quad \\mathbf{n} \\sim \\mathcal{N}(\\mathbf{0}, \\sigma^2 \\mathbf{I}_N)\\]\nwhere \\(\\mathbf{s}\\) is the transmitted signal, \\(\\sigma^2\\) is the noise variance, and \\(\\mathbf{I}_N\\) is the identity matrix of size \\(N = H \\times W \\times C\\).\nThe signal-to-noise ratio (SNR) is: \\[\\text{SNR} = \\frac{\\mathbb{E}[\\|\\mathbf{s}\\|^2]}{N\\sigma^2}\\]",
+    "crumbs": [
+      "Course",
+      "Chapter 2: Notations & Core Concepts",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch2c.html#hypothesis-testing",
+    "href": "ch2c.html#hypothesis-testing",
+    "title": "Chapter 2: Notations and Core Concepts — Detailed Content",
+    "section": "Hypothesis Testing",
+    "text": "Hypothesis Testing\n\nFormulation\n\n\\(H_0\\): no watermark — \\(\\mathbf{v} \\sim p_0(\\mathbf{v}) = \\mathcal{N}(\\mathbf{0}, \\sigma^2\\mathbf{I})\\)\n\\(H_1\\): watermark present — \\(\\mathbf{v} \\sim p_1(\\mathbf{v}) = \\mathcal{N}(\\mathbf{s}, \\sigma^2\\mathbf{I})\\)\n\n\n\nNeyman-Pearson Detector\nThe likelihood ratio is: \\[\\Lambda(\\mathbf{v}) = \\frac{p_1(\\mathbf{v})}{p_0(\\mathbf{v})} = \\exp\\!\\left(\\frac{\\mathbf{v}^\\top \\mathbf{s}}{\\sigma^2} - \\frac{\\|\\mathbf{s}\\|^2}{2\\sigma^2}\\right)\\]\nThe decision rule reduces to: \\[T(\\mathbf{v}) = \\mathbf{v}^\\top \\mathbf{s} \\underset{H_0}{\\overset{H_1}{\\gtrless}} \\eta\\]\n\n\nPerformance\nUnder \\(H_0\\): \\(T(\\mathbf{v}) \\sim \\mathcal{N}(0, \\sigma^2 \\|\\mathbf{s}\\|^2)\\)\nUnder \\(H_1\\): \\(T(\\mathbf{v}) \\sim \\mathcal{N}(\\|\\mathbf{s}\\|^2, \\sigma^2 \\|\\mathbf{s}\\|^2)\\)\nFalse alarm probability: \\[P_{FA} = P(T &gt; \\eta \\mid H_0) = Q\\!\\left(\\frac{\\eta}{\\sigma\\|\\mathbf{s}\\|}\\right)\\]\nDetection probability: \\[P_D = P(T &gt; \\eta \\mid H_1) = Q\\!\\left(\\frac{\\eta - \\|\\mathbf{s}\\|^2}{\\sigma\\|\\mathbf{s}\\|}\\right)\\]\nwhere \\(Q(x) = \\frac{1}{\\sqrt{2\\pi}}\\int_x^\\infty e^{-t^2/2}\\,dt\\) is the Gaussian Q-function.",
+    "crumbs": [
+      "Course",
+      "Chapter 2: Notations & Core Concepts",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch2c.html#roc-curve",
+    "href": "ch2c.html#roc-curve",
+    "title": "Chapter 2: Notations and Core Concepts — Detailed Content",
+    "section": "ROC Curve",
+    "text": "ROC Curve\n\nThe area under the ROC curve (AUC) quantifies the overall detector performance: AUC = 1 corresponds to a perfect detector, AUC = 0.5 to a random detector.",
+    "crumbs": [
+      "Course",
+      "Chapter 2: Notations & Core Concepts",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch1c.html",
+    "href": "ch1c.html",
+    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
+    "section": "",
+    "text": "Course by S. Voloshynovskiy — University of Geneva",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch1c.html#definition",
+    "href": "ch1c.html#definition",
+    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
+    "section": "Definition",
+    "text": "Definition\nDigital watermarking is the process of imperceptibly embedding a piece of information — a message or signature — directly into a multimedia content (image, video, audio) in such a way that it persists despite modifications. The embedded information is called a watermark.\nFormally, the watermarking system is defined by: \\[\\mathbf{y} = \\omega(\\mathbf{x},\\, k,\\, m), \\qquad \\hat{m} = g(\\mathbf{v},\\, k)\\]\nwhere:\n\n\\(\\mathbf{x} \\in \\mathbb{R}^{H \\times W \\times C}\\): the original image\n\\(k\\): a secret symmetric key\n\\(m \\in \\{0,1\\}^M\\): the message to embed (\\(M\\) bits)\n\\(\\mathbf{y}\\): the watermarked image\n\\(\\mathbf{v} = \\mathcal{A}(\\mathbf{y})\\): the received image after attack \\(\\mathcal{A}\\)\n\\(\\hat{m}\\): the extracted message",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch1c.html#watermarking-pipeline",
+    "href": "ch1c.html#watermarking-pipeline",
+    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
+    "section": "Watermarking Pipeline",
+    "text": "Watermarking Pipeline\nDiagram 1: Digital watermarking pipeline\n\\usetikzlibrary{arrows.meta}\n\\begin{tikzpicture}[&gt;=Latex, font=\\small]\n\n% Message m (top left)\n\\node at (2.0, 7.5) {Message $m$};\n\\draw[-&gt;] (2.0, 7.3) -- (2.0, 6.7);\n\n% Encoder\n\\draw[fill=green!40, draw=green!60!black] (0.5, 5.7) rectangle (3.5, 6.7);\n\\node at (2.0, 6.2) {\\textbf{Encoder}};\n\n% Image x\n\\node at (-0.8, 4.2) {$\\mathbf{x}$};\n\\draw[-&gt;] (-0.3, 4.2) -- (0.5, 4.2);\n\n% s: Encoder -&gt; Embedder\n\\draw[-&gt;] (2.0, 5.7) -- (2.0, 4.7);\n\\node at (2.4, 5.2) {$\\mathbf{s}$};\n\n% Key k (left)\n\\node at (2.0, 1.5) {Key $k$};\n\\draw[-&gt;] (2.0, 1.8) -- (2.0, 2.8);\n\n% Embedder\n\\draw[fill=green!40, draw=green!60!black] (0.5, 2.8) rectangle (3.5, 4.7);\n\\node at (2.0, 3.75) {\\textbf{Embedder}};\n\n% y: Embedder -&gt; Channel\n\\draw[-&gt;] (3.5, 4.0) -- (5.5, 4.0);\n\\node at (4.5, 4.3) {$\\mathbf{y}$};\n\n% Multimedia Channel\n\\draw[fill=blue!30, draw=blue!70!black] (5.5, 3.0) rectangle (8.0, 5.0);\n\\node at (6.75, 4.3) {\\textbf{Multimedia}};\n\\node at (6.75, 3.7) {\\textbf{Channel}};\n\n% v: Channel -&gt; Extractor\n\\draw[-&gt;] (8.0, 4.0) -- (9.5, 4.0);\n\\node at (8.75, 4.3) {$\\mathbf{v}$};\n\n% Extractor\n\\draw[fill=green!40, draw=green!60!black] (9.5, 2.8) rectangle (12.0, 4.7);\n\\node at (10.75, 3.75) {\\textbf{Extractor}};\n\n% Key k (right)\n\\node at (10.75, 1.5) {Key $k$};\n\\draw[-&gt;] (10.75, 1.8) -- (10.75, 2.8);\n\n% s-hat: Extractor -&gt; Decoder\n\\draw[-&gt;] (10.75, 4.7) -- (10.75, 5.7);\n\\node at (11.2, 5.2) {$\\hat{\\mathbf{s}}$};\n\n% Decoder\n\\draw[fill=green!40, draw=green!60!black] (9.5, 5.7) rectangle (12.0, 6.7);\n\\node at (10.75, 6.2) {\\textbf{Decoder}};\n\n% Message m-hat (top right)\n\\node at (10.75, 7.5) {Message $\\hat{m}$};\n\\draw[-&gt;] (10.75, 6.7) -- (10.75, 7.3);\n\n\\end{tikzpicture}",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch1c.html#applications",
+    "href": "ch1c.html#applications",
+    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
+    "section": "Applications",
+    "text": "Applications\nDigital watermarking is used in:\n\nCopyright protection: embed the owner’s identity or a unique identifier. During a dispute, the extractor — which requires secret key \\(k\\) — can prove ownership even after many transformations.\nBroadcast monitoring: an L-bit watermark encodes the distributor or buyer identifier. Automated systems scan television streams or online platforms to detect unauthorized broadcasts.\nMarking generative AI content: watermarking images, text, or videos produced by diffusion models or LLMs to indicate their artificial origin.\nSteganography: hiding the very existence of communication by concealing a secret message in an innocuous image.\nTamper detection: fragile watermarks designed to be destroyed by any modification, allowing integrity verification.",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch1c.html#key-trade-offs",
+    "href": "ch1c.html#key-trade-offs",
+    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
+    "section": "Key Trade-offs",
+    "text": "Key Trade-offs\nAny watermarking system must balance four antagonistic properties:\n\nRobustness: the watermark survives compression, cropping, geometric attacks.\nImperceptibility: the visual quality of the watermarked image remains high (PSNR \\(&gt; 40\\) dB).\nCapacity: number of bits \\(L\\) that can be embedded.\nSecurity: resistance to an adversary who knows the algorithm but not the key.",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch1c.html#challenges",
+    "href": "ch1c.html#challenges",
+    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
+    "section": "Challenges",
+    "text": "Challenges\n\nGeometric attacks: rotation, scaling, cropping can desynchronize the watermark.\nAdversarial attacks: targeted attacks can remove the watermark while preserving visual quality.\nCollusion attacks: combining several watermarked copies to erase the mark.\nKey management: protecting key \\(k\\) is essential for the whole system’s security.",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch1c.html#definition-1",
+    "href": "ch1c.html#definition-1",
+    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
+    "section": "Definition",
+    "text": "Definition\nPerceptual hashing computes a compact binary fingerprint that is robust to benign transformations: \\[\\mathbf{b}_x = h(\\mathbf{x},\\, k), \\quad \\mathbf{b}_x \\in \\{0,1\\}^L\\]\nUnlike cryptographic hashes (MD5, SHA-256), a perceptual hash must be stable under small perturbations: two versions of the same image (compressed, resized, slightly modified) must produce similar (or identical) hashes.",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch1c.html#perceptual-hashing-pipeline",
+    "href": "ch1c.html#perceptual-hashing-pipeline",
+    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
+    "section": "Perceptual Hashing Pipeline",
+    "text": "Perceptual Hashing Pipeline\nDiagram 2: Perceptual hashing and BSC channel model\n\\usetikzlibrary{arrows.meta}\n\\begin{tikzpicture}[&gt;=Latex, font=\\small]\n\n% Original image x\n\\draw[fill=gray!15, draw=gray!60] (0.0, 4.0) rectangle (2.0, 5.5);\n\\node at (1.0, 4.75) {$\\mathbf{x}$};\n\n% x -&gt; Hash\n\\draw[-&gt;] (2.0, 4.75) -- (3.5, 4.75);\n\n% Hash function h(.,k)\n\\draw[fill=green!40, draw=green!60!black] (3.5, 4.0) rectangle (6.0, 5.5);\n\\node at (4.75, 5.0) {\\textbf{Hash}};\n\\node at (4.75, 4.5) {$h(\\cdot, k)$};\n\n% Fingerprint bx\n\\draw[-&gt;] (6.0, 4.75) -- (7.5, 4.75);\n\\draw[fill=orange!30, draw=orange!60!black] (7.5, 4.0) rectangle (10.0, 5.5);\n\\node at (8.75, 5.0) {$\\mathbf{b}_x \\in \\{0,1\\}^L$};\n\\node at (8.75, 4.4) {Fingerprint};\n\n% bx -&gt; BSC\n\\draw[-&gt;] (8.75, 4.0) -- (8.75, 2.8);\n\n% BSC channel\n\\draw[fill=blue!30, draw=blue!70!black] (7.0, 1.8) rectangle (10.5, 2.8);\n\\node at (8.75, 2.3) {\\textbf{BSC} $(P_b)$};\n\n% BSC -&gt; b-hat-x\n\\draw[-&gt;] (8.75, 1.8) -- (8.75, 0.8);\n\\draw[fill=orange!30, draw=orange!60!black] (7.5, 0.0) rectangle (10.0, 0.8);\n\\node at (8.75, 0.4) {$\\hat{\\mathbf{b}}_x$};\n\n% Attacked image y\n\\draw[fill=gray!25, draw=gray!60] (0.0, 0.0) rectangle (2.0, 1.5);\n\\node at (1.0, 0.9) {$\\mathbf{y} = \\mathcal{A}(\\mathbf{x})$};\n\\node at (1.0, 0.3) {Attacked};\n\n% y -&gt; Hash2\n\\draw[-&gt;] (2.0, 0.75) -- (3.5, 0.75);\n\n% Hash function for attacked image\n\\draw[fill=green!40, draw=green!60!black] (3.5, 0.0) rectangle (6.0, 1.5);\n\\node at (4.75, 1.0) {\\textbf{Hash}};\n\\node at (4.75, 0.5) {$h(\\cdot, k)$};\n\n% by fingerprint\n\\draw[-&gt;] (6.0, 0.75) -- (7.5, 0.75);\n\\draw[fill=orange!30, draw=orange!60!black] (7.5, 0.0) rectangle (10.0, 1.5);\n\\node at (8.75, 1.0) {$\\mathbf{b}_y \\in \\{0,1\\}^L$};\n\\node at (8.75, 0.4) {Direct hash};\n\n\\end{tikzpicture}",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch1c.html#irreversibility",
+    "href": "ch1c.html#irreversibility",
+    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
+    "section": "Irreversibility",
+    "text": "Irreversibility\nA fundamental property: it is impossible to reconstruct \\(\\mathbf{x}\\) from \\(\\mathbf{b}_x\\). This is guaranteed by the dimensionality reduction (\\(L \\ll H \\times W \\times C\\)) and the non-linear binarization (sign function).\nThis irreversibility is essential for privacy-preserving applications: one can compare fingerprints without ever exposing the original images.",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch1c.html#required-properties",
+    "href": "ch1c.html#required-properties",
+    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
+    "section": "Required Properties",
+    "text": "Required Properties\n\n\n\n\n\n\n\n\nProperty\nMathematical formulation\nImportance\n\n\n\n\nRobustness\n\\(h(\\mathcal{A}(\\mathbf{x}), k) \\approx h(\\mathbf{x}, k)\\) for small \\(\\mathcal{A}\\)\nSimilar images → similar hashes\n\n\nIrreversibility\n\\(\\not\\exists\\) algorithm to recover \\(\\mathbf{x}\\) from \\(\\mathbf{b}_x\\)\nPrivacy protection\n\n\nSensitivity\n\\(h(\\mathbf{x}, k) \\not\\approx h(\\mathbf{x}', k)\\) for \\(\\mathbf{x}' \\neq \\mathbf{x}\\)\nDifferent images → different hashes\n\n\nCompactness\n\\(L \\ll H \\times W \\times C\\)\nStorage and search efficiency\n\n\nKey-dependency\n\\(h(\\mathbf{x}, k) \\neq h(\\mathbf{x}, k')\\) for \\(k \\neq k'\\)\nRevocability and security",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch1c.html#cryptographic-hash-vs.-perceptual-hash",
+    "href": "ch1c.html#cryptographic-hash-vs.-perceptual-hash",
+    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
+    "section": "Cryptographic Hash vs. Perceptual Hash",
+    "text": "Cryptographic Hash vs. Perceptual Hash\nDiagram 3: Comparison of cryptographic vs. perceptual hashing\n\\usetikzlibrary{arrows.meta}\n\\begin{tikzpicture}[&gt;=Latex, font=\\small]\n\n% === Left: Cryptographic Hash ===\n\\node at (2.5, 7.5) {\\textbf{Cryptographic Hash (SHA-256)}};\n\\draw[fill=gray!15, draw=gray!60] (0.5, 6.2) rectangle (4.5, 7.2);\n\\node at (2.5, 6.7) {Image $\\mathbf{x}$};\n\\draw[-&gt;] (2.5, 6.2) -- (2.5, 5.4);\n\\draw[fill=blue!30, draw=blue!80!black] (0.5, 4.5) rectangle (4.5, 5.4);\n\\node at (2.5, 4.95) {\\textbf{SHA-256}};\n\\draw[-&gt;] (2.5, 4.5) -- (2.5, 3.7);\n\\draw[fill=orange!30, draw=orange!80!black] (0.5, 2.8) rectangle (4.5, 3.7);\n\\node at (2.5, 3.25) {256-bit hash};\n\n% Avalanche effect\n\\draw[fill=red!30, draw=red!80!black] (0.5, 1.5) rectangle (4.5, 2.5);\n\\node at (2.5, 2.1) {\\textbf{Avalanche effect:}};\n\\node at (2.5, 1.7) {1 bit changed $\\rightarrow$ 50\\% hash changed};\n\n% === Right: Perceptual Hash ===\n\\node at (9.5, 7.5) {\\textbf{Perceptual Hash}};\n\\draw[fill=gray!15, draw=gray!60] (7.5, 6.2) rectangle (11.5, 7.2);\n\\node at (9.5, 6.7) {Image $\\mathbf{x}$};\n\\draw[-&gt;] (9.5, 6.2) -- (9.5, 5.4);\n\\draw[fill=green!40, draw=green!60!black] (7.5, 4.5) rectangle (11.5, 5.4);\n\\node at (9.5, 4.95) {\\textbf{Perceptual Hash} $h(\\cdot, k)$};\n\\draw[-&gt;] (9.5, 4.5) -- (9.5, 3.7);\n\\draw[fill=orange!30, draw=orange!80!black] (7.5, 2.8) rectangle (11.5, 3.7);\n\\node at (9.5, 3.25) {$L$-bit fingerprint};\n\n% Robustness\n\\draw[fill=green!40, draw=green!60!black] (7.5, 1.5) rectangle (11.5, 2.5);\n\\node at (9.5, 2.1) {\\textbf{Robustness:}};\n\\node at (9.5, 1.7) {JPEG 70\\% $\\rightarrow$ small Hamming dist.};\n\n\\end{tikzpicture}",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch1c.html#why-classical-encryption-doesnt-apply-directly",
+    "href": "ch1c.html#why-classical-encryption-doesnt-apply-directly",
+    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
+    "section": "Why Classical Encryption Doesn’t Apply Directly",
+    "text": "Why Classical Encryption Doesn’t Apply Directly\nClassical encryption (AES, RSA) operates on binary data and produces completely different outputs for any modification of the input. This is useful for confidentiality but incompatible with the needs of multimedia security:\n\nRobustness requirement: a JPEG-compressed image must still be recognizable as containing the same watermark. Encryption breaks this property completely.\nPerceptual metrics: multimedia quality is measured in PSNR, SSIM — not in bit error rate. Modifications that are imperceptible to humans may produce completely different encrypted outputs.\nSemantic search: databases of images or fingerprints require content-based similarity — not exact equality.",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch1c.html#foundation-models-and-new-attack-surfaces",
+    "href": "ch1c.html#foundation-models-and-new-attack-surfaces",
+    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
+    "section": "Foundation Models and New Attack Surfaces",
+    "text": "Foundation Models and New Attack Surfaces\nLarge pre-trained models (CLIP, DALL-E, GPT-4V) introduce new vulnerabilities:\n\nModel inversion: from the model’s output, reconstruct training samples.\nMembership inference: determine whether a particular image was used for training.\nAdversarial attacks: perturbations imperceptible to humans fool the model.",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch1c.html#adversarial-attacks",
+    "href": "ch1c.html#adversarial-attacks",
+    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
+    "section": "Adversarial Attacks",
+    "text": "Adversarial Attacks\nAn adversarial attack adds a perturbation \\(\\boldsymbol{\\delta}\\) to an image \\(\\mathbf{x}\\) that is imperceptible but causes a model \\(f\\) to make an incorrect prediction:\n\\[\\mathbf{x}^{adv} = \\mathbf{x} + \\boldsymbol{\\delta}, \\quad \\|\\boldsymbol{\\delta}\\|_\\infty \\leq \\epsilon, \\quad f(\\mathbf{x}^{adv}) \\neq f(\\mathbf{x})\\]\nDiagram 4: Two cases of adversarial attacks\n\\usetikzlibrary{arrows.meta}\n\\begin{tikzpicture}[&gt;=Latex, font=\\small]\n\n% === Case 1: White-box Attack ===\n\\node at (3.0, 7.5) {\\textbf{Case 1: White-box Attack}};\n\n\\draw[fill=gray!15, draw=gray!60] (0.5, 6.0) rectangle (2.5, 7.0);\n\\node at (1.5, 6.5) {Image $\\mathbf{x}$};\n\n\\draw[fill=orange!30, draw=orange!80!black] (0.5, 4.5) rectangle (2.5, 5.5);\n\\node at (1.5, 5.0) {Perturbation $\\boldsymbol{\\delta}$};\n\n\\draw[-&gt;] (1.5, 6.0) -- (1.5, 5.5);\n\n\\draw[fill=red!30, draw=red!80!black] (0.0, 3.2) rectangle (3.0, 4.2);\n\\node at (1.5, 3.7) {$\\mathbf{x}^{adv} = \\mathbf{x} + \\boldsymbol{\\delta}$};\n\\draw[-&gt;] (1.5, 4.5) -- (1.5, 4.2);\n\n\\draw[-&gt;] (1.5, 3.2) -- (1.5, 2.5);\n\\draw[fill=blue!30, draw=blue!80!black] (0.0, 1.5) rectangle (3.0, 2.5);\n\\node at (1.5, 2.1) {\\textbf{Model $f$}};\n\\node at (1.5, 1.7) {(known gradient)};\n\n\\draw[-&gt;] (1.5, 1.5) -- (1.5, 0.8);\n\\draw[fill=red!30, draw=red!80!black] (0.0, 0.0) rectangle (3.0, 0.8);\n\\node at (1.5, 0.4) {Wrong prediction};\n\n% === Case 2: Black-box Attack (Transfer) ===\n\\node at (9.0, 7.5) {\\textbf{Case 2: Black-box Attack (Transfer)}};\n\n\\draw[fill=gray!15, draw=gray!60] (6.5, 6.0) rectangle (8.5, 7.0);\n\\node at (7.5, 6.5) {Image $\\mathbf{x}$};\n\n\\draw[fill=orange!30, draw=orange!80!black] (6.5, 4.5) rectangle (8.5, 5.5);\n\\node at (7.5, 5.05) {Perturbation $\\boldsymbol{\\delta}$};\n\\node at (7.5, 4.65) {(on surrogate)};\n\n\\draw[-&gt;] (7.5, 6.0) -- (7.5, 5.5);\n\n\\draw[fill=red!30, draw=red!80!black] (6.0, 3.2) rectangle (9.0, 4.2);\n\\node at (7.5, 3.7) {$\\mathbf{x}^{adv}$};\n\\draw[-&gt;] (7.5, 4.5) -- (7.5, 4.2);\n\n\\draw[-&gt;] (9.0, 3.7) -- (10.5, 3.7);\n\\draw[fill=blue!30, draw=blue!80!black] (10.5, 3.2) rectangle (13.0, 4.2);\n\\node at (11.75, 3.75) {\\textbf{Model $f'$}};\n\\node at (11.75, 3.35) {(unknown)};\n\n\\draw[-&gt;] (11.75, 3.2) -- (11.75, 2.5);\n\\draw[fill=red!30, draw=red!80!black] (10.5, 1.5) rectangle (13.0, 2.5);\n\\node at (11.75, 2.05) {Transferable};\n\\node at (11.75, 1.65) {wrong prediction};\n\n\\end{tikzpicture}",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch1c.html#main-attack-types",
+    "href": "ch1c.html#main-attack-types",
+    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
+    "section": "Main Attack Types",
+    "text": "Main Attack Types\n\n\n\n\n\n\n\n\nAttack\nMethod\nKnowledge of model\n\n\n\n\nFGSM (Fast Gradient Sign Method)\n\\(\\boldsymbol{\\delta} = \\epsilon \\cdot \\text{sign}(\\nabla_{\\mathbf{x}} \\mathcal{L})\\)\nWhite-box\n\n\nPGD (Projected Gradient Descent)\nIterative FGSM with projection\nWhite-box\n\n\nC&W (Carlini & Wagner)\nOptimization of distortion + misclassification\nWhite-box\n\n\nTransfer attack\nAdversarial on surrogate model\nBlack-box\n\n\nQuery-based attack\nGradient estimation by queries\nBlack-box",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch1c.html#defenses",
+    "href": "ch1c.html#defenses",
+    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
+    "section": "Defenses",
+    "text": "Defenses\n\nAdversarial training: include adversarial examples in training.\nCertified defenses: randomized smoothing, provable robustness bounds.\nDetection: detect anomalous inputs before classification.\nWatermarking generated content: identify AI-generated images for later verification.",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch1c.html#definition-and-context",
+    "href": "ch1c.html#definition-and-context",
+    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
+    "section": "Definition and Context",
+    "text": "Definition and Context\nPrivacy preservation in multimedia refers to all techniques that protect the identity and sensitive attributes of individuals present in digital content, while maintaining utility for legitimate applications.\nFormally, a privacy-preserving system must satisfy: \\[P[\\mathcal{M}(D) \\in S] \\leq e^\\varepsilon \\cdot P[\\mathcal{M}(D') \\in S] + \\delta\\]\nfor all sets \\(S\\) and all pairs of adjacent datasets \\(D, D'\\) (\\((\\varepsilon, \\delta)\\)-Differential Privacy).",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch1c.html#main-techniques",
+    "href": "ch1c.html#main-techniques",
+    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
+    "section": "Main Techniques",
+    "text": "Main Techniques\n\nDifferential Privacy (DP)\nAdds calibrated noise to an algorithm’s output to guarantee that an individual’s presence in the dataset has negligible impact on results:\n\\[\\mathcal{M}(\\mathbf{x}) = f(\\mathbf{x}) + \\mathbf{n}, \\quad \\mathbf{n} \\sim \\mathcal{N}(\\mathbf{0}, \\sigma^2 \\mathbf{I})\\]\n\n\nFederated Learning\nTrains a model on distributed data without centralizing raw data:\n\nLocal training on each device/organization\nSharing only model gradients (not data)\nAggregation on a central server\nUpdated global model sent back\n\n\n\nMultimedia Anonymization\n\nFace blurring: Gaussian or pixelation blur on detected regions\nAttribute removal: removing identifiable attributes (tattoos, clothing)\nGAN-based anonymization: replacing faces with synthetic faces while preserving expression\n\n\n\nPrivacy-Preserving Retrieval\nSearch similar images in a database without revealing query content: \\[\\text{Query}: \\mathbf{b}_q = h(\\mathbf{x}_q, k) \\in \\{0,1\\}^L\\] \\[\\text{Decision}: d_H(\\mathbf{b}_q, \\mathbf{b}_i) \\leq \\tau_H \\Rightarrow \\text{similar}\\]",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "ch1c.html#applications-1",
+    "href": "ch1c.html#applications-1",
+    "title": "Chapter 1: Introduction to Multimedia Security — Detailed Content",
+    "section": "Applications",
+    "text": "Applications\n\n\n\n\n\n\n\n\nApplication\nTechnique\nContext\n\n\n\n\nFace recognition without exposure\nRobust hashing\nSmartphone, physical access\n\n\nMedical image search\nPrivacy-preserving hashing\nHospital networks\n\n\nGDPR compliance\nAnonymization + DP\nEU enterprises\n\n\nFederated learning\nFL + DP\nMobile devices\n\n\nAI content marking\nWatermarking\nGenerative models",
+    "crumbs": [
+      "Course",
+      "Chapter 1: Introduction",
+      "Details"
+    ]
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Home",
+    "section": "",
+    "text": "This course, taught by Professor S. Voloshynovskiy at the University of Geneva, presents the theoretical foundations and practical aspects of security and privacy in the multimedia domain. You will discover how to protect, authenticate, and analyze digital content (images, audio, video) using modern techniques grounded in information theory, signal processing, and deep learning.\nThe course is organized around four major themes: digital watermarking, perceptual hashing, foundation model security, and privacy preservation. Each theme is approached both from a rigorous mathematical perspective and through concrete applications from research and industry.\nCourse materials are organized into chapters, each available in three forms: a quick synthesis for review, a chapter overview, and detailed content for in-depth study. Use the sidebar navigation to access the different sections.\n\n\n\n\n\n\nChapter\nTitle\nMain Topics\n\n\n\n\n1\nIntroduction to Multimedia Security\nWatermarking, perceptual hashing, foundation models, privacy\n\n\n2\nNotations and Core Concepts\nImage representations, SSL, signal detection\n\n\n3\nDigital Watermarking\nEmbedders, extractors, attacks, metrics\n\n\n4\nPrivacy-Preserving Methods\nRobust hashing, fuzzy commitment, biometrics\n\n\n\n\n\n\n\n\n\n\n\n\n\nLanguage: English (French version available via the language selector)\nPrerequisites: Probability and statistics, linear algebra, basics of signal processing and machine learning\nAssessment: Written exam covering all chapters",
+    "crumbs": [
+      "Home"
+    ]
+  },
+  {
+    "objectID": "index.html#course-structure",
+    "href": "index.html#course-structure",
+    "title": "Home",
+    "section": "",
+    "text": "Chapter\nTitle\nMain Topics\n\n\n\n\n1\nIntroduction to Multimedia Security\nWatermarking, perceptual hashing, foundation models, privacy\n\n\n2\nNotations and Core Concepts\nImage representations, SSL, signal detection\n\n\n3\nDigital Watermarking\nEmbedders, extractors, attacks, metrics\n\n\n4\nPrivacy-Preserving Methods\nRobust hashing, fuzzy commitment, biometrics",
+    "crumbs": [
+      "Home"
+    ]
+  },
+  {
+    "objectID": "index.html#resources",
+    "href": "index.html#resources",
+    "title": "Home",
+    "section": "",
+    "text": "Language: English (French version available via the language selector)\nPrerequisites: Probability and statistics, linear algebra, basics of signal processing and machine learning\nAssessment: Written exam covering all chapters",
+    "crumbs": [
+      "Home"
+    ]
+  },
+  {
+    "objectID": "ch2r.html",
+    "href": "ch2r.html",
+    "title": "Synthesis — Chapter 2",
+    "section": "",
+    "text": "Important📚 Quick Review Sheet — Chapter 2\n\n\n\nThis sheet summarizes the essential concepts from Chapter 2. It covers image representations, self-supervised learning, formal notations for watermarking and hashing, and detection theory.\nNavigation: Overview → | Detailed content →",
+    "crumbs": [
+      "Course",
+      "Chapter 2: Notations & Core Concepts",
+      "Synthesis"
+    ]
+  },
+  {
+    "objectID": "ch2r.html#key-formulas",
+    "href": "ch2r.html#key-formulas",
+    "title": "Synthesis — Chapter 2",
+    "section": "Key Formulas",
+    "text": "Key Formulas\n\n\n\n\n\n\n\n\nConcept\nFormula\nUnits / Notes\n\n\n\n\nImage\n\\(\\mathbf{x} \\in \\mathbb{R}^{H \\times W \\times C}\\)\n\\(x_{h,w,c} \\in \\{0,\\ldots,255\\}\\) for 8 bits\n\n\nMSE\n\\(\\frac{1}{N}\\|\\mathbf{x}-\\mathbf{y}\\|_2^2\\)\n\\(N = HWC\\)\n\n\nPSNR\n\\(10\\log_{10}\\!\\left(\\frac{255^2}{\\text{MSE}}\\right)\\)\nIn dB; \\(&gt;40\\,\\text{dB}\\) ≈ imperceptible\n\n\nCosine\n\\(\\frac{\\mathbf{u}\\cdot\\mathbf{v}}{\\|\\mathbf{u}\\|\\|\\mathbf{v}\\|}\\)\n\\(\\in[-1,1]\\)\n\n\nSSL representation\n\\(\\mathbf{z}_x = f_\\phi(\\mathbf{x}) \\in \\mathbb{R}^d\\)\n\\(d \\ll N\\)\n\n\nDFT\n\\(X_k = \\sum_{n=0}^{N-1} x_n e^{-j2\\pi kn/N}\\)\n—\n\n\nDCT-II\n\\(X_k = \\sum_{n=0}^{N-1} x_n \\cos\\!\\left[\\frac{\\pi(2n+1)k}{2N}\\right]\\)\nJPEG base: 8×8 blocks\n\n\nWatermarking\n\\(\\mathbf{y} = \\omega(\\mathbf{x},k,m)\\), \\(\\hat{m}=g(\\mathbf{v},k)\\)\n—\n\n\nDetection score\n\\(S(\\mathbf{v}) = \\frac{1}{M}\\mathbf{v}\\cdot\\mathbf{w}\\)\nTest statistic\n\n\nAWGN channel\n\\(\\mathbf{v} = \\mathbf{s} + \\mathbf{n}\\), \\(\\mathbf{n}\\sim\\mathcal{N}(\\mathbf{0},\\sigma^2\\mathbf{I})\\)\n—\n\n\n\\(P_{FA}\\)\n\\(Q\\!\\left(\\frac{\\eta}{\\sigma\\|\\mathbf{s}\\|}\\right)\\)\nFalse alarm\n\n\n\\(P_D\\)\n\\(Q\\!\\left(\\frac{\\eta-\\|\\mathbf{s}\\|^2}{\\sigma\\|\\mathbf{s}\\|}\\right)\\)\nDetection power\n\n\nHamming distance\n\\(d_H(\\mathbf{b}_x,\\mathbf{b}_y) = \\|\\mathbf{b}_x\\oplus\\mathbf{b}_y\\|_1\\)\nFor perceptual hashing",
+    "crumbs": [
+      "Course",
+      "Chapter 2: Notations & Core Concepts",
+      "Synthesis"
+    ]
+  },
+  {
+    "objectID": "ch2r.html#part-1-image-representations",
+    "href": "ch2r.html#part-1-image-representations",
+    "title": "Synthesis — Chapter 2",
+    "section": "Part 1 — Image Representations",
+    "text": "Part 1 — Image Representations\nImage: \\(\\mathbf{x} \\in \\mathbb{R}^{H \\times W \\times C}\\), pixels \\(\\in \\{0,\\ldots,255\\}\\) (8 bits)\nMetrics:\n\nMSE: mean squared pixel-wise error\nPSNR \\(&gt; 40\\,\\text{dB}\\): imperceptible modification\nCosine: compares representation vectors (not raw pixels)\n\nTransforms:\n\n\n\nTransform\nDomain\nMain usage\n\n\n\n\nDCT (8×8)\nFrequencies\nJPEG compression, frequency watermarking\n\n\nDFT\nComplex frequencies\nFiltering, spectral analysis\n\n\nDWT\nTime-frequency\nMulti-resolution compression, watermarking\n\n\nPCA\nMaximum variance\nDimensionality reduction",
+    "crumbs": [
+      "Course",
+      "Chapter 2: Notations & Core Concepts",
+      "Synthesis"
+    ]
+  },
+  {
+    "objectID": "ch2r.html#part-2-self-supervised-learning",
+    "href": "ch2r.html#part-2-self-supervised-learning",
+    "title": "Synthesis — Chapter 2",
+    "section": "Part 2 — Self-Supervised Learning",
+    "text": "Part 2 — Self-Supervised Learning\nLatent representation: \\(\\mathbf{z}_x = f_\\phi(\\mathbf{x}) \\in \\mathbb{R}^d\\)\nContrastive learning:\n\nAnchor \\(\\mathbf{x}\\) + Positive \\(\\mathbf{x}^+\\) (same image, different augmentations) → bring closer\nNegatives \\(\\mathbf{x}^-\\) (other images in batch) → push apart\nTemperature \\(\\tau\\) controls selectivity\n\nNT-Xent loss: \\[\\mathcal{L} = -\\log \\frac{\\exp(\\text{sim}(\\mathbf{z}_x,\\mathbf{z}_{x^+})/\\tau)}{\\sum_j \\exp(\\text{sim}(\\mathbf{z}_x,\\mathbf{z}_j)/\\tau)}\\]",
+    "crumbs": [
+      "Course",
+      "Chapter 2: Notations & Core Concepts",
+      "Synthesis"
+    ]
+  },
+  {
+    "objectID": "ch2r.html#part-3-watermarking-and-hashing",
+    "href": "ch2r.html#part-3-watermarking-and-hashing",
+    "title": "Synthesis — Chapter 2",
+    "section": "Part 3 — Watermarking and Hashing",
+    "text": "Part 3 — Watermarking and Hashing\n\nWatermarking\n\nSymbols:\n\n\\(\\mathbf{x}\\): original image, \\(\\mathbf{y}\\): watermarked image, \\(\\mathbf{v}\\): received image\n\\(k\\): secret key, \\(m\\): message, \\(\\hat{m}\\): extracted message\n\\(S(\\mathbf{v}) = \\frac{1}{M}\\mathbf{v}\\cdot\\mathbf{w}\\): detection score (zero-bit)\n\n\n\nPerceptual Hashing\n\n\\(\\mathbf{b}_x = h(\\mathbf{x}, k) \\in \\{0,1\\}^L\\)\nBSC channel: \\(P(\\hat{b}_i \\neq b_i) = P_b\\)\nSimilarity decision: \\(d_H(\\mathbf{b}_x, \\mathbf{b}_y) \\leq \\tau_H\\)",
+    "crumbs": [
+      "Course",
+      "Chapter 2: Notations & Core Concepts",
+      "Synthesis"
+    ]
+  },
+  {
+    "objectID": "ch2r.html#part-4-signal-detection",
+    "href": "ch2r.html#part-4-signal-detection",
+    "title": "Synthesis — Chapter 2",
+    "section": "Part 4 — Signal Detection",
+    "text": "Part 4 — Signal Detection\nHypothesis test:\n\n\n\n\n\n\n\n\nHypothesis\nModel\nMeaning\n\n\n\n\n\\(H_0\\)\n\\(\\mathbf{v} \\sim \\mathcal{N}(\\mathbf{0}, \\sigma^2\\mathbf{I})\\)\nNo watermark\n\n\n\\(H_1\\)\n\\(\\mathbf{v} \\sim \\mathcal{N}(\\mathbf{s}, \\sigma^2\\mathbf{I})\\)\nWatermark present\n\n\n\nNP test statistic: \\(T(\\mathbf{v}) = \\mathbf{v}^\\top \\mathbf{s} \\underset{H_0}{\\overset{H_1}{\\gtrless}} \\eta\\)\nErrors:\n\n\\(P_{FA}\\): false alarm (declare \\(H_1\\) when \\(H_0\\))\n\\(P_\\text{miss}\\): miss (declare \\(H_0\\) when \\(H_1\\))\n\\(P_D = 1 - P_\\text{miss}\\): detection power\n\nROC curve: represents \\(P_D\\) as a function of \\(P_{FA}\\). AUC = 1 → perfect detector; AUC = 0.5 → random.\nBSC: \\(P(\\hat{b}_i \\neq b_i) = P_b\\). Hamming distance follows \\(\\mathcal{B}(L, P_b)\\) distribution under \\(H_1\\).",
+    "crumbs": [
+      "Course",
+      "Chapter 2: Notations & Core Concepts",
       "Synthesis"
     ]
   }
