@@ -1,0 +1,932 @@
+---
+title: "Introduction à la Sécurité et la Confidentialité des Contenus Multimédias"
+---
+
+# Structure et organisation du cours
+
+## Objectifs d'apprentissage
+
+Ce cours vise à former les étudiants aux fondements et aux défis modernes de la sécurité
+et de la protection de la vie privée dans le domaine des contenus multimédias.
+À l'issue de ce cours, vous serez capables de :
+
+- Comprendre les techniques fondamentales de sécurité multimédia
+- Analyser les défis modernes et leurs applications concrètes
+- Appliquer des solutions robustes à des problèmes réels
+
+## Organisation thématique
+
+Le cours est structuré en cinq blocs thématiques progressifs :
+
+| Bloc | Thème principal | Statut |
+|------|-----------------|--------|
+| Bloc 1 | Tatouage numérique (Digital Watermarking) | Obligatoire |
+| Bloc 2 | Hachage perceptuel (Perceptual Hashing) | Obligatoire |
+| Bloc 3 | Sécurité des modèles fondamentaux (Foundation Models Security) | Obligatoire |
+| Bloc 4 | Préservation de la vie privée (Privacy Preservation) | Obligatoire |
+| Bloc 5 | Sécurité dans le monde physique (Physical World Security) | Bonus optionnel |
+
+## Environnement technique Python
+
+### Installation et prérequis
+
+Ce cours utilise Python comme principal outil d'implémentation et de visualisation.
+Il est recommandé d'utiliser Python 3.9 ou une version supérieure.
+
+Les environnements de développement recommandés sont :
+
+- **PyCharm** : IDE complet adapté au développement Python professionnel
+- **Jupyter Notebook** : environnement interactif idéal pour l'exploration et la visualisation
+- **Google Colab** : solution en ligne, ne nécessitant aucune installation locale
+
+### Bibliothèques requises
+
+```bash
+pip install numpy opencv-python matplotlib scikit-image scipy
+```
+
+Les bibliothèques principales et leurs rôles :
+
+- `numpy` : calcul numérique et manipulation de tableaux multidimensionnels
+- `opencv-python` : traitement d'images et de vidéos (lecture, transformation, filtrage)
+- `matplotlib` : visualisation et affichage de résultats graphiques
+- `scikit-image` : algorithmes avancés de traitement d'images
+- `scipy` : fonctions scientifiques et traitement du signal
+
+### Ressources pédagogiques associées
+
+Les dépôts du cours fourniront :
+
+- Les slides de cours
+- Des exemples de code et des jeux de données
+- Des enregistrements vidéo des cours
+
+## Modalités d'évaluation
+
+Le cours est évalué par un **examen oral** conduit en fin de semestre.
+
+::: {.callout-important title="Conseil sur les devoirs"}
+Les devoirs ne sont pas formellement notés, mais leur réalisation est **vivement conseillée**.
+Ils constituent la préparation essentielle à l'examen oral et contribuent à bâtir des bases solides.
+:::
+
+---
+
+# Pourquoi les outils de sécurité classiques ne conviennent pas aux médias ?
+
+## La sécurité informatique traditionnelle
+
+Avant d'aborder les techniques spécifiques au multimédia, il est fondamental de comprendre
+pourquoi les outils issus de la cryptographie classique sont **inadaptés** aux données
+multimédias.
+
+La sécurité informatique traditionnelle repose sur deux piliers :
+
+- **Le chiffrement cryptographique (Cryptographic Encryption)** : garantit la
+  confidentialité des données. Une donnée chiffrée est illisible sans la clé secrète.
+- **Les hachages cryptographiques (Cryptographic Hashes)** : fonctions déterministes
+  produisant une empreinte de taille fixe, utilisées pour l'authentification, le contrôle
+  d'accès et la vérification d'intégrité.
+
+## Le problème fondamental avec les données multimédias
+
+Les fonctions de hachage cryptographiques sont conçues avec la propriété dite
+d'**avalanche** : modifier un seul bit dans l'entrée change complètement l'empreinte
+produite. C'est précisément leur force pour les données binaires… et leur faiblesse pour
+le multimédia.
+
+En effet, les données multimédias (images, audio, vidéo) :
+
+- Subissent naturellement des distorsions lors de la transmission (compression JPEG, bruit d'acquisition)
+- Peuvent être transformées géométriquement (rotation, recadrage, redimensionnement)
+- Sont converties entre formats et domaines différents
+
+En conséquence, une image légèrement compressée produira un hachage cryptographique
+**entièrement différent** de l'originale, alors qu'elles sont **perceptuellement identiques**.
+
+::: {.callout-tip title="Intuition — L'exemple du passeport"}
+Imaginez une photo de passeport scannée puis légèrement recadrée.
+Cryptographiquement, ces deux versions sont totalement différentes — leur hachage SHA-256
+n'a aucun bit en commun.
+Pourtant, un humain reconnaît immédiatement qu'il s'agit de la même personne.
+C'est ce **fossé entre similarité perceptuelle et équivalence binaire** que les outils
+de sécurité multimédia cherchent à combler.
+:::
+
+## Formalisation mathématique : régions de décision
+
+La distinction entre les deux approches peut être formalisée par leurs **régions de décision**.
+
+### Hachage cryptographique (Crypto Hashes)
+
+La région de décision est **ponctuelle** :
+
+- H(x) = H(y) si et seulement si **x = y** (distance nulle)
+- Distance : $\|y - x\|_2^2 = 0$
+
+### Hachage perceptuel (Perceptual Hashes)
+
+La région de décision est une **boule** autour du point x dans l'espace de représentation :
+
+- H(x) ≈ H(y) si $\|y - x\|_2^2 \leq \gamma L$
+
+où $\gamma$ est un seuil de tolérance et $L$ est la dimensionnalité de l'espace.
+
+::: {.callout-note title="À retenir — Régions de décision"}
+**Hachage cryptographique** → décision ponctuelle (x = y exactement, bit à bit)
+
+**Hachage perceptuel** → décision régionale (x et y suffisamment proches perceptuellement,
+tolère les distorsions)
+:::
+
+## Pourquoi le tatouage numérique et le hachage perceptuel sont nécessaires
+
+Les données multimédias requièrent des outils dédiés car :
+
+1. Elles sont **intrinsèquement bruitées** et subissent des distorsions lors de leur
+   transmission ou stockage
+2. La **similarité perceptuelle** — et non l'égalité exacte bit-à-bit — est le critère
+   pertinent pour la sécurité et la vie privée
+3. Les applications couvrent des domaines critiques : biométrie, protection du droit
+   d'auteur, communications sécurisées
+
+---
+
+# Bloc 1 : Tatouage Numérique (Digital Watermarking)
+
+## Définition et origines
+
+Le tatouage numérique (Digital Watermarking) consiste à **incorporer une information
+imperceptible** directement dans un contenu multimédia (image, audio, vidéo) afin de :
+
+- Protéger les droits d'auteur (copyright protection)
+- Authentifier le contenu (content authentication)
+- Permettre une communication sécurisée (secure communication)
+
+Cette discipline trouve ses racines dans la **stéganographie** — l'art de dissimuler
+l'existence même d'un message. L'incorporation est réalisée à l'aide d'une
+**clé secrète (secret key)** qui contrôle la manière dont l'information est encodée
+et décodée.
+
+::: {.callout-tip title="Intuition — Le filigrane physique"}
+Pensez au filigrane (watermark) visible sur les billets de banque ou le papier à en-tête.
+Le tatouage numérique est son équivalent **invisible** dans le monde des médias numériques :
+présent dans le contenu, mais indécelable à l'œil nu.
+:::
+
+## Propriétés fondamentales garanties
+
+Un système de tatouage numérique bien conçu assure trois propriétés essentielles :
+
+- **Vérification de propriété (Ownership Verification)** : prouver qu'un contenu
+  appartient à un auteur ou une organisation spécifique
+- **Robustesse aux attaques (Robustness to Attacks)** : l'information cachée résiste
+  aux modifications du contenu (compression, recadrage, bruit…)
+- **Intégrité du contenu (Content Integrity)** : détecter si le contenu a été altéré
+  depuis son marquage
+
+## Architecture d'un système de tatouage numérique
+
+### Vue d'ensemble du pipeline
+
+Un système de tatouage numérique suit un pipeline en deux phases principales :
+l'**encodage-incorporation (embedding)** côté émetteur et l'**extraction-décodage
+(extraction)** côté récepteur.
+
+```{mermaid}
+flowchart LR
+    M["Message m"] --> E["Encodeur\nEncoder"]
+    X["Image originale x"] --> EMB["Incorporateur\nEmbedder"]
+    K1["Clé k"] --> EMB
+    E --> EMB
+    EMB --> Y["Image tatouée y\n(Stego image)"]
+    Y --> CH["Canal public\nmultimédia"]
+    CH --> V["Image distordue v"]
+    V --> EXT["Extracteur\nExtractor"]
+    K2["Clé k"] --> EXT
+    EXT --> DEC["Décodeur\nDecoder"]
+    DEC --> MH["Message estimé m̂"]
+```
+
+### Phase d'encodage — côté émetteur
+
+1. **Le message m** (une séquence de bits, par exemple 64 à 128 bits) est fourni à
+   un encodeur qui le convertit en un signal à incorporer (souvent une séquence de ±1
+   selon les bits)
+2. **L'incorporateur (Embedder)** fusionne l'image originale x avec le signal encodé,
+   guidé par la clé secrète k, pour produire l'**image tatouée y** (aussi appelée
+   *stego image*)
+
+### Phase de transmission
+
+L'image tatouée y transite par un **canal public multimédia** (Internet, réseaux sociaux,
+messageries…) où elle peut subir diverses distorsions involontaires (compression, bruit,
+recadrage) ou volontaires (attaques).
+
+### Phase de décodage — côté récepteur
+
+1. **L'extracteur (Extractor)** reçoit l'image distordue v et, à l'aide de la clé k,
+   extrait le signal intermédiaire ŝ
+2. **Le décodeur (Decoder)** convertit ce signal en un message estimé m̂, qui devrait
+   être identique (ou très proche) du message original m
+
+### Deux catégories d'attaques
+
+Les attaques menaçant un système de tatouage ciblent deux propriétés distinctes :
+
+- **Attaques sur la robustesse** : appliquer des distorsions volontaires (compression
+  agressive, transformation géométrique) pour effacer ou corrompre le message caché
+- **Attaques sur la sécurité** : tenter de déduire la clé k (*security attacks*) ou de
+  modifier le message de manière adversariale sans connaître la clé
+
+## Applications du tatouage numérique
+
+Le tatouage numérique se décline en trois grandes applications, chacune avec des
+exigences différentes.
+
+### Tatouage Robuste (Robust Watermarking)
+
+Le tatouage robuste vise à **identifier le propriétaire** d'un contenu et à **suivre
+sa diffusion** même après diverses transformations.
+
+::: {.callout-note title="À retenir — Tatouage robuste"}
+Un tatouage robuste reste extractible même si l'image a été compressée, recadrée,
+pivotée, ou soumise à des combinaisons de ces transformations.
+:::
+
+**Transformations que doit supporter un tatouage robuste** :
+
+- Rotation et cisaillement (Rotation / Shearing)
+- Dessin, effacement et recadrage (Drawing / Erasures / Cropping)
+- Changement d'échelle et de rapport d'aspect (Scaling / Aspect Ratio)
+- Compression avec perte JPEG et JPEG2000 (Lossy Compression)
+
+**Exigences techniques détaillées** :
+
+| Critère | Description |
+|---------|-------------|
+| **Robustesse** | Résister à la compression JPEG, aux rotations, recadrages, et attaques adversariales |
+| **Imperceptibilité** | Rester invisible pour préserver la valeur commerciale du contenu |
+| **Capacité d'incorporation** | Typiquement 64 à 128 bits par image, répartis sur les 3 canaux (RGB) |
+| **Gestion des clés** | Clés symétriques nécessaires pour la détection ou le décodage |
+| **Accès au contenu original** | Généralement non requis (sauf pour certaines solutions IA ou protocoles spécifiques) |
+| **Conformité réglementaire** | Doit respecter les réglementations européennes (EU AI Act, RGPD) |
+
+**Applications concrètes** :
+
+- **Protection du droit d'auteur** : identifier le propriétaire légal d'une image ou d'une vidéo mise en ligne sans autorisation
+- **Distinction contenu réel / synthétique** : avec l'essor de l'IA générative, marquer les contenus créés par des modèles génératifs pour les distinguer des photos authentiques
+
+::: {.callout-tip title="Intuition — Traçabilité à l'ère de l'IA générative"}
+Une image générée par un modèle de diffusion peut être tatouée dès sa création.
+Ce tatouage, invisible, persiste même après partage viral, retraitements multiples et
+captures d'écran. Il permet d'identifier l'outil génératif d'origine et de lutter contre
+la désinformation.
+:::
+
+### Stéganographie (Steganography)
+
+#### Définition et distinction
+
+La stéganographie (du grec *steganos* = couvert, *graphein* = écrire) est l'art de
+**dissimuler l'existence même d'une communication secrète** dans un contenu multimédia.
+
+::: {.callout-tip title="Intuition — Cryptographie vs Stéganographie"}
+La **cryptographie** dit : "Je t'envoie un message, mais tu ne peux pas le lire."
+
+La **stéganographie** dit : "Je ne t'envoie rien de particulier." (alors qu'un message
+est secrètement caché dans l'image)
+
+La cryptographie protège le **contenu** du message. La stéganographie cache l'**existence**
+du message.
+:::
+
+#### Comparaison avec le tatouage robuste
+
+| Caractéristique | Tatouage robuste | Stéganographie |
+|----------------|-----------------|----------------|
+| Objectif principal | Protéger la propriété, tracer le contenu | Cacher l'existence de la communication |
+| Robustesse aux distorsions | **Critique** | Moins importante |
+| Indétectabilité statistique | Secondaire | **Cruciale** |
+| Capacité d'incorporation | 64–128 bits par image | Plusieurs kilo-octets par image |
+| Usage type | Copyright, traçabilité | Communication secrète |
+
+#### Exigences spécifiques
+
+**Indétectabilité statistique (Statistical Undetectability)** : c'est la propriété
+la plus importante en stéganographie. L'image tatouée (*stego image*) doit être
+statistiquement **indiscernable** d'une image non modifiée. Un observateur extérieur
+ne doit pas pouvoir détecter qu'un message est dissimulé.
+
+**Capacité élevée** : contrairement au tatouage robuste limité à quelques dizaines
+de bits, la stéganographie permet d'incorporer plusieurs kilo-octets par image.
+Le message peut même être distribué sur plusieurs images.
+
+**Résistance à la stéganalyse (Steganalysis Resistance)** : les outils de détection
+modernes reposent sur des classificateurs d'apprentissage automatique (Machine Learning)
+qui cherchent des anomalies statistiques dans les images. Un système stéganographique
+robuste doit rester indécelable face à ces détecteurs automatisés.
+
+#### Applications
+
+La stéganographie est utilisée comme **alternative à la cryptographie** dans des
+contextes où l'usage de messages chiffrés est :
+
+- **Indésirable** : l'existence d'un message chiffré peut éveiller des soupçons
+- **Interdit** : dans certains régimes ou contextes réglementaires
+
+#### Gestion des clés stéganographiques
+
+Des **clés stéganographiques (Steganographic Keys)** sont nécessaires pour :
+
+- Contrôler l'incorporation du message (côté émetteur)
+- Permettre l'extraction du message (côté récepteur légitime)
+- Empêcher des tiers de détecter ou d'extraire le message
+
+### Détection de Falsification (Tamper Detection)
+
+#### Définition
+
+La détection de falsification (Tamper Detection) consiste à **détecter et localiser
+précisément** des modifications perceptuelles apportées à un contenu numérique.
+L'objectif n'est pas d'identifier un propriétaire, mais de **vérifier l'intégrité**
+du contenu.
+
+::: {.callout-tip title="Intuition — La preuve forensique"}
+Imaginez une photographie utilisée comme preuve judiciaire dans un procès.
+La détection de falsification permet de garantir cryptographiquement que cette photo
+n'a pas été retouchée (ajout, suppression ou déplacement d'éléments) depuis sa prise
+de vue originale.
+:::
+
+#### Exigences techniques
+
+- **Clé** : garantit que les régions vérifiées correspondent bien au contenu original
+  et non à une version falsifiée
+- **Capacité élevée** : il faut intégrer suffisamment d'information pour **localiser
+  précisément** (au bloc près) les zones modifiées
+- **Compromis robustesse / capacité** : incorporer plus d'information permet une
+  localisation plus précise des falsifications, mais réduit la robustesse globale
+  du tatouage
+
+#### Applications concrètes
+
+- **Vérification de contenu** : s'assurer qu'un document ou une image n'a pas été altéré
+  depuis sa création
+- **Analyse forensique numérique (Digital Forensics)** : dans les enquêtes judiciaires,
+  vérifier l'authenticité et l'intégrité d'une preuve numérique
+- **Authentification d'image** : dans les contextes médicaux (radio, scanner), journalistiques
+  ou légaux
+
+#### Techniques d'implémentation
+
+**Méthode à base de clé (Key-based Technique)** : une clé symétrique est utilisée pour
+diviser l'image en régions et incorporer une empreinte locale à chaque région.
+À la vérification, les empreintes extraites sont comparées à celles recalculées pour
+identifier les blocs falsifiés.
+
+**Méthode à base de compression (Compression-based Technique)** : le contenu original
+est haché ou compressé localement, puis l'empreinte résultante est réincorporée dans
+l'image elle-même. Lors de la vérification, on compare l'empreinte extraite à celle
+recalculée depuis le contenu actuel.
+
+## Défis et compromis du tatouage numérique
+
+### Le triangle fondamental
+
+Tout système de tatouage numérique doit gérer un **compromis inévitable** entre
+trois propriétés antagonistes :
+
+```{mermaid}
+graph TD
+    R["⚡ Robustesse\n(Robustness)"]
+    C["📦 Capacité\n(Capacity)"]
+    P["👁️ Imperceptibilité\n(Perceptual Invisibility)"]
+    R --- C
+    C --- P
+    P --- R
+    style R fill:#ff9999
+    style C fill:#99ccff
+    style P fill:#99ff99
+```
+
+- **Robustesse (Robustness)** : résilience aux transformations — compression, bruit,
+  rotations, recadrage, cisaillement
+- **Capacité (Capacity)** : quantité maximale d'information incorporable tout en
+  maintenant la qualité visuelle acceptable
+- **Imperceptibilité (Perceptual Invisibility)** : le tatouage doit rester totalement
+  invisible à l'œil humain
+
+À ces trois propriétés s'ajoute une quatrième dimension critique :
+
+- **Sécurité (Security)** : résistance aux attaques adversariales et aux tentatives
+  de divulgation de la clé (*leakage attacks*)
+
+::: {.callout-warning title="Compromis inévitable"}
+Augmenter la capacité d'un tatouage (incorporer plus de bits) se fait généralement au
+détriment de la robustesse ou de l'imperceptibilité.
+
+Exemple : un tatouage de tamper detection (haute capacité) sera moins robuste qu'un
+tatouage de copyright (faible capacité). Il n'existe pas de solution parfaite sur les
+quatre axes simultanément.
+:::
+
+### Classification selon le problème de détection
+
+**Tatouage zéro-bit (Zero-bit Watermarking)** : il s'agit d'un problème de **détection
+binaire** (oui/non). On cherche uniquement à déterminer si un contenu a été marqué
+ou non, sans extraire de message.
+
+::: {.callout-tip title="Intuition — Tatouage zéro-bit"}
+C'est comme détecter la présence d'une signature à l'encre invisible : on sait
+si elle est là ou pas, mais la signature ne contient pas de message textuel.
+:::
+
+**Tatouage M-bits (M-bit Watermarking)** : il s'agit d'un problème de **décodage**.
+On cherche à extraire les M bits d'information incorporés (un identifiant, un numéro
+de série, une date…). Techniquement plus complexe que la simple détection.
+
+### Domaines d'implémentation
+
+Les tatouages numériques peuvent être incorporés dans différents domaines de
+représentation du signal :
+
+**Méthodes additives** : un signal de tatouage est ajouté directement dans le domaine
+spatial ou fréquentiel (Transformée en Cosinus Discrète DCT, Transformée en Ondelettes
+Discrètes DWT). Exemple : ajouter un motif pseudo-aléatoire à pondération masquée.
+
+**Méthodes par quantification (Quantization Methods)** : les coefficients de la
+transformée sont modifiés par quantification pour encoder les bits. La technique
+Quantization Index Modulation (QIM) est particulièrement utilisée.
+
+**Robustesse géométrique** : des mécanismes d'auto-synchronisation ou des modèles
+fondamentaux (Foundation Models) sont utilisés pour corriger les déformations
+géométriques avant l'extraction.
+
+---
+
+# Bloc 2 : Hachage Perceptuel (Perceptual Hashing)
+
+## Définition et motivation
+
+Le hachage perceptuel (Perceptual Hashing), aussi appelé **hachage robuste
+(Robust Hashing)** ou **empreinte de contenu (Content Fingerprinting)**, génère une
+**représentation compacte** d'un contenu multimédia présentant deux propriétés
+complémentaires :
+
+- **Robuste aux distorsions** : l'empreinte reste similaire si le contenu subit des
+  transformations mineures (compression, bruit, recadrage léger)
+- **Discriminante** : l'empreinte est significativement différente pour des contenus
+  perceptuellement distincts
+
+::: {.callout-tip title="Intuition — La mémoire humaine des visages"}
+Le hachage perceptuel fait pour les médias numériques ce que la mémoire humaine fait
+pour les visages : vous reconnaissez un visage même si la photo est légèrement floue,
+surexposée, ou prise sous un angle différent.
+
+L'empreinte perceptuelle capture l'**essence** du contenu — sa signature sémantique —
+et non sa représentation exacte bit-à-bit.
+:::
+
+## Architecture d'un système de hachage perceptuel
+
+### Modèle du Canal Symétrique Binaire
+
+Le système de hachage perceptuel modélise l'effet des distorsions sur l'empreinte
+comme un **Canal Symétrique Binaire (Binary Symmetric Channel, BSC)**.
+
+```{mermaid}
+flowchart TD
+    X["Image originale x"] --> F1["Extraction d'empreinte\nFingerprint"]
+    K1["Clé k"] --> F1
+    F1 --> BX["Empreinte binaire b_x\n{0,1}^L"]
+    BX --> BSC["Canal Symétrique Binaire BSC\ntaux d'erreur p_b"]
+
+    X --> PROC["Distorsion / Traitement\np(y|x)"]
+    PROC --> Y["Image distordue y"]
+    Y --> F2["Extraction d'empreinte\nFingerprint"]
+    K2["Clé k"] --> F2
+    F2 --> BY["Empreinte binaire b_y\n{0,1}^L"]
+    BSC --> BY
+```
+
+### Interprétation du modèle
+
+La distorsion de l'image introduit des **erreurs aléatoires** dans l'empreinte binaire,
+modélisées par le paramètre p_b du canal BSC (probabilité qu'un bit soit retourné).
+
+Si p_b est faible → les empreintes b_x et b_y sont proches → le contenu est reconnu
+comme similaire.
+
+Si p_b est élevé → les empreintes divergent trop → le contenu est considéré différent.
+
+## Propriété d'irréversibilité
+
+Une propriété fondamentale et délibérée du hachage perceptuel est son
+**irréversibilité (Irreversibility)**.
+
+Connaissant uniquement l'empreinte b_x d'une image, et tentant de reconstruire l'image
+originale x sans connaître la clé k, un attaquant n'obtient qu'une estimation très
+dégradée x̂ — pratiquement inutilisable.
+
+::: {.callout-note title="À retenir — Irréversibilité et vie privée biométrique"}
+L'irréversibilité est essentielle pour la **confidentialité des données biométriques
+(Privacy-Preserving Biometrics)**.
+
+Stocker l'empreinte perceptuelle d'un visage plutôt que l'image du visage lui-même
+ne permet pas de reconstruire ce visage — même pour le gestionnaire de la base de
+données.
+:::
+
+## Exigences d'un système de hachage perceptuel
+
+### Robustesse (Robustness)
+
+Le système doit gérer deux types de perturbations :
+
+**Perturbations de traitement d'image** :
+
+- Compression (JPEG, JPEG2000)
+- Ajout de bruit additif aléatoire
+- Variations d'illumination et de contraste
+
+**Transformations géométriques** :
+
+- Rotation et cisaillement (Rotation / Shearing)
+- Mise à l'échelle (Scaling)
+- Recadrage partiel (Cropping)
+
+### Compacité (Compactness)
+
+Les empreintes doivent être **courtes et compactes** pour permettre un stockage et
+une comparaison efficaces à grande échelle. Deux familles de représentations quantifiées
+sont utilisées :
+
+- **Quantification vectorielle (Vector Quantization)** : regrouper les vecteurs de
+  caractéristiques en clusters discrets, chaque cluster étant identifié par un indice
+- **Quantification binaire (Binary Quantization)** : projeter les vecteurs en séquences
+  de 0 et 1, permettant l'utilisation de la distance de Hamming pour la comparaison
+
+### Sécurité (Security)
+
+Le système doit résister aux **attaques adversariales et aux falsifications d'empreinte
+(Hash Forgery)** :
+
+- **Faux négatifs (False Negatives)** : un contenu illicite est modifié de manière à
+  produire une empreinte différente de celle connue — l'attaquant "efface sa trace"
+- **Faux positifs (False Positives)** : un contenu innocent est manipulé pour avoir
+  la même empreinte qu'un contenu connu — l'attaquant "usurpe" une identité
+
+### Irréversibilité (Irreversibility)
+
+L'empreinte ne doit **révéler aucune information** sur le contenu original.
+Cette propriété est critique pour :
+
+- La biométrie préservant la vie privée (Privacy-Preserving Biometrics)
+- La recherche multimédia sécurisée (Secure Multimedia Retrieval)
+- Le stockage sécurisé de données sensibles
+
+### Conformité (Compliance)
+
+Le système doit respecter les réglementations en vigueur relatives à l'IA responsable,
+notamment le RGPD et le Règlement européen sur l'IA (EU AI Act).
+
+## Applications du hachage perceptuel
+
+### Recherche préservant la vie privée (Privacy-Preserving Retrieval)
+
+Rechercher du contenu similaire dans une base de données **sans révéler le contenu
+de la requête** elle-même.
+
+Exemple concret : vérifier si une image contenue dans un message chiffré correspond
+à du contenu illicite répertorié, sans jamais déchiffrer le message ni exposer l'image.
+
+### Authentification de contenu (Content Authentication)
+
+Identifier si un contenu a été altéré en comparant son empreinte perceptuelle à une
+empreinte de référence stockée en lieu sûr. Contrairement au hachage cryptographique,
+cette comparaison tolère les distorsions légitimes.
+
+### Bases de données vectorielles (Vector Databases)
+
+Stocker de manière compacte et efficace les représentations extraites par des réseaux
+de neurones, pour permettre une **recherche par similarité à grande échelle** portant
+sur des milliards d'images en temps quasi-réel.
+
+---
+
+# Insuffisance des méthodes classiques de protection de la vie privée
+
+## Méthodes traditionnelles de protection
+
+Les approches classiques de protection de la vie privée se divisent en deux grandes
+familles :
+
+**Techniques de dégradation et randomisation des données (Data Degradation and
+Randomization)** :
+
+- Ajout de bruit (Noise Addition)
+- Compression avec perte (Lossy Compression)
+- Réduction de dimensionnalité (Dimensionality Reduction)
+- Suppression de données (Data Removal)
+
+**Techniques d'anonymisation (Anonymization Techniques)** :
+
+- Confidentialité différentielle (Differential Privacy)
+- Règles de randomisation (Randomized Rules)
+
+## Pourquoi ces méthodes sont insuffisantes à l'ère de l'IA
+
+Ces approches classiques présentent une vulnérabilité critique face aux techniques
+modernes d'intelligence artificielle générative.
+
+**Le problème fondamental** : les modèles génératifs (GANs, Diffusion Models, etc.)
+peuvent **reconstruire** des données dégradées ou anonymisées avec une fidélité
+surprenante, à partir même d'une information partielle.
+
+::: {.callout-warning title="Menace concrète — Reconstruction biométrique par IA"}
+Même une divulgation **partielle** d'information peut compromettre la vie privée de
+manière significative.
+
+Exemple illustratif : une image médicale (radiographie pulmonaire) dont 50% des pixels
+ont été supprimés selon une clé secrète peut être reconstruite visuellement de manière
+très fidèle par un attaquant utilisant simplement un filtre médian (9×9) suivi d'une
+reconstruction adaptative — sans connaître la clé.
+:::
+
+**Exemples d'attaques par reconstruction** :
+
+- Reconstruction de gabarits biométriques (visages, empreintes digitales, iris) à partir
+  de représentations dégradées ou partiellement masquées
+- Désanonymisation de données textuelles ou tabulaires par inférence contextuelle
+- Reconstruction d'images médicales sensibles à partir de métadonnées résiduelles
+
+## Vers des solutions robustes
+
+Face à ces limites, de nouvelles approches sont nécessaires, combinant plusieurs
+paradigmes :
+
+- **Hachage perceptuel robuste** : stocker des empreintes irréversibles plutôt que
+  les données brutes — la reconstruction de l'original est computationnellement
+  impossible
+- **Techniques cryptographiques avancées** : cryptographie homomorphe (Homomorphic
+  Encryption), preuves à divulgation nulle de connaissance (Zero-Knowledge Proofs)
+- **Protections guidées par l'IA** : utiliser des modèles adversariaux pour anticiper
+  et contrecarrer les tentatives de reconstruction
+
+---
+
+# Bloc 3 : Sécurité des Modèles Fondamentaux (Foundation Models Security)
+
+## Définition des modèles fondamentaux
+
+Les modèles fondamentaux (Foundation Models) sont des **réseaux de neurones à très
+grande échelle**, entraînés sur des jeux de données massifs et diversifiés.
+Ils apprennent des représentations robustes et généralisables, transférables à de
+nombreuses tâches en aval (downstream tasks).
+
+**Deux grandes catégories** :
+
+- **Modèles d'apprentissage de représentation (Representation Learning Models)** :
+  encodent les données dans un espace latent compact et sémantiquement riche.
+  Exemples : CLIP, DINO, ViT (Vision Transformer)
+- **Modèles génératifs (Generative Models)** : génèrent du contenu multimédia nouveau
+  (texte, images, vidéos, audio) à partir de descriptions ou d'exemples.
+  Exemples : GPT, Stable Diffusion, DALL-E, Sora
+
+## L'apprentissage de représentation
+
+### Principe fondamental
+
+Un modèle d'apprentissage de représentation (Representation Learning) est un encodeur
+$f_{\phi}$ qui transforme une entrée x (image, texte, audio) en une
+**représentation latente z_x** de dimension fixe et réduite.
+
+```{mermaid}
+flowchart LR
+    X["Entrée x\n(image, texte, audio)"] --> F["Encodeur f_φ\n(Réseau de neurones)"]
+    F --> Z["Représentation latente z_x\n[CLS] — dimension réduite"]
+```
+
+Le token [CLS] (vecteur de classification) capture l'**essence sémantique** du contenu
+dans un espace de dimension bien inférieure à celle des données d'entrée.
+
+### Utilisation en sécurité multimédia
+
+Ces représentations latentes sont directement utilisées comme **empreintes perceptuelles**
+dans des systèmes de :
+
+- Recherche par similarité sémantique
+- Détection de contenu dupliqué ou proche
+- Tatouage numérique basé sur les caractéristiques sémantiques
+
+## Définition des attaques adversariales
+
+::: {.callout-important title="Définition — Attaque adversariale (Adversarial Attack)"}
+Une **attaque adversariale** cible les systèmes d'apprentissage profond en introduisant
+de **petites modifications imperceptibles** à l'entrée. Elle exploite la sensibilité et
+la différentiabilité du réseau pour provoquer des variations **drastiques** en sortie,
+sans que ces modifications soient détectables visuellement.
+:::
+
+La sécurité d'un modèle fondamental est donc définie comme sa **robustesse aux attaques
+adversariales**.
+
+### Caractéristiques clés des attaques adversariales
+
+- Les modifications sont **invisibles à la perception humaine** (faible erreur quadratique
+  moyenne, faible MSE)
+- L'objectif est de provoquer une **dégradation dramatique** des performances du modèle
+- Les attaques exploitent la nature **continue et différentiable** des réseaux de neurones,
+  permettant de calculer le gradient optimal de perturbation
+
+## Les deux cas d'attaques adversariales critiques
+
+La sécurité des modèles fondamentaux en contexte de hachage perceptuel se manifeste
+par deux scénarios d'attaques opposés et complémentaires.
+
+### Cas 1 — Entrées similaires → empreintes différentes
+
+**Description du scénario** : un attaquant modifie légèrement une image x₀ pour
+produire une image attaquée x_A, visuellement quasi-identique à l'original,
+mais dont l'empreinte perceptuelle est complètement différente.
+
+**Caractéristiques formelles** :
+
+- x₀ et x_A sont **proches en MSE** (les pixels ont changé de très peu)
+- Les empreintes $z_{x_0}$ et $z_{x_A}$ ont une **faible similarité cosinus**
+  dans l'espace latent
+- Les tâches de recherche, reconnaissance ou vérification **échouent silencieusement**
+
+**Implications pour la sécurité** :
+
+L'attaque compromet la **robustesse** du modèle aux petites perturbations imperceptibles.
+
+::: {.callout-warning title="Exemple d'exploitation — Cas 1"}
+Un contenu illicite (image contrefaite, deepfake) peut être légèrement perturbé de manière
+adversariale pour que le système de détection automatique ne le reconnaisse plus comme
+correspondant à un contenu interdit connu. La modification est invisible à un modérateur humain.
+
+Ce scénario est critique pour les systèmes de **contrôle de contenu** déployés à grande
+échelle sur les plateformes.
+:::
+
+### Cas 2 — Entrées dissimilaires → empreintes similaires
+
+**Description du scénario** : un attaquant crée une image x_A perceptuellement très
+différente de x₀, mais dont l'empreinte est artificiellement rendue très proche
+de celle de x₀ dans l'espace latent.
+
+**Caractéristiques formelles** :
+
+- x₀ et x_A sont **significativement différents** perceptuellement
+- Les empreintes $z_{x_0}$ et $z_{x_A}$ ont une **haute similarité cosinus**
+- Cela provoque de **fausses correspondances (false matches)** ou des résultats
+  de récupération erronés
+
+**Implications pour la sécurité** :
+
+L'attaque exploite des **vulnérabilités de la représentation latente** du modèle fondamental.
+
+::: {.callout-warning title="Exemple d'exploitation — Cas 2"}
+Une image différente peut être manipulée pour usurper l'identité biométrique d'une personne.
+Le système d'authentification accepte un imposteur car son empreinte dans l'espace latent
+a été artificiellement rendue similaire à celle de la personne légitime.
+
+Ce scénario est critique pour les systèmes de **contrôle aux frontières**, de **paiement
+biométrique** et de **contrôle d'accès**.
+:::
+
+## Importance systémique de la sécurité des modèles fondamentaux
+
+Les modèles fondamentaux sont aujourd'hui au cœur de nombreuses applications critiques
+de sécurité multimédia :
+
+- **Tatouage numérique** : les systèmes modernes utilisent des encodeurs ViT/CLIP
+  comme extracteurs de caractéristiques
+- **Biométrie** : reconnaissance faciale, d'iris et d'empreintes digitales
+- **Détection de deepfakes** : identification de contenus générés par IA
+- **Systèmes de recherche** : moteurs de recherche d'images par similarité sémantique
+
+::: {.callout-important title="Enjeu systémique"}
+La compromission d'un modèle fondamental largement déployé par des attaques adversariales
+représente une **menace systémique** pour l'ensemble des applications qui s'appuient sur lui.
+Contrairement aux systèmes classiques où une vulnérabilité affecte un composant isolé,
+ici une vulnérabilité du modèle se propage à tous ses usages en aval.
+:::
+
+---
+
+# Bloc 4 : Préservation de la Vie Privée (Privacy Preservation)
+
+## Définition et enjeux
+
+La préservation de la vie privée (Privacy Preservation) désigne l'ensemble des techniques
+permettant de **sécuriser des données sensibles** — notamment les identifiants biométriques
+— contre toute utilisation abusive, tout en maintenant leur utilisabilité pour des tâches
+d'authentification ou de recherche.
+
+::: {.callout-tip title="Intuition — Le défi de la biométrie sécurisée"}
+Le défi central est le suivant : permettre à un système de répondre à la question
+"est-ce bien la même personne ?" sans jamais stocker ni manipuler les données biométriques
+brutes.
+
+C'est analogue à la vérification d'un mot de passe par son hachage : le serveur vérifie
+sans connaître le mot de passe. Mais ici, les données sont **continues et bruitées**
+(un visage n'est jamais capturé deux fois de manière strictement identique), ce qui
+rend le problème bien plus difficile.
+:::
+
+## Techniques principales
+
+### Méthodes à base de base de données auxiliaire (Helper Database Methods)
+
+Ces méthodes utilisent une **base de données auxiliaire (helper data)** pour permettre
+une comparaison sécurisée sans révéler les données biométriques brutes.
+
+Le système opère sur des représentations transformées de manière irréversible.
+La base auxiliaire contient des informations nécessaires à la vérification mais
+insuffisantes pour reconstruire le gabarit original.
+
+### Tests de groupe (Group Testing)
+
+Technique probabiliste permettant de détecter des individus "positifs" dans une
+population en testant des **groupes** plutôt que des individus séparément.
+
+Cette approche réduit les informations révélées lors de chaque requête, car une
+réponse négative sur un groupe de N personnes ne révèle l'identité d'aucune d'entre elles.
+
+### Schémas d'engagement flou (Fuzzy Commitment Schemes)
+
+Ces schémas cryptographiques combinent :
+
+- Un **engagement cryptographique (Cryptographic Commitment)** sur le gabarit biométrique
+- Une **tolérance aux variations (Fuzzy)** inhérente aux mesures biométriques
+  (les variations intra-classe d'un même doigt ou visage)
+
+Le schéma permet de **vérifier une correspondance** sans jamais déchiffrer le gabarit
+stocké. Le serveur apprend uniquement si la correspondance est établie, rien de plus.
+
+## Applications concrètes
+
+**Contrôle aux frontières (Border Control)** : vérification biométrique (passeports,
+visas, e-gates) sans stocker les empreintes digitales ou les images faciales en clair
+dans des bases de données centralisées potentiellement vulnérables aux attaques.
+
+**Transactions financières (Financial Transactions)** : authentification biométrique
+pour les paiements sans contact, sans exposer les gabarits biométriques aux systèmes
+de paiement ou aux commerçants.
+
+---
+
+# Conclusion et perspectives
+
+## Récapitulatif du cours
+
+Ce cours propose un panorama complet et cohérent des techniques de sécurité et de
+protection de la vie privée spécifiquement conçues pour les contenus multimédias.
+
+La progression thématique suit une logique de complexité croissante :
+
+1. **Tatouage numérique** → incorporer de l'information dans le contenu pour assurer
+   traçabilité et intégrité
+2. **Hachage perceptuel** → extraire une empreinte compacte et robuste pour la
+   reconnaissance et l'authentification
+3. **Sécurité des modèles fondamentaux** → protéger les représentations apprises contre
+   les attaques adversariales
+4. **Préservation de la vie privée** → protéger les données biométriques sensibles tout
+   en maintenant leur utilisabilité
+
+## Méthodologie pédagogique
+
+La formation articule trois approches complémentaires :
+
+- **Introduction à la théorie et aux défis** : comprendre le "pourquoi" avant le "comment" —
+  les motivations et limitations qui justifient chaque technique
+- **Formulations mathématiques détaillées** : modéliser rigoureusement les problèmes
+  (théorie de l'information, théorie des jeux, apprentissage statistique)
+- **Exemples basés sur Python** : implémenter et visualiser les concepts pour développer
+  une intuition pratique des algorithmes
+
+## Compétences visées à l'issue du cours
+
+À la fin de ce cours, vous serez capables de :
+
+- Expliquer et comparer les mécanismes fondamentaux du tatouage numérique et du hachage
+  perceptuel
+- Analyser les vulnérabilités des systèmes de sécurité multimédia face aux attaques
+  adversariales et aux techniques d'IA générative
+- Concevoir des solutions adaptées aux contraintes de robustesse, capacité, imperceptibilité
+  et sécurité
+- Implémenter des algorithmes de sécurité multimédia en Python avec les bibliothèques
+  numpy, opencv et scikit-image
+- Appréhender les enjeux réglementaires (RGPD, EU AI Act) liés à la sécurité multimédia
+
+::: {.callout-note title="À retenir — Vue d'ensemble du domaine"}
+La sécurité multimédia est une discipline à l'intersection de la **théorie de
+l'information**, de la **cryptographie**, du **traitement du signal** et de
+l'**apprentissage automatique (Machine Learning)**.
+
+Sa maîtrise est devenue une compétence stratégique à l'ère des deepfakes, de l'IA
+générative et des réglementations numériques croissantes.
+:::
