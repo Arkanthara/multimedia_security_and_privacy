@@ -25,30 +25,27 @@ website:
           - section: "Chapitre 1 : Introduction"
             contents:
               - text: "Détails"
-                href: ch1c.qmd
-              - ch1.qmd
-              - text: "Synthèse"
-                href: ch1r.qmd
+                href: ch1.qmd
+              # - text: "Synthèse"
+              #   href: ch1r.qmd
           - section: "Chapitre 2 : Notations et Concepts"
             contents:
               - text: "Détails"
-                href: ch2c.qmd
+                href: ch2.qmd
               - text: "Synthèse"
                 href: ch2r.qmd
           - section: "Chapitre 3 : Digital Watermarking"
             contents:
               - text: "Détails"
-                href: ch3c.qmd
-              - ch3.qmd
+                href: ch3.qmd
               - text: "Synthèse"
                 href: ch3r.qmd
           - section: "Chapitre 4 : Protection de la Vie Privée"
             contents:
               - text: "Détails"
-                href: ch4c.qmd
-              - ch4.qmd
-              - text: "Synthèse"
-                href: ch4r.qmd
+                href: ch4.qmd
+              # - text: "Synthèse"
+              #   href: ch4r.qmd
 
 format:
   html:
