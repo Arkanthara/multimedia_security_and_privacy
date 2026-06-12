@@ -156,8 +156,9 @@
 #figure(
   {
     let nodes = (
-      table-node("p", title: "", rows: 1, columns: 1, cell-size: (1,1), cells: ([p]), cell-aligns: ((center + horizon,)),  cell-shift: (0em, -0.2em), cell-text-size: 1em),
-      table-node("p_upsampled", title: "", rows: 1, columns: 1,  cell-size: (2,2), cells: ([p]), cell-aligns: ((center + horizon,)), cell-shift: (0em, -0.4em), cell-text-size: 2em),
+      table-node("init", title: "Initial patch", caption-pos: "top", title-gap: 0.5em, rows: 1, columns: 1, cell-size: (1,1), cells: ([]), cell-aligns: ((center + horizon,)),  cell-shift: (0em, -0.2em), cell-text-size: 1em),
+      table-node("p", title: "", rows: 1, columns: 1, cell-size: (1,1), cells: ([p]), cell-aligns: ((center + horizon,)),  cell-shift: (0em, -0.2em), cell-text-size: 1em, pos: below("init", by: 2)),
+      table-node("p_upsampled", title: "", rows: 1, columns: 1,  cell-size: (2,2), cells: ([p]), cell-aligns: ((center + horizon,)), cell-shift: (0em, -0.4em), cell-text-size: 2em, pos: below("p")),
       table-node(
         "p_padded",
         title: "",
@@ -169,6 +170,7 @@
         cell-shift: (0em, -0.5em), // base shift for all cells
         row-shifts: ((0em, 0em), (0em, 0.5em)), // second row only
         cell-text-size: 2em,
+        pos: below("p_upsampled")
       ),
       table-node(
         "p_final",
@@ -201,6 +203,7 @@
       ),
     )
     let edges = (
+      ml-edge("init", "p", label: "Watermark embedding"),
       ml-edge("p", "p_upsampled", label: "Upsampling"),
       ml-edge("p_upsampled", "p_padded", label: "Padding"),
       ml-edge("p_padded", "p_final", label: "Image padding"),
@@ -213,14 +216,52 @@
 
 = Decoding
 
-#figure(
-  {
-    let nodes = (
-      image-node("tangled", src: src_dir + "/img/tangled_2.png", cover: true, title: "", image-size: (6, 8), pos: explicit-pos(0, y: 0)),
-    )
-    ml-diagram(nodes, spacing: 1em, label-size: 0.7em)
-  }
-)
+#tblock(title: "Decoding process")[
+  - Denoising
+  - Direct decoding (baseline)
+  - Synchronization
+  - Patch extraction
+  - Message recovery
+  - Return best of both decoding paths
+]
+
+#pagebreak()
+
+#tblock(title: "Synchronization process")[
+  - Crop (for speed)
+  - Autocorrelation
+  - Peak detection
+  - Select reference peaks
+  - Get rotation and scaling parameters
+  - Apply inverse transform
+  - Get translation and patch orientation
+  - Apply inverse transform
+]
+
+#pagebreak()
+
+#tblock(title: "Patch extraction process")[
+  - Divide residual into patches
+  - Sum up patches
+  - positive = 1, negative = 0
+  - Get confidence score (mean of absolute values in patch)
+  - Return bit sequence and confidence scores
+]
+
+// #figure(
+//   {
+//     let nodes = (
+//       image-node("tangled", src: src_dir + "/img/tangled_2.png", cover: true, title: "", image-size: (3, 4)),
+//       arrow-node("denoising", title: "Denoising", pos: right-of("tangled")),
+//       arrow-node("autocor", title: "Autocorrelation", pos: right-of("denoising")),
+//       arrow-node("peak-detection", title: "Peak detection", pos: right-of("autocor")),
+//       arrow-node("synchronization", title: "Synchronization", pos: right-of("peak-detection")),
+//       module("lsb-extraction", title: "LSB extraction", pos: right-of("synchronization")),
+//       module("bit-decoding", title: "Bit decoding", pos: right-of("lsb-extraction")),
+//     )
+//     ml-diagram(nodes, spacing: 1em, label-size: 0.7em)
+//   }
+// )
 
 
 
